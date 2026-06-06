@@ -9,6 +9,8 @@ const inter = Inter({
   display: 'swap',
 })
 
+const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'https://clarendonelitecup.com'
+
 export const metadata: Metadata = {
   title: {
     default: 'Clarendon Elite Cup',
@@ -16,11 +18,13 @@ export const metadata: Metadata = {
   },
   description: 'The official platform for the Clarendon Elite Cup charity football league. Live scores, fixtures, news, and more.',
   keywords: ['Clarendon Elite Cup', 'football', 'charity', 'Jamaica', 'soccer', 'league'],
+  metadataBase: new URL(APP_URL),
   openGraph: {
     type: 'website',
-    locale: 'en_US',
+    locale: 'en_GB',
+    url: APP_URL,
     title: 'Clarendon Elite Cup',
-    description: 'The official platform for the Clarendon Elite Cup charity football league.',
+    description: 'The official platform for the Clarendon Elite Cup charity football league. Live scores, fixtures, news, and more.',
     siteName: 'Clarendon Elite Cup',
   },
   twitter: {
@@ -31,6 +35,9 @@ export const metadata: Metadata = {
   robots: {
     index: true,
     follow: true,
+  },
+  alternates: {
+    canonical: APP_URL,
   },
 }
 

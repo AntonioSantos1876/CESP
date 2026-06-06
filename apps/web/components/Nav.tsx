@@ -2,11 +2,11 @@
 
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import {
   Trophy, Home, Calendar, Users, Newspaper, Heart,
-  ShoppingBag, Radio, User, LogOut, Menu, X, ChevronDown
+  ShoppingBag, Radio, User, LogOut, Menu, X, ChevronDown, Bell,
 } from 'lucide-react'
 
 const navLinks = [
@@ -28,6 +28,35 @@ export function Nav({ user }: NavProps) {
   const router = useRouter()
   const [mobileOpen, setMobileOpen] = useState(false)
   const [profileOpen, setProfileOpen] = useState(false)
+  const [unreadCount, setUnreadCount] = useState(0)
+  const [bellOpen, setBellOpen] = useState(false)
+  const [notifications, setNotifications] = useState<{ id: string; title: string; body: string; is_read: boolean; sent_at: string }[]>([])
+
+  useEffect(() => {
+    if (!user) return
+    const supabase = createClient()
+    async function fetchNotifs() {
+      const { data } = await (supabase as any)
+        .from('notifications')
+        .select('id, title, body, is_read, sent_at')
+        .order('sent_at', { ascending: false })
+        .limit(10)
+      if (data) {
+        setNotifications(data)
+        setUnreadCount(data.filter((n: { is_read: boolean }) => !n.is_read).length)
+      }
+    }
+    fetchNotifs()
+  }, [user])
+
+  async function markAllRead() {
+    const supabase = createClient()
+    const unreadIds = notifications.filter(n => !n.is_read).map(n => n.id)
+    if (unreadIds.length === 0) return
+    await (supabase as any).from('notifications').update({ is_read: true }).in('id', unreadIds)
+    setNotifications(prev => prev.map(n => ({ ...n, is_read: true })))
+    setUnreadCount(0)
+  }
 
   async function handleSignOut() {
     const supabase = createClient()
@@ -72,6 +101,47 @@ export function Nav({ user }: NavProps) {
 
         {/* Right side */}
         <div className="flex items-center gap-2">
+          {/* Notification bell */}
+          {user && (
+            <div className="relative">
+              <button
+                onClick={() => { setBellOpen(v => !v); if (!bellOpen) markAllRead() }}
+                aria-label="Notifications"
+                className="relative p-2 rounded-xl text-text-secondary hover:text-text-primary hover:bg-bg-hover transition-colors"
+              >
+                <Bell size={18} />
+                {unreadCount > 0 && (
+                  <span className="absolute top-1 right-1 w-4 h-4 rounded-full bg-brand-primary text-white text-[10px] font-bold flex items-center justify-center leading-none">
+                    {unreadCount > 9 ? '9+' : unreadCount}
+                  </span>
+                )}
+              </button>
+              {bellOpen && (
+                <>
+                  <div className="fixed inset-0 z-10" onClick={() => setBellOpen(false)} />
+                  <div className="absolute right-0 top-full mt-2 w-80 bg-bg-card border border-bg-border rounded-xl shadow-card z-20 overflow-hidden">
+                    <div className="flex items-center justify-between px-4 py-3 border-b border-bg-border">
+                      <p className="text-sm font-semibold text-text-primary">Notifications</p>
+                    </div>
+                    {notifications.length === 0 ? (
+                      <p className="px-4 py-6 text-sm text-text-muted text-center">No notifications.</p>
+                    ) : (
+                      <div className="max-h-80 overflow-y-auto">
+                        {notifications.map(n => (
+                          <div key={n.id} className={`px-4 py-3 border-b border-bg-border last:border-0 ${!n.is_read ? 'bg-brand-primary/5' : ''}`}>
+                            <p className="text-sm font-medium text-text-primary">{n.title}</p>
+                            <p className="text-xs text-text-muted mt-0.5">{n.body}</p>
+                            <p className="text-[10px] text-text-muted mt-1">{new Date(n.sent_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}</p>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </>
+              )}
+            </div>
+          )}
+
           {user ? (
             <div className="relative">
               <button
