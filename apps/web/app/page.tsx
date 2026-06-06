@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { motion, useScroll, useTransform, useInView, useMotionValue, animate } from 'framer-motion'
+import { motion, useScroll, useTransform, useInView } from 'framer-motion'
 import { useRef, useEffect, useState } from 'react'
 import {
   Trophy, Zap, Users, Camera, Heart, ShoppingBag, ChevronRight,
@@ -19,20 +19,23 @@ const features = [
 
 function CountUp({ target, suffix = '' }: { target: number; suffix?: string }) {
   const ref = useRef<HTMLSpanElement>(null)
-  const motionValue = useMotionValue(0)
-  const isInView = useInView(ref, { once: true, margin: '-60px' })
+  const isInView = useInView(ref, { once: true, margin: '0px' })
+  const started = useRef(false)
 
   useEffect(() => {
-    if (!isInView) return
-    const controls = animate(motionValue, target, {
-      duration: 1.8,
-      ease: [0.22, 1, 0.36, 1],
-      onUpdate(v) {
-        if (ref.current) ref.current.textContent = Math.floor(v).toString()
-      },
-    })
-    return () => controls.stop()
-  }, [isInView, target, motionValue])
+    if (!isInView || started.current) return
+    started.current = true
+    const duration = 1800
+    const startTime = performance.now()
+    function tick(now: number) {
+      const elapsed = now - startTime
+      const progress = Math.min(elapsed / duration, 1)
+      const eased = 1 - Math.pow(1 - progress, 3)
+      if (ref.current) ref.current.textContent = Math.floor(eased * target).toString()
+      if (progress < 1) requestAnimationFrame(tick)
+    }
+    requestAnimationFrame(tick)
+  }, [isInView, target])
 
   return (
     <span className="text-3xl font-bold text-gradient">
