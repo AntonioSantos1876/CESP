@@ -1,8 +1,8 @@
 'use client'
 
 import Link from 'next/link'
-import { motion, useScroll, useTransform, useInView } from 'framer-motion'
-import { useRef } from 'react'
+import { motion, useScroll, useTransform, useInView, useMotionValue, animate } from 'framer-motion'
+import { useRef, useEffect, useState } from 'react'
 import {
   Trophy, Zap, Users, Camera, Heart, ShoppingBag, ChevronRight,
   Calendar, Radio, ArrowDown
@@ -17,12 +17,29 @@ const features = [
   { icon: ShoppingBag, title: 'Merch Store', description: 'Official Clarendon Elite Cup merchandise.' },
 ]
 
-const stats = [
-  { value: '12', label: 'Teams' },
-  { value: '84+', label: 'Matches Played' },
-  { value: '2K+', label: 'Fans' },
-  { value: '100%', label: 'Charity' },
-]
+function CountUp({ target, suffix = '' }: { target: number; suffix?: string }) {
+  const ref = useRef<HTMLSpanElement>(null)
+  const motionValue = useMotionValue(0)
+  const isInView = useInView(ref, { once: true, margin: '-60px' })
+
+  useEffect(() => {
+    if (!isInView) return
+    const controls = animate(motionValue, target, {
+      duration: 1.8,
+      ease: [0.22, 1, 0.36, 1],
+      onUpdate(v) {
+        if (ref.current) ref.current.textContent = Math.floor(v).toString()
+      },
+    })
+    return () => controls.stop()
+  }, [isInView, target, motionValue])
+
+  return (
+    <span className="text-3xl font-bold text-gradient">
+      <span ref={ref}>0</span>{suffix}
+    </span>
+  )
+}
 
 function FadeInWhenVisible({
   children,
@@ -63,6 +80,22 @@ export default function HomePage() {
   const { scrollYProgress } = useScroll({ target: heroRef, offset: ['start start', 'end start'] })
   const heroY = useTransform(scrollYProgress, [0, 1], [0, 120])
   const heroOpacity = useTransform(scrollYProgress, [0, 0.6], [1, 0])
+
+  const [teamCount, setTeamCount] = useState<number>(12)
+
+  useEffect(() => {
+    fetch('/api/stats')
+      .then(r => r.ok ? r.json() : null)
+      .then(data => { if (data?.teams > 0) setTeamCount(data.teams) })
+      .catch(() => {})
+  }, [])
+
+  const stats: { num: number; suffix: string; label: string }[] = [
+    { num: teamCount, suffix: '', label: 'Teams' },
+    { num: 84, suffix: '+', label: 'Matches Played' },
+    { num: 2, suffix: 'K+', label: 'Fans' },
+    { num: 100, suffix: '%', label: 'Charity' },
+  ]
 
   return (
     <main className="min-h-screen bg-bg-base overflow-x-hidden">
@@ -157,10 +190,12 @@ export default function HomePage() {
       {/* Stats strip */}
       <section className="border-y border-bg-border bg-bg-card/40">
         <div className="container-cesp py-10 grid grid-cols-2 md:grid-cols-4 gap-6">
-          {stats.map(({ value, label }, i) => (
+          {stats.map(({ num, suffix, label }, i) => (
             <FadeInWhenVisible key={label} delay={i * 0.1}>
               <div className="text-center">
-                <div className="text-3xl font-bold text-gradient mb-1">{value}</div>
+                <div className="mb-1">
+                  <CountUp target={num} suffix={suffix} />
+                </div>
                 <div className="text-sm text-text-muted">{label}</div>
               </div>
             </FadeInWhenVisible>
