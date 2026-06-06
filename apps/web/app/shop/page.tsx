@@ -75,7 +75,7 @@ const products = [
   },
   {
     id: 7,
-    name: 'Match Day Print — Final 2025',
+    name: 'Match Day Print - Final 2025',
     price: 18,
     category: 'prints',
     badge: 'Limited',

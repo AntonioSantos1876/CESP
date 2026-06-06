@@ -114,7 +114,7 @@ export default function DonatePage() {
               ) : (
                 <span className="flex items-center gap-2">
                   <Heart size={18} />
-                  Donate £{finalAmount || '—'} now
+                  Donate £{finalAmount || '-'} now
                 </span>
               )}
             </motion.button>

@@ -4,7 +4,8 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   Radio, MessageSquare, BarChart2, Users, ChevronLeft,
-  Eye, Send, Plus, Minus, Timer, StopCircle, AlertCircle
+  Eye, Send, Plus, Minus, Timer, StopCircle, AlertCircle,
+  Pencil, Check, X,
 } from 'lucide-react'
 import Link from 'next/link'
 import { useParams } from 'next/navigation'
@@ -34,59 +35,15 @@ type ChatMessage = {
   ts: number
 }
 
+type Player = { num: number; name: string; pos: string }
+type TeamLineup = { formation: string; players: Player[] }
+type Lineups = { home: TeamLineup; away: TeamLineup }
+
 const MATCHES: Record<string, MatchData> = {
-  '9': {
-    id: 9,
-    home: 'Chapelton FC',
-    away: 'Porus United',
-    date: '2026-06-06',
-    time: '15:00',
-    venue: 'Denbigh Field',
-    homeScore: 1,
-    awayScore: 0,
-    status: 'live',
-    youtubeId: 'live_placeholder',
-    clock: "62'",
-  },
-  '4': {
-    id: 4,
-    home: 'Chapelton FC',
-    away: 'Spaldings All Stars',
-    date: '2026-06-28',
-    time: '15:00',
-    venue: 'Denbigh Field',
-    homeScore: 3,
-    awayScore: 1,
-    status: 'vod',
-    youtubeId: 'dQw4w9WgXcQ',
-    clock: 'FT',
-  },
-  '5': {
-    id: 5,
-    home: 'Rock River Rangers',
-    away: 'Porus United',
-    date: '2026-06-28',
-    time: '17:00',
-    venue: 'Rock River Ground',
-    homeScore: 2,
-    awayScore: 2,
-    status: 'vod',
-    youtubeId: 'dQw4w9WgXcQ',
-    clock: 'FT',
-  },
-  '6': {
-    id: 6,
-    home: 'Frankfield Boys',
-    away: 'Manchester United Clarendon',
-    date: '2026-06-27',
-    time: '15:30',
-    venue: 'Frankfield Park',
-    homeScore: 1,
-    awayScore: 3,
-    status: 'vod',
-    youtubeId: 'dQw4w9WgXcQ',
-    clock: 'FT',
-  },
+  '9': { id: 9, home: 'Chapelton FC', away: 'Porus United', date: '2026-06-06', time: '15:00', venue: 'Denbigh Field', homeScore: 1, awayScore: 0, status: 'live', youtubeId: 'live_placeholder', clock: "62'" },
+  '4': { id: 4, home: 'Chapelton FC', away: 'Spaldings All Stars', date: '2026-06-28', time: '15:00', venue: 'Denbigh Field', homeScore: 3, awayScore: 1, status: 'vod', youtubeId: 'dQw4w9WgXcQ', clock: 'FT' },
+  '5': { id: 5, home: 'Rock River Rangers', away: 'Porus United', date: '2026-06-28', time: '17:00', venue: 'Rock River Ground', homeScore: 2, awayScore: 2, status: 'vod', youtubeId: 'dQw4w9WgXcQ', clock: 'FT' },
+  '6': { id: 6, home: 'Frankfield Boys', away: 'Manchester United Clarendon', date: '2026-06-27', time: '15:30', venue: 'Frankfield Park', homeScore: 1, awayScore: 3, status: 'vod', youtubeId: 'dQw4w9WgXcQ', clock: 'FT' },
 }
 
 const MOCK_CHAT: ChatMessage[] = [
@@ -97,7 +54,7 @@ const MOCK_CHAT: ChatMessage[] = [
   { id: '5', author: 'PaulusR', text: 'Porus have a corner coming up...', ts: Date.now() - 30000 },
 ]
 
-const LINEUPS = {
+const DEFAULT_LINEUPS: Lineups = {
   home: {
     formation: '4-3-3',
     players: [
@@ -141,6 +98,341 @@ const STATS = [
   { label: 'Yellow Cards', home: '1', away: '2', homeVal: 1, awayVal: 2 },
 ]
 
+// ---- Pitch formation coordinates ----
+// Pitch viewBox: 0 0 100 160; home GK near y=148, away GK near y=12 (mirrored)
+const PITCH_COORDS: Record<string, { x: number; y: number }[]> = {
+  '4-3-3': [
+    {x:50,y:148},{x:15,y:118},{x:38,y:115},{x:62,y:115},{x:85,y:118},
+    {x:25,y:82},{x:50,y:76},{x:75,y:82},
+    {x:12,y:44},{x:50,y:34},{x:88,y:44},
+  ],
+  '4-4-2': [
+    {x:50,y:148},{x:15,y:118},{x:38,y:115},{x:62,y:115},{x:85,y:118},
+    {x:10,y:80},{x:37,y:78},{x:63,y:78},{x:90,y:80},
+    {x:35,y:40},{x:65,y:40},
+  ],
+  '4-2-3-1': [
+    {x:50,y:148},{x:15,y:118},{x:38,y:115},{x:62,y:115},{x:85,y:118},
+    {x:35,y:90},{x:65,y:90},
+    {x:12,y:60},{x:50,y:58},{x:88,y:60},
+    {x:50,y:34},
+  ],
+  '3-5-2': [
+    {x:50,y:148},{x:22,y:112},{x:50,y:108},{x:78,y:112},
+    {x:8,y:78},{x:30,y:80},{x:50,y:75},{x:70,y:80},{x:92,y:78},
+    {x:35,y:40},{x:65,y:40},
+  ],
+  '5-3-2': [
+    {x:50,y:148},{x:8,y:116},{x:28,y:112},{x:50,y:108},{x:72,y:112},{x:92,y:116},
+    {x:25,y:78},{x:50,y:74},{x:75,y:78},
+    {x:35,y:40},{x:65,y:40},
+  ],
+  '4-1-4-1': [
+    {x:50,y:148},{x:15,y:118},{x:38,y:115},{x:62,y:115},{x:85,y:118},
+    {x:50,y:92},
+    {x:10,y:66},{x:35,y:64},{x:65,y:64},{x:90,y:66},
+    {x:50,y:36},
+  ],
+  '4-3-2-1': [
+    {x:50,y:148},{x:15,y:118},{x:38,y:115},{x:62,y:115},{x:85,y:118},
+    {x:25,y:88},{x:50,y:84},{x:75,y:88},
+    {x:30,y:56},{x:70,y:56},
+    {x:50,y:34},
+  ],
+  '3-4-3': [
+    {x:50,y:148},{x:22,y:112},{x:50,y:108},{x:78,y:112},
+    {x:10,y:78},{x:37,y:76},{x:63,y:76},{x:90,y:78},
+    {x:12,y:42},{x:50,y:32},{x:88,y:42},
+  ],
+  '4-5-1': [
+    {x:50,y:148},{x:15,y:118},{x:38,y:115},{x:62,y:115},{x:85,y:118},
+    {x:8,y:76},{x:28,y:74},{x:50,y:72},{x:72,y:74},{x:92,y:76},
+    {x:50,y:36},
+  ],
+  '3-6-1': [
+    {x:50,y:148},{x:20,y:112},{x:50,y:108},{x:80,y:112},
+    {x:8,y:78},{x:28,y:76},{x:42,y:74},{x:58,y:74},{x:72,y:76},{x:92,y:78},
+    {x:50,y:36},
+  ],
+}
+
+const FORMATION_PRESETS = Object.keys(PITCH_COORDS)
+const ALL_POSITIONS = ['GK','CB','LB','RB','LWB','RWB','CDM','DM','CM','CAM','LM','RM','LW','RW','SS','CF','ST','WF']
+
+function mirrorCoord(c: { x: number; y: number }) {
+  return { x: 100 - c.x, y: 160 - c.y }
+}
+
+function getFallbackCoords(count: number): { x: number; y: number }[] {
+  const rows = Math.ceil(count / 4)
+  return Array.from({ length: count }, (_, i) => ({
+    x: 10 + (i % 4) * 27,
+    y: 148 - Math.floor(i / 4) * (100 / rows),
+  }))
+}
+
+function getCoords(formation: string, count: number) {
+  const known = PITCH_COORDS[formation]
+  if (known) return known.slice(0, count)
+  return getFallbackCoords(count)
+}
+
+function FootballPitch({ lineups, homeTeam, awayTeam }: {
+  lineups: Lineups
+  homeTeam: string
+  awayTeam: string
+}) {
+  const homeCoords = getCoords(lineups.home.formation, lineups.home.players.length)
+  const awayCoords = getCoords(lineups.away.formation, lineups.away.players.length)
+
+  return (
+    <svg viewBox="0 0 100 160" className="w-full max-w-[300px] mx-auto block rounded-2xl shadow-2xl overflow-hidden">
+      {/* Pitch stripes */}
+      {Array.from({ length: 10 }, (_, i) => (
+        <rect key={i} x="0" y={i * 16} width="100" height="16" fill={i % 2 === 0 ? '#14532d' : '#166534'} />
+      ))}
+      {/* Field markings */}
+      <rect x="3" y="3" width="94" height="154" fill="none" stroke="rgba(255,255,255,0.5)" strokeWidth="0.7" />
+      <line x1="3" y1="80" x2="97" y2="80" stroke="rgba(255,255,255,0.5)" strokeWidth="0.7" />
+      <circle cx="50" cy="80" r="13" fill="none" stroke="rgba(255,255,255,0.5)" strokeWidth="0.7" />
+      <circle cx="50" cy="80" r="0.9" fill="rgba(255,255,255,0.7)" />
+      {/* Home box (bottom) */}
+      <rect x="21" y="126" width="58" height="31" fill="none" stroke="rgba(255,255,255,0.5)" strokeWidth="0.7" />
+      <rect x="36" y="143" width="28" height="14" fill="none" stroke="rgba(255,255,255,0.5)" strokeWidth="0.7" />
+      <circle cx="50" cy="139" r="0.9" fill="rgba(255,255,255,0.7)" />
+      {/* Away box (top) */}
+      <rect x="21" y="3" width="58" height="31" fill="none" stroke="rgba(255,255,255,0.5)" strokeWidth="0.7" />
+      <rect x="36" y="3" width="28" height="14" fill="none" stroke="rgba(255,255,255,0.5)" strokeWidth="0.7" />
+      <circle cx="50" cy="21" r="0.9" fill="rgba(255,255,255,0.7)" />
+
+      {/* Home players (orange, attacking upward) */}
+      {lineups.home.players.map((p, i) => {
+        const c = homeCoords[i]
+        if (!c) return null
+        return (
+          <g key={`h${p.num}`}>
+            <circle cx={c.x} cy={c.y} r="5" fill="#E85D04" stroke="white" strokeWidth="0.8" />
+            <text x={c.x} y={c.y} textAnchor="middle" dominantBaseline="central" fontSize="4" fill="white" fontWeight="bold">{p.num}</text>
+            <text x={c.x} y={c.y + 8} textAnchor="middle" fontSize="2.8" fill="rgba(255,255,255,0.85)">{p.name.split(' ').slice(-1)[0]}</text>
+          </g>
+        )
+      })}
+
+      {/* Away players (blue, attacking downward - mirrored) */}
+      {lineups.away.players.map((p, i) => {
+        const raw = awayCoords[i]
+        if (!raw) return null
+        const c = mirrorCoord(raw)
+        return (
+          <g key={`a${p.num}`}>
+            <circle cx={c.x} cy={c.y} r="5" fill="#1d4ed8" stroke="white" strokeWidth="0.8" />
+            <text x={c.x} y={c.y} textAnchor="middle" dominantBaseline="central" fontSize="4" fill="white" fontWeight="bold">{p.num}</text>
+            <text x={c.x} y={c.y - 8} textAnchor="middle" fontSize="2.8" fill="rgba(255,255,255,0.85)">{p.name.split(' ').slice(-1)[0]}</text>
+          </g>
+        )
+      })}
+
+      {/* Team attack direction labels */}
+      <text x="50" y="157" textAnchor="middle" fontSize="3" fill="rgba(232,93,4,0.6)">{homeTeam.split(' ')[0]} attacking up</text>
+      <text x="50" y="7.5" textAnchor="middle" fontSize="3" fill="rgba(29,78,216,0.6)">{awayTeam.split(' ')[0]} attacking down</text>
+    </svg>
+  )
+}
+
+function LineupsTab({ lineups, setLineups, homeTeam, awayTeam, loggedIn }: {
+  lineups: Lineups
+  setLineups: (l: Lineups) => void
+  homeTeam: string
+  awayTeam: string
+  loggedIn: boolean
+}) {
+  const [editMode, setEditMode] = useState(false)
+  const [editData, setEditData] = useState<Lineups>(lineups)
+
+  function startEdit() {
+    setEditData(JSON.parse(JSON.stringify(lineups)))
+    setEditMode(true)
+  }
+
+  function saveEdit() {
+    setLineups(editData)
+    setEditMode(false)
+  }
+
+  function cancelEdit() {
+    setEditMode(false)
+  }
+
+  function setFormation(side: 'home' | 'away', f: string) {
+    setEditData(prev => ({ ...prev, [side]: { ...prev[side], formation: f } }))
+  }
+
+  function setPlayerField(side: 'home' | 'away', idx: number, field: keyof Player, value: string | number) {
+    setEditData(prev => {
+      const players = [...prev[side].players]
+      players[idx] = { ...players[idx], [field]: field === 'num' ? Number(value) : value }
+      return { ...prev, [side]: { ...prev[side], players } }
+    })
+  }
+
+  const sides: { key: 'home' | 'away'; name: string; color: string }[] = [
+    { key: 'home', name: homeTeam, color: 'text-brand-secondary' },
+    { key: 'away', name: awayTeam, color: 'text-blue-400' },
+  ]
+
+  return (
+    <div className="space-y-5">
+      {/* Player lists */}
+      <div className="grid grid-cols-2 gap-3">
+        {sides.map(({ key, name, color }) => {
+          const lineup = lineups[key]
+          return (
+            <div key={key} className="card">
+              <div className="mb-3">
+                <p className={`font-bold text-sm truncate ${color}`}>{name}</p>
+                <span className="text-xs text-text-muted">{lineup.formation}</span>
+              </div>
+              <div className="space-y-1.5">
+                {lineup.players.map(p => (
+                  <div key={p.num} className="flex items-center gap-2 text-sm">
+                    <span className={`text-xs font-bold w-5 shrink-0 text-center ${color}`}>{p.num}</span>
+                    <span className="text-text-primary truncate flex-1">{p.name}</span>
+                    <span className="text-[10px] text-text-muted ml-auto shrink-0 bg-bg-muted px-1.5 py-0.5 rounded">{p.pos}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )
+        })}
+      </div>
+
+      {/* Pitch visualization */}
+      <div className="card">
+        <p className="text-xs font-bold text-text-muted uppercase tracking-widest mb-4 text-center">Pitch Formation</p>
+        <div className="flex flex-col sm:flex-row gap-4 items-center justify-center mb-3">
+          <div className="flex items-center gap-2 text-xs">
+            <div className="w-3 h-3 rounded-full bg-brand-primary" />
+            <span className="text-text-secondary">{homeTeam} ({lineups.home.formation})</span>
+          </div>
+          <div className="flex items-center gap-2 text-xs">
+            <div className="w-3 h-3 rounded-full bg-blue-600" />
+            <span className="text-text-secondary">{awayTeam} ({lineups.away.formation})</span>
+          </div>
+        </div>
+        <FootballPitch lineups={lineups} homeTeam={homeTeam} awayTeam={awayTeam} />
+      </div>
+
+      {/* Edit formation (login required) */}
+      {!loggedIn && (
+        <div className="card border-dashed border-bg-border flex items-center justify-between gap-3">
+          <p className="text-sm text-text-muted">Coaches and admins can edit lineups and formations.</p>
+          <Link href="/auth/login" className="btn-secondary text-xs shrink-0">
+            Log in
+          </Link>
+        </div>
+      )}
+
+      {loggedIn && !editMode && (
+        <button
+          onClick={startEdit}
+          className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl border border-brand-primary/30 bg-brand-primary/8 text-brand-secondary text-sm font-medium hover:bg-brand-primary/15 transition-colors"
+        >
+          <Pencil size={14} />
+          Edit formation and lineup
+        </button>
+      )}
+
+      {loggedIn && editMode && (
+        <motion.div
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="card space-y-5 border-brand-primary/30"
+        >
+          <div className="flex items-center justify-between">
+            <p className="text-sm font-bold text-text-primary">Edit lineup</p>
+            <div className="flex items-center gap-2">
+              <button onClick={cancelEdit} className="btn-ghost text-xs flex items-center gap-1 text-text-muted">
+                <X size={12} /> Cancel
+              </button>
+              <button onClick={saveEdit} className="btn-primary text-xs flex items-center gap-1 py-1.5 px-3">
+                <Check size={12} /> Save
+              </button>
+            </div>
+          </div>
+
+          {sides.map(({ key, name, color }) => (
+            <div key={key} className="space-y-2">
+              <p className={`text-xs font-bold uppercase tracking-widest ${color}`}>{name}</p>
+
+              {/* Formation selector */}
+              <div>
+                <p className="text-[11px] text-text-muted mb-1.5">Formation</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {FORMATION_PRESETS.map(f => (
+                    <button
+                      key={f}
+                      onClick={() => setFormation(key, f)}
+                      className={`px-2.5 py-1 rounded text-[11px] font-medium border transition-all ${
+                        editData[key].formation === f
+                          ? 'bg-brand-primary border-brand-primary text-white'
+                          : 'bg-bg-muted border-bg-border text-text-secondary hover:text-text-primary'
+                      }`}
+                    >
+                      {f}
+                    </button>
+                  ))}
+                  <input
+                    type="text"
+                    value={FORMATION_PRESETS.includes(editData[key].formation) ? '' : editData[key].formation}
+                    onChange={e => setFormation(key, e.target.value)}
+                    placeholder="Custom..."
+                    className="input text-[11px] py-1 px-2 w-20"
+                  />
+                </div>
+              </div>
+
+              {/* Player rows */}
+              <div className="space-y-1">
+                <div className="grid grid-cols-[32px_1fr_1fr_72px] gap-1 text-[10px] text-text-muted px-1">
+                  <span>#</span><span>Name</span><span></span><span>Position</span>
+                </div>
+                {editData[key].players.map((p, i) => (
+                  <div key={i} className="grid grid-cols-[32px_1fr_1fr_72px] gap-1 items-center">
+                    <input
+                      type="number"
+                      value={p.num}
+                      onChange={e => setPlayerField(key, i, 'num', e.target.value)}
+                      className="input text-[11px] py-1 px-1.5 text-center"
+                      min={1} max={99}
+                    />
+                    <input
+                      type="text"
+                      value={p.name}
+                      onChange={e => setPlayerField(key, i, 'name', e.target.value)}
+                      className="input text-[11px] py-1 px-2 col-span-1"
+                      placeholder="Player name"
+                    />
+                    <div />
+                    <select
+                      value={p.pos}
+                      onChange={e => setPlayerField(key, i, 'pos', e.target.value)}
+                      className="input text-[11px] py-1 px-1.5"
+                    >
+                      {ALL_POSITIONS.map(pos => (
+                        <option key={pos} value={pos}>{pos}</option>
+                      ))}
+                    </select>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
+        </motion.div>
+      )}
+    </div>
+  )
+}
+
 export default function StreamPage() {
   const params = useParams()
   const id = Array.isArray(params.id) ? params.id[0] : params.id ?? '9'
@@ -156,6 +448,8 @@ export default function StreamPage() {
   const [showAdmin, setShowAdmin] = useState(false)
   const [clockRunning, setClockRunning] = useState(match.status === 'live')
   const [extraTime, setExtraTime] = useState(0)
+  const [lineups, setLineups] = useState<Lineups>(DEFAULT_LINEUPS)
+  const [loggedIn, setLoggedIn] = useState(false)
   const chatEndRef = useRef<HTMLDivElement>(null)
   const clockRef = useRef<number>(62)
 
@@ -168,29 +462,21 @@ export default function StreamPage() {
     const interval = setInterval(() => {
       clockRef.current += 1
       const mins = clockRef.current
-      if (mins <= 90) {
-        setClock(`${mins}'`)
-      } else {
-        const et = mins - 90
-        setClock(`90+${et}'`)
-      }
+      setClock(mins <= 90 ? `${mins}'` : `90+${mins - 90}'`)
     }, 60000)
     return () => clearInterval(interval)
   }, [clockRunning, match.status])
 
   useEffect(() => {
     const supabase = createClient()
+    supabase.auth.getUser().then(({ data }) => {
+      setLoggedIn(!!data.user)
+    })
     const matchChannel = supabase.channel(`match_${match.id}`)
-
     matchChannel
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'live_chat', filter: `match_id=eq.${match.id}` }, payload => {
         const row = payload.new as { id: string; author: string; text: string; created_at: string }
-        setMessages(prev => [...prev, {
-          id: row.id,
-          author: row.author,
-          text: row.text,
-          ts: new Date(row.created_at).getTime(),
-        }])
+        setMessages(prev => [...prev, { id: row.id, author: row.author, text: row.text, ts: new Date(row.created_at).getTime() }])
       })
       .on('presence', { event: 'sync' }, () => {
         const state = matchChannel.presenceState()
@@ -202,20 +488,13 @@ export default function StreamPage() {
           await matchChannel.track({ user: `anon_${Math.random().toString(36).slice(2, 7)}` })
         }
       })
-
     return () => { supabase.removeChannel(matchChannel) }
   }, [match.id])
 
   const sendMessage = useCallback(() => {
     const text = chatInput.trim()
     if (!text) return
-    const newMsg: ChatMessage = {
-      id: `local_${Date.now()}`,
-      author: 'You',
-      text,
-      ts: Date.now(),
-    }
-    setMessages(prev => [...prev, newMsg])
+    setMessages(prev => [...prev, { id: `local_${Date.now()}`, author: 'You', text, ts: Date.now() }])
     setChatInput('')
   }, [chatInput])
 
@@ -230,7 +509,6 @@ export default function StreamPage() {
 
   return (
     <main className="min-h-screen bg-bg-base">
-      {/* Back nav */}
       <div className="container-cesp pt-6 pb-2">
         <Link href="/live" className="inline-flex items-center gap-1.5 text-sm text-text-muted hover:text-text-primary transition-colors">
           <ChevronLeft size={16} />
@@ -239,7 +517,7 @@ export default function StreamPage() {
       </div>
 
       <div className="container-cesp pb-12">
-        {/* Score overlay bar */}
+        {/* Score bar */}
         <motion.div
           initial={{ opacity: 0, y: -12 }}
           animate={{ opacity: 1, y: 0 }}
@@ -257,26 +535,14 @@ export default function StreamPage() {
                 {clock}
               </span>
             )}
-            <motion.span
-              key={homeScore}
-              initial={{ scale: 1.3 }}
-              animate={{ scale: 1 }}
-              className="text-3xl md:text-4xl font-black text-white tabular-nums"
-            >
+            <motion.span key={homeScore} initial={{ scale: 1.3 }} animate={{ scale: 1 }} className="text-3xl md:text-4xl font-black text-white tabular-nums">
               {homeScore}
             </motion.span>
             <span className="text-text-muted text-xl font-light">-</span>
-            <motion.span
-              key={awayScore}
-              initial={{ scale: 1.3 }}
-              animate={{ scale: 1 }}
-              className="text-3xl md:text-4xl font-black text-white tabular-nums"
-            >
+            <motion.span key={awayScore} initial={{ scale: 1.3 }} animate={{ scale: 1 }} className="text-3xl md:text-4xl font-black text-white tabular-nums">
               {awayScore}
             </motion.span>
-            {!isLive && (
-              <span className="hidden sm:block text-xs font-bold text-text-muted ml-2">FT</span>
-            )}
+            {!isLive && <span className="hidden sm:block text-xs font-bold text-text-muted ml-2">FT</span>}
           </div>
 
           <div className="flex items-center gap-3 min-w-0 flex-1">
@@ -313,7 +579,7 @@ export default function StreamPage() {
             <div className="absolute inset-0 bg-bg-card flex flex-col items-center justify-center gap-4 text-text-muted">
               <div className="flex items-center gap-2">
                 <span className="live-dot" />
-                <span className="text-brand-secondary font-semibold text-sm">LIVE — Stream will appear here</span>
+                <span className="text-brand-secondary font-semibold text-sm">LIVE - Stream will appear here</span>
               </div>
               <p className="text-xs">YouTube stream link will be added by the operator</p>
             </div>
@@ -321,7 +587,6 @@ export default function StreamPage() {
         </motion.div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Tabs panel */}
           <div className="lg:col-span-2">
             {/* Tab bar */}
             <div className="flex items-center gap-1 mb-4">
@@ -378,11 +643,7 @@ export default function StreamPage() {
                         className="input flex-1 text-sm py-2"
                         maxLength={200}
                       />
-                      <button
-                        onClick={sendMessage}
-                        disabled={!chatInput.trim()}
-                        className="btn-primary px-3 py-2 disabled:opacity-40"
-                      >
+                      <button onClick={sendMessage} disabled={!chatInput.trim()} className="btn-primary px-3 py-2 disabled:opacity-40">
                         <Send size={15} />
                       </button>
                     </div>
@@ -407,14 +668,8 @@ export default function StreamPage() {
                             <span className="font-semibold text-text-primary">{stat.away}</span>
                           </div>
                           <div className="flex h-1.5 rounded-full overflow-hidden bg-bg-muted">
-                            <div
-                              className="bg-brand-primary rounded-l-full transition-all duration-700"
-                              style={{ width: `${homePct}%` }}
-                            />
-                            <div
-                              className="bg-text-muted rounded-r-full transition-all duration-700"
-                              style={{ width: `${100 - homePct}%` }}
-                            />
+                            <div className="bg-brand-primary rounded-l-full transition-all duration-700" style={{ width: `${homePct}%` }} />
+                            <div className="bg-text-muted rounded-r-full transition-all duration-700" style={{ width: `${100 - homePct}%` }} />
                           </div>
                         </div>
                       )
@@ -423,35 +678,19 @@ export default function StreamPage() {
                 )}
 
                 {tab === 'lineups' && (
-                  <div className="grid grid-cols-2 gap-4">
-                    {(['home', 'away'] as const).map(side => {
-                      const lineup = LINEUPS[side]
-                      const teamName = side === 'home' ? match.home : match.away
-                      return (
-                        <div key={side} className="card">
-                          <div className="mb-3">
-                            <p className="font-bold text-text-primary text-sm truncate">{teamName}</p>
-                            <p className="text-xs text-text-muted">{lineup.formation}</p>
-                          </div>
-                          <div className="space-y-1.5">
-                            {lineup.players.map(p => (
-                              <div key={p.num} className="flex items-center gap-2 text-sm">
-                                <span className="text-xs font-bold text-brand-secondary w-5 shrink-0 text-center">{p.num}</span>
-                                <span className="text-text-primary truncate">{p.name}</span>
-                                <span className="text-xs text-text-muted ml-auto shrink-0">{p.pos}</span>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      )
-                    })}
-                  </div>
+                  <LineupsTab
+                    lineups={lineups}
+                    setLineups={setLineups}
+                    homeTeam={match.home}
+                    awayTeam={match.away}
+                    loggedIn={loggedIn}
+                  />
                 )}
               </motion.div>
             </AnimatePresence>
           </div>
 
-          {/* Sidebar: match info + admin panel */}
+          {/* Sidebar */}
           <div className="space-y-4">
             <div className="card">
               <p className="text-xs font-semibold text-text-muted uppercase tracking-wider mb-3">Match Info</p>
@@ -479,7 +718,6 @@ export default function StreamPage() {
               </div>
             </div>
 
-            {/* Admin panel toggle (operator/admin only in production) */}
             <button
               onClick={() => setShowAdmin(v => !v)}
               className="w-full text-left text-xs text-text-muted hover:text-text-primary transition-colors flex items-center gap-1.5 px-1"
@@ -503,7 +741,6 @@ export default function StreamPage() {
                       Operator Panel
                     </p>
 
-                    {/* Score controls */}
                     <div className="space-y-3 mb-4">
                       {[
                         { label: match.home, score: homeScore, setScore: setHomeScore },
@@ -532,25 +769,21 @@ export default function StreamPage() {
 
                     <div className="divider mb-4" />
 
-                    {/* Clock controls */}
                     <div className="mb-4">
                       <p className="text-xs text-text-muted mb-2">Clock</p>
-                      <div className="flex items-center gap-2">
-                        <button
-                          onClick={() => setClockRunning(v => !v)}
-                          className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-medium border transition-colors ${
-                            clockRunning
-                              ? 'bg-yellow-500/15 border-yellow-500/30 text-yellow-400 hover:bg-yellow-500/25'
-                              : 'bg-brand-primary/15 border-brand-primary/30 text-brand-secondary hover:bg-brand-primary/25'
-                          }`}
-                        >
-                          <Timer size={12} />
-                          {clockRunning ? 'Pause' : 'Resume'}
-                        </button>
-                      </div>
+                      <button
+                        onClick={() => setClockRunning(v => !v)}
+                        className={`w-full flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-medium border transition-colors ${
+                          clockRunning
+                            ? 'bg-yellow-500/15 border-yellow-500/30 text-yellow-400 hover:bg-yellow-500/25'
+                            : 'bg-brand-primary/15 border-brand-primary/30 text-brand-secondary hover:bg-brand-primary/25'
+                        }`}
+                      >
+                        <Timer size={12} />
+                        {clockRunning ? 'Pause' : 'Resume'}
+                      </button>
                     </div>
 
-                    {/* Extra time */}
                     <div className="mb-4">
                       <p className="text-xs text-text-muted mb-2">Extra time (min)</p>
                       <div className="flex items-center gap-2">

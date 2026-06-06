@@ -28,7 +28,7 @@ export async function POST(req: Request) {
         price_data: {
           currency: 'gbp',
           product_data: {
-            name: 'Clarendon Elite Sports Program — Donation',
+            name: 'Clarendon Elite Sports Program - Donation',
             description: 'Thank you for supporting the league. 100% of your donation goes back into the community.',
           },
           unit_amount: Math.round(amount * 100),

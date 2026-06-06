@@ -149,7 +149,7 @@ export default function HomePage() {
             transition={{ duration: 0.8, delay: 0.2, ease: [0.22, 1, 0.36, 1] }}
             className="text-lg text-text-secondary max-w-2xl mx-auto text-balance"
           >
-            Live scores, match reports, player stats, and more — all in one place.
+            Live scores, match reports, player stats, and more. All in one place.
             Support the charity league that&apos;s bringing football to Clarendon.
           </motion.p>
 
@@ -258,7 +258,7 @@ export default function HomePage() {
               <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
                 <motion.div whileHover={{ scale: 1.04 }} whileTap={{ scale: 0.97 }}>
                   <Link href="/auth/register" className="btn-primary px-8 py-3 text-base">
-                    Join free — it takes 30 seconds
+                    Join free, takes 30 seconds
                   </Link>
                 </motion.div>
                 <motion.div whileHover={{ scale: 1.04 }} whileTap={{ scale: 0.97 }}>
