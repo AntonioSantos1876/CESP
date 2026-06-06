@@ -1,12 +1,12 @@
 'use client'
 
-import { useState } from 'react'
+import { Suspense, useState } from 'react'
 import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { Eye, EyeOff, Trophy } from 'lucide-react'
 
-export default function LoginPage() {
+function LoginContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const redirectTo = searchParams.get('redirectTo') || '/'
@@ -46,7 +46,6 @@ export default function LoginPage() {
   return (
     <div className="min-h-screen bg-bg-base flex items-center justify-center px-4">
       <div className="w-full max-w-md">
-        {/* Logo */}
         <div className="text-center mb-8">
           <Link href="/" className="inline-flex items-center gap-2 text-gradient font-bold text-2xl">
             <Trophy size={28} className="text-brand-primary" />
@@ -55,9 +54,7 @@ export default function LoginPage() {
           <p className="text-text-secondary text-sm mt-2">Sign in to your account</p>
         </div>
 
-        {/* Card */}
         <div className="card space-y-6">
-          {/* Google OAuth */}
           <button
             onClick={handleGoogleLogin}
             className="w-full flex items-center justify-center gap-3 px-4 py-3 rounded-xl border border-bg-border bg-bg-muted hover:bg-bg-hover transition-colors text-text-primary font-medium text-sm"
@@ -73,7 +70,6 @@ export default function LoginPage() {
 
           <div className="divider" />
 
-          {/* Email form */}
           <form onSubmit={handleLogin} className="space-y-4">
             {error && (
               <div className="px-4 py-3 rounded-xl bg-error/10 border border-error/20 text-error text-sm">
@@ -137,5 +133,13 @@ export default function LoginPage() {
         </p>
       </div>
     </div>
+  )
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense>
+      <LoginContent />
+    </Suspense>
   )
 }
