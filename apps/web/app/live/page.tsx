@@ -340,7 +340,7 @@ export default function LivePage() {
                 </div>
 
                 <div className="mb-3 flex items-center gap-3">
-                  <div className="flex-1 text-right">
+                  <div className="flex-1 min-w-0 overflow-hidden text-right">
                     <TeamLink
                       teamName={match.home}
                       logoSize={36}
@@ -354,7 +354,7 @@ export default function LivePage() {
                     <span className="text-sm text-text-muted">-</span>
                     <span className="text-xl font-bold text-text-primary">{match.awayScore}</span>
                   </div>
-                  <div className="flex-1">
+                  <div className="flex-1 min-w-0 overflow-hidden">
                     <TeamLink
                       teamName={match.away}
                       logoSize={36}
