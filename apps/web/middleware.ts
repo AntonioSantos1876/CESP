@@ -1,9 +1,7 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
-const protectedRoutes = ['/dashboard', '/admin', '/profile', '/donate/checkout']
-const adminRoutes = ['/admin']
-const authRoutes = ['/auth/login', '/auth/register', '/auth/forgot-password']
+const AUTH_ROUTES = ['/auth/login', '/auth/register', '/auth/forgot-password', '/auth/callback', '/auth/update-password']
 
 export async function middleware(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request })
@@ -30,17 +28,16 @@ export async function middleware(request: NextRequest) {
   const { data: { user } } = await supabase.auth.getUser()
   const pathname = request.nextUrl.pathname
 
-  const isProtectedRoute = protectedRoutes.some(r => pathname.startsWith(r))
-  const isAuthRoute = authRoutes.some(r => pathname.startsWith(r))
+  const isAuthRoute = AUTH_ROUTES.some(r => pathname.startsWith(r))
 
-  if (!user && isProtectedRoute) {
+  if (!user && !isAuthRoute) {
     const url = request.nextUrl.clone()
     url.pathname = '/auth/login'
     url.searchParams.set('redirectTo', pathname)
     return NextResponse.redirect(url)
   }
 
-  if (user && isAuthRoute) {
+  if (user && isAuthRoute && !pathname.startsWith('/auth/callback') && !pathname.startsWith('/auth/update-password')) {
     const url = request.nextUrl.clone()
     url.pathname = '/'
     return NextResponse.redirect(url)
