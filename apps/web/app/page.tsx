@@ -14,12 +14,12 @@ const HOME_STATS = {
 } as const
 
 const features = [
-  { icon: Zap, title: 'Live Scores', description: 'Real-time match updates with live chat and goal alerts.' },
-  { icon: Trophy, title: 'Fixtures & Results', description: 'Full schedule, standings, and match statistics.' },
-  { icon: Users, title: 'Teams & Players', description: 'Profiles, stats, and formations for every team.' },
-  { icon: Camera, title: 'News & Gallery', description: 'Match reports, photos, and stories from our journalists.' },
-  { icon: Heart, title: 'Support the Cause', description: 'Donate to help grow football in Clarendon.' },
-  { icon: ShoppingBag, title: 'Merch Store', description: 'Official Clarendon Elite Cup merchandise.' },
+  { icon: Zap, title: 'Live Scores', description: 'Real-time match updates with live chat and goal alerts.', href: '/live' },
+  { icon: Trophy, title: 'Fixtures & Results', description: 'Full schedule, standings, and match statistics.', href: '/fixtures' },
+  { icon: Users, title: 'Teams & Players', description: 'Profiles, stats, and formations for every team.', href: '/teams' },
+  { icon: Camera, title: 'News & Gallery', description: 'Match reports, photos, and stories from our journalists.', href: '/news' },
+  { icon: Heart, title: 'Support the Cause', description: 'Donate to help grow football in Clarendon.', href: '/donate' },
+  { icon: ShoppingBag, title: 'Merch Store', description: 'Official Clarendon Elite Cup merchandise.', href: '/shop' },
 ]
 
 const TOURNAMENT_FORMAT = [
@@ -266,22 +266,23 @@ export default function HomePage() {
           </FadeInWhenVisible>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-            {features.map(({ icon: Icon, title, description }, i) => (
+            {features.map(({ icon: Icon, title, description, href }, i) => (
               <FadeInWhenVisible key={title} delay={i * 0.08}>
-                <motion.div
-                  whileHover={{ y: -4, scale: 1.01 }}
-                  transition={{ duration: 0.2 }}
-                  className="card-hover group h-full"
-                >
-                  <motion.div
-                    whileHover={{ scale: 1.1, rotate: 5 }}
-                    transition={{ duration: 0.2 }}
-                    className="w-10 h-10 rounded-xl bg-brand-primary/15 flex items-center justify-center mb-4"
+                <motion.div whileHover={{ y: -4, scale: 1.01 }} transition={{ duration: 0.2 }} className="h-full">
+                  <Link
+                    href={href}
+                    className="card-hover group flex h-full flex-col focus:outline-none focus:ring-2 focus:ring-brand-primary/40"
                   >
-                    <Icon size={20} className="text-brand-primary" />
-                  </motion.div>
-                  <h3 className="font-semibold text-text-primary mb-2">{title}</h3>
-                  <p className="text-sm text-text-secondary">{description}</p>
+                    <motion.div
+                      whileHover={{ scale: 1.1, rotate: 5 }}
+                      transition={{ duration: 0.2 }}
+                      className="mb-4 flex h-10 w-10 items-center justify-center rounded-xl bg-brand-primary/15"
+                    >
+                      <Icon size={20} className="text-brand-primary" />
+                    </motion.div>
+                    <h3 className="mb-2 font-semibold text-text-primary">{title}</h3>
+                    <p className="text-sm text-text-secondary">{description}</p>
+                  </Link>
                 </motion.div>
               </FadeInWhenVisible>
             ))}
