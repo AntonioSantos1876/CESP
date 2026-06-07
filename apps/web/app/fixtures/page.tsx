@@ -12,17 +12,32 @@ import { createClient } from '@/lib/supabase/client'
 
 type Tab = 'bracket' | 'upcoming' | 'live' | 'results'
 type FixtureStatus = 'upcoming' | 'live' | 'result'
+type DbFixtureStatus = 'scheduled' | 'live' | 'completed' | 'postponed' | 'cancelled'
+type BracketRound = 'quarterfinal' | 'semifinal' | 'final' | 'third'
+
+type DbFixture = {
+  id: string
+  match_date: string
+  venue: string | null
+  round: string | null
+  status: DbFixtureStatus
+  home_team: { name: string; short_name: string } | null
+  away_team: { name: string; short_name: string } | null
+  match_scores: { home_score: number; away_score: number }[] | { home_score: number; away_score: number } | null
+}
 
 type Fixture = {
-  id: number
+  id: string
   home: string
   away: string
-  date: string
+  dateKey: string
   time: string
   venue: string
   homeScore: number | null
   awayScore: number | null
   status: FixtureStatus
+  round: string | null
+  matchDate: string
 }
 
 type BracketSlot = { name: string; abbr: string; eliminated: boolean } | null
@@ -36,68 +51,233 @@ type BMatch = {
   date: string
   time: string
   venue: string
+  note?: string
 }
 
-function makeSlot(name: string, eliminated = false): BracketSlot {
-  const words = name.split(' ')
+const BRACKET_CARD_WIDTH = 248
+const BRACKET_CARD_HEIGHT = 104
+const BRACKET_CONNECTOR_WIDTH = 56
+const BRACKET_TOP_PADDING = 18
+const BRACKET_QUARTER_GAP = 20
+
+const quarterTop = Array.from({ length: 4 }, (_, index) => BRACKET_TOP_PADDING + index * (BRACKET_CARD_HEIGHT + BRACKET_QUARTER_GAP))
+const quarterCenters = quarterTop.map(top => top + BRACKET_CARD_HEIGHT / 2)
+const semiCenters = [(quarterCenters[0] + quarterCenters[1]) / 2, (quarterCenters[2] + quarterCenters[3]) / 2]
+const semiTop = semiCenters.map(center => center - BRACKET_CARD_HEIGHT / 2)
+const finalCenter = (semiCenters[0] + semiCenters[1]) / 2
+const finalTop = finalCenter - BRACKET_CARD_HEIGHT / 2
+const thirdTop = finalTop + BRACKET_CARD_HEIGHT + 34
+const bracketHeight = Math.max(quarterTop[3] + BRACKET_CARD_HEIGHT + BRACKET_TOP_PADDING, thirdTop + BRACKET_CARD_HEIGHT + BRACKET_TOP_PADDING)
+
+const xQuarter = 0
+const xConnectorOne = BRACKET_CARD_WIDTH
+const xSemi = BRACKET_CARD_WIDTH + BRACKET_CONNECTOR_WIDTH
+const xConnectorTwo = BRACKET_CARD_WIDTH + BRACKET_CONNECTOR_WIDTH + BRACKET_CARD_WIDTH
+const xFinal = BRACKET_CARD_WIDTH + BRACKET_CONNECTOR_WIDTH + BRACKET_CARD_WIDTH + BRACKET_CONNECTOR_WIDTH
+const bracketTotalWidth = xFinal + BRACKET_CARD_WIDTH
+
+const connectorStroke = 'rgba(255,255,255,0.14)'
+
+const TABS: { key: Tab; label: string }[] = [
+  { key: 'bracket', label: 'Bracket' },
+  { key: 'upcoming', label: 'Upcoming' },
+  { key: 'live', label: 'Live' },
+  { key: 'results', label: 'Results' },
+]
+
+const ROUND_STYLES: Record<BracketRound, { label: string; accent: string }> = {
+  quarterfinal: { label: 'Quarter-finals', accent: 'text-brand-secondary' },
+  semifinal: { label: 'Semi-finals', accent: 'text-brand-secondary' },
+  final: { label: 'Final', accent: 'text-amber-400' },
+  third: { label: '3rd Place', accent: 'text-text-muted' },
+}
+
+function getKnockoutMatchCount(teamCount: number) {
+  if (teamCount < 2) return 0
+  return teamCount >= 4 ? teamCount : teamCount - 1
+}
+
+function getOpeningRoundMatchCount(teamCount: number) {
+  if (teamCount < 2) return 0
+  return Math.ceil(teamCount / 2)
+}
+
+function getDateKey(matchDate: string) {
+  const date = new Date(matchDate)
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
+function formatMatchDate(dateKey: string) {
+  return new Date(`${dateKey}T00:00:00`).toLocaleDateString('en-GB', {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+  })
+}
+
+function formatRoundDate(matchDate: string | null) {
+  if (!matchDate) return 'Date TBC'
+  return new Date(matchDate).toLocaleDateString('en-GB', {
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+  })
+}
+
+function formatMatchTime(matchDate: string) {
+  return new Date(matchDate).toLocaleTimeString('en-GB', {
+    hour: '2-digit',
+    minute: '2-digit',
+  })
+}
+
+function mapStatus(status: DbFixtureStatus): FixtureStatus {
+  if (status === 'live') return 'live'
+  if (status === 'completed') return 'result'
+  return 'upcoming'
+}
+
+function normalizeRound(round: string | null): BracketRound | null {
+  if (!round) return null
+  const value = round.toLowerCase()
+
+  if (value.includes('quarter')) return 'quarterfinal'
+  if (value.includes('semi')) return 'semifinal'
+  if (value.includes('3rd') || value.includes('third')) return 'third'
+  if (value.trim() === 'final' || value.includes('grand final')) return 'final'
+  return null
+}
+
+function makeSlot(name: string, shortName?: string | null, eliminated = false): BracketSlot {
+  const trimmedShortName = shortName?.trim()
+  if (trimmedShortName) {
+    return { name, abbr: trimmedShortName.slice(0, 3).toUpperCase(), eliminated }
+  }
+
+  const words = name.split(' ').filter(Boolean)
   const abbr =
     words.length >= 2
-      ? (words[0][0] + words[words.length - 1][0]).toUpperCase()
+      ? `${words[0][0]}${words[words.length - 1][0]}`.toUpperCase()
       : name.slice(0, 2).toUpperCase()
   return { name, abbr, eliminated }
 }
 
-const QF: BMatch[] = [
-  { id: 'qf1', home: makeSlot('Manchester United Clarendon'), away: makeSlot('Kellits United'), homeScore: null, awayScore: null, date: '2026-07-31', time: '10:00', venue: 'Denbigh Field' },
-  { id: 'qf2', home: makeSlot('Chapelton FC'), away: makeSlot('Denbigh City FC'), homeScore: null, awayScore: null, date: '2026-07-31', time: '12:00', venue: 'Kellits Park' },
-  { id: 'qf3', home: makeSlot('Porus United'), away: makeSlot('Frankfield Boys'), homeScore: null, awayScore: null, date: '2026-07-31', time: '14:00', venue: 'Porus Oval' },
-  { id: 'qf4', home: makeSlot('Rock River Rangers'), away: makeSlot('Spaldings All Stars'), homeScore: null, awayScore: null, date: '2026-07-31', time: '16:00', venue: 'Rock River Ground' },
-]
+function getScore(matchScores: DbFixture['match_scores']) {
+  if (!matchScores) return { home: null, away: null }
+  const score = Array.isArray(matchScores) ? matchScores[0] : matchScores
+  if (!score) return { home: null, away: null }
+  return { home: score.home_score, away: score.away_score }
+}
 
-const SF: BMatch[] = [
-  { id: 'sf1', home: null, away: null, homeScore: null, awayScore: null, date: '2026-08-01', time: '14:00', venue: 'Denbigh Field' },
-  { id: 'sf2', home: null, away: null, homeScore: null, awayScore: null, date: '2026-08-01', time: '16:00', venue: 'Denbigh Field' },
-]
+function toUiFixture(fixture: DbFixture): Fixture {
+  const score = getScore(fixture.match_scores)
+  return {
+    id: fixture.id,
+    home: fixture.home_team?.name ?? 'TBD',
+    away: fixture.away_team?.name ?? 'TBD',
+    dateKey: getDateKey(fixture.match_date),
+    time: formatMatchTime(fixture.match_date),
+    venue: fixture.venue ?? 'Venue TBC',
+    homeScore: score.home,
+    awayScore: score.away,
+    status: mapStatus(fixture.status),
+    round: fixture.round,
+    matchDate: fixture.match_date,
+  }
+}
 
-const FINAL: BMatch = { id: 'final', home: null, away: null, homeScore: null, awayScore: null, date: '2026-08-02', time: '15:00', venue: 'Denbigh Field' }
-const THIRD: BMatch = { id: '3rd', home: null, away: null, homeScore: null, awayScore: null, date: '2026-08-02', time: '12:00', venue: 'Denbigh Field' }
+function toBracketMatch(fixture: DbFixture | null, fallbackId: string, note?: string): BMatch {
+  if (!fixture) {
+    return {
+      id: fallbackId,
+      home: null,
+      away: null,
+      homeScore: null,
+      awayScore: null,
+      date: '',
+      time: '',
+      venue: 'Venue TBC',
+      note,
+    }
+  }
 
-// ---- Bracket layout constants (px) ----
-const CW = 190   // card width
-const CH = 74    // card height
-const CON = 40   // connector column width
-const PAD = 16   // top padding
-const QG = 12    // gap between QF cards
+  const score = getScore(fixture.match_scores)
 
-const qfTop = [PAD, PAD + CH + QG, PAD + 2 * (CH + QG), PAD + 3 * (CH + QG)]
-const qfC = qfTop.map(t => t + CH / 2)
-const sfC = [(qfC[0] + qfC[1]) / 2, (qfC[2] + qfC[3]) / 2]
-const sfTop = sfC.map(c => c - CH / 2)
-const finalC = (sfC[0] + sfC[1]) / 2
-const finalTop = finalC - CH / 2
-const thirdTop = finalTop + CH + 18
-const BHEIGHT = Math.max(qfTop[3] + CH + PAD, thirdTop + CH + PAD)
+  return {
+    id: fixture.id,
+    home: fixture.home_team ? makeSlot(fixture.home_team.name, fixture.home_team.short_name) : null,
+    away: fixture.away_team ? makeSlot(fixture.away_team.name, fixture.away_team.short_name) : null,
+    homeScore: score.home,
+    awayScore: score.away,
+    date: fixture.match_date,
+    time: formatMatchTime(fixture.match_date),
+    venue: fixture.venue ?? 'Venue TBC',
+    note,
+  }
+}
 
-const X_QF = 0
-const X_CON1 = CW
-const X_SF = CW + CON
-const X_CON2 = CW + CON + CW
-const X_FINAL = CW + CON + CW + CON
-const BTOTAL_W = X_FINAL + CW
+function buildBracket(fixtures: DbFixture[]) {
+  const sorted = [...fixtures].sort((a, b) => a.match_date.localeCompare(b.match_date))
+  const grouped: Record<BracketRound, DbFixture[]> = {
+    quarterfinal: [],
+    semifinal: [],
+    final: [],
+    third: [],
+  }
 
-const LC = 'rgba(255,255,255,0.11)'
+  sorted.forEach(fixture => {
+    const round = normalizeRound(fixture.round)
+    if (round) grouped[round].push(fixture)
+  })
 
-function BSlotRow({ s, score, border }: { s: BracketSlot; score: number | null; border: boolean }) {
+  if (!grouped.quarterfinal.length && !grouped.semifinal.length && !grouped.final.length) {
+    const activeFixtures = sorted.filter(fixture => fixture.status !== 'cancelled')
+    grouped.quarterfinal = activeFixtures.slice(0, 4)
+    grouped.semifinal = activeFixtures.slice(4, 6)
+    grouped.final = activeFixtures.slice(6, 7)
+    grouped.third = activeFixtures.slice(7, 8)
+  }
+
+  return {
+    quarterfinals: Array.from({ length: 4 }, (_, index) =>
+      toBracketMatch(grouped.quarterfinal[index] ?? null, `qf-${index + 1}`, `${index % 2 === 0 ? 'Quarter-final pairing' : 'Knockout tie'}`)
+    ),
+    semifinals: Array.from({ length: 2 }, (_, index) =>
+      toBracketMatch(grouped.semifinal[index] ?? null, `sf-${index + 1}`, `Winner QF${index * 2 + 1} vs Winner QF${index * 2 + 2}`)
+    ),
+    final: toBracketMatch(grouped.final[0] ?? null, 'final', 'Winner SF1 vs Winner SF2'),
+    third: toBracketMatch(grouped.third[0] ?? null, 'third', 'Loser SF1 vs Loser SF2'),
+  }
+}
+
+function getRoundHeaderDate(matches: BMatch[]) {
+  const datedMatch = matches.find(match => match.date)
+  return formatRoundDate(datedMatch?.date ?? null)
+}
+
+function BSlotRow({ slot, score, border }: { slot: BracketSlot; score: number | null; border: boolean }) {
   return (
-    <div className={`flex items-center gap-2 px-2.5 py-2 ${border ? 'border-t border-[#252525]' : ''}`}>
-      <div className="w-6 h-6 rounded-md bg-[#1d1d1d] flex items-center justify-center text-[9px] font-black text-text-muted shrink-0 border border-[#2e2e2e]">
-        {s ? s.abbr : '?'}
+    <div className={`flex items-center gap-3 px-4 py-3 ${border ? 'border-t border-[#262626]' : ''}`}>
+      <div className="flex h-9 w-9 items-center justify-center rounded-xl border border-[#333333] bg-[#1A1A1A] text-[11px] font-black uppercase tracking-wide text-text-muted shrink-0">
+        {slot ? slot.abbr : '?'}
       </div>
-      <span className={`flex-1 text-[11px] font-semibold truncate leading-tight ${s?.eliminated ? 'line-through opacity-35 text-text-muted' : s ? 'text-text-primary' : 'text-[#555] italic'}`}>
-        {s ? s.name : 'TBD'}
+      <span
+        className={`min-w-0 flex-1 text-sm font-semibold leading-snug md:text-[15px] ${
+          slot?.eliminated
+            ? 'line-through opacity-35 text-text-muted'
+            : slot
+              ? 'text-text-primary'
+              : 'text-text-muted italic'
+        }`}
+      >
+        {slot ? slot.name : 'TBD'}
       </span>
       {score !== null && (
-        <span className={`text-xs font-black tabular-nums w-4 text-right shrink-0 ${s?.eliminated ? 'text-text-muted opacity-35' : 'text-white'}`}>
+        <span className={`w-8 shrink-0 text-right text-lg font-black tabular-nums ${slot?.eliminated ? 'text-text-muted opacity-35' : 'text-white'}`}>
           {score}
         </span>
       )}
@@ -107,128 +287,119 @@ function BSlotRow({ s, score, border }: { s: BracketSlot; score: number | null; 
 
 function BCard({ match }: { match: BMatch }) {
   return (
-    <div className="rounded-xl overflow-hidden border border-[#222] bg-[#111]" style={{ width: CW, height: CH }}>
-      <BSlotRow s={match.home} score={match.homeScore} border={false} />
-      <BSlotRow s={match.away} score={match.awayScore} border={true} />
+    <div className="overflow-hidden rounded-2xl border border-[#232323] bg-[#111111] shadow-card" style={{ width: BRACKET_CARD_WIDTH, height: BRACKET_CARD_HEIGHT }}>
+      <BSlotRow slot={match.home} score={match.homeScore} border={false} />
+      <BSlotRow slot={match.away} score={match.awayScore} border={true} />
     </div>
   )
 }
 
-function BracketView() {
+function BracketView({ fixtures }: { fixtures: DbFixture[] }) {
+  const bracket = buildBracket(fixtures)
+  const hasBracketContent = fixtures.length > 0
+
   return (
-    <div className="w-full overflow-x-auto pb-4 -mx-2 px-2">
-      {/* Round headers */}
-      <div className="flex mb-3" style={{ width: BTOTAL_W, minWidth: BTOTAL_W }}>
-        <div className="text-center" style={{ width: CW }}>
-          <p className="text-[10px] font-bold text-brand-secondary uppercase tracking-widest">Quarter-finals</p>
-          <p className="text-[9px] text-text-muted mt-0.5">31 July 2026</p>
+    <div className="rounded-[28px] border border-bg-border bg-[#0E0E0E] p-4 md:p-6">
+      {!hasBracketContent && (
+        <div className="card text-center py-16 text-text-muted">
+          No tournament fixtures have been loaded yet.
         </div>
-        <div style={{ width: CON }} />
-        <div className="text-center" style={{ width: CW }}>
-          <p className="text-[10px] font-bold text-brand-secondary uppercase tracking-widest">Semi-finals</p>
-          <p className="text-[9px] text-text-muted mt-0.5">1 August 2026</p>
-        </div>
-        <div style={{ width: CON }} />
-        <div className="text-center" style={{ width: CW }}>
-          <p className="text-[10px] font-bold text-amber-400 uppercase tracking-widest">Final + 3rd</p>
-          <p className="text-[9px] text-text-muted mt-0.5">2 August 2026</p>
-        </div>
-      </div>
+      )}
 
-      {/* Bracket */}
-      <div className="relative" style={{ width: BTOTAL_W, minWidth: BTOTAL_W, height: BHEIGHT }}>
-        {/* QF cards */}
-        {QF.map((m, i) => (
-          <div key={m.id} className="absolute" style={{ left: X_QF, top: qfTop[i] }}>
-            <BCard match={m} />
-            <p className="text-[8px] text-[#444] mt-0.5 ml-1">{m.time} &middot; {m.venue}</p>
+      {hasBracketContent && (
+        <>
+          <div className="mb-6 grid gap-4 md:grid-cols-3">
+            {[
+              { label: 'Quarter-finals', date: getRoundHeaderDate(bracket.quarterfinals), accent: 'text-brand-secondary' },
+              { label: 'Semi-finals', date: getRoundHeaderDate(bracket.semifinals), accent: 'text-brand-secondary' },
+              { label: 'Final + 3rd', date: formatRoundDate(bracket.final.date || bracket.third.date || null), accent: 'text-amber-400' },
+            ].map(round => (
+              <div key={round.label} className="rounded-2xl border border-bg-border bg-bg-card/70 px-4 py-3 text-center">
+                <p className={`text-xs font-bold uppercase tracking-[0.24em] ${round.accent}`}>{round.label}</p>
+                <p className="mt-2 text-sm text-text-secondary">{round.date}</p>
+              </div>
+            ))}
           </div>
-        ))}
 
-        {/* Connector SVG: QF to SF */}
-        <svg
-          className="absolute pointer-events-none"
-          style={{ left: X_CON1, top: 0, width: CON, height: BHEIGHT }}
-          viewBox={`0 0 ${CON} ${BHEIGHT}`}
-          preserveAspectRatio="none"
-        >
-          <line x1="0" y1={qfC[0]} x2={CON / 2} y2={qfC[0]} stroke={LC} strokeWidth="1" />
-          <line x1="0" y1={qfC[1]} x2={CON / 2} y2={qfC[1]} stroke={LC} strokeWidth="1" />
-          <line x1={CON / 2} y1={qfC[0]} x2={CON / 2} y2={qfC[1]} stroke={LC} strokeWidth="1" />
-          <line x1={CON / 2} y1={sfC[0]} x2={CON} y2={sfC[0]} stroke={LC} strokeWidth="1" />
-          <line x1="0" y1={qfC[2]} x2={CON / 2} y2={qfC[2]} stroke={LC} strokeWidth="1" />
-          <line x1="0" y1={qfC[3]} x2={CON / 2} y2={qfC[3]} stroke={LC} strokeWidth="1" />
-          <line x1={CON / 2} y1={qfC[2]} x2={CON / 2} y2={qfC[3]} stroke={LC} strokeWidth="1" />
-          <line x1={CON / 2} y1={sfC[1]} x2={CON} y2={sfC[1]} stroke={LC} strokeWidth="1" />
-        </svg>
+          <div className="w-full overflow-x-auto pb-4">
+            <div className="relative min-w-max" style={{ width: bracketTotalWidth, height: bracketHeight }}>
+              {bracket.quarterfinals.map((match, index) => (
+                <div key={match.id} className="absolute" style={{ left: xQuarter, top: quarterTop[index] }}>
+                  <BCard match={match} />
+                  <p className="ml-2 mt-2 text-xs text-text-muted">
+                    {match.date ? `${match.time} · ${match.venue}` : 'Fixture details to be confirmed'}
+                  </p>
+                </div>
+              ))}
 
-        {/* SF cards */}
-        {SF.map((m, i) => (
-          <div key={m.id} className="absolute" style={{ left: X_SF, top: sfTop[i] }}>
-            <BCard match={m} />
-            <p className="text-[8px] text-[#444] mt-0.5 ml-1">
-              Winner QF{i * 2 + 1} vs Winner QF{i * 2 + 2}
-            </p>
+              <svg
+                className="absolute pointer-events-none"
+                style={{ left: xConnectorOne, top: 0, width: BRACKET_CONNECTOR_WIDTH, height: bracketHeight }}
+                viewBox={`0 0 ${BRACKET_CONNECTOR_WIDTH} ${bracketHeight}`}
+                preserveAspectRatio="none"
+              >
+                <line x1="0" y1={quarterCenters[0]} x2={BRACKET_CONNECTOR_WIDTH / 2} y2={quarterCenters[0]} stroke={connectorStroke} strokeWidth="1.4" />
+                <line x1="0" y1={quarterCenters[1]} x2={BRACKET_CONNECTOR_WIDTH / 2} y2={quarterCenters[1]} stroke={connectorStroke} strokeWidth="1.4" />
+                <line x1={BRACKET_CONNECTOR_WIDTH / 2} y1={quarterCenters[0]} x2={BRACKET_CONNECTOR_WIDTH / 2} y2={quarterCenters[1]} stroke={connectorStroke} strokeWidth="1.4" />
+                <line x1={BRACKET_CONNECTOR_WIDTH / 2} y1={semiCenters[0]} x2={BRACKET_CONNECTOR_WIDTH} y2={semiCenters[0]} stroke={connectorStroke} strokeWidth="1.4" />
+                <line x1="0" y1={quarterCenters[2]} x2={BRACKET_CONNECTOR_WIDTH / 2} y2={quarterCenters[2]} stroke={connectorStroke} strokeWidth="1.4" />
+                <line x1="0" y1={quarterCenters[3]} x2={BRACKET_CONNECTOR_WIDTH / 2} y2={quarterCenters[3]} stroke={connectorStroke} strokeWidth="1.4" />
+                <line x1={BRACKET_CONNECTOR_WIDTH / 2} y1={quarterCenters[2]} x2={BRACKET_CONNECTOR_WIDTH / 2} y2={quarterCenters[3]} stroke={connectorStroke} strokeWidth="1.4" />
+                <line x1={BRACKET_CONNECTOR_WIDTH / 2} y1={semiCenters[1]} x2={BRACKET_CONNECTOR_WIDTH} y2={semiCenters[1]} stroke={connectorStroke} strokeWidth="1.4" />
+              </svg>
+
+              {bracket.semifinals.map((match, index) => (
+                <div key={match.id} className="absolute" style={{ left: xSemi, top: semiTop[index] }}>
+                  <BCard match={match} />
+                  <p className="ml-2 mt-2 text-xs text-text-muted">
+                    {match.date ? `${match.time} · ${match.venue}` : match.note}
+                  </p>
+                </div>
+              ))}
+
+              <svg
+                className="absolute pointer-events-none"
+                style={{ left: xConnectorTwo, top: 0, width: BRACKET_CONNECTOR_WIDTH, height: bracketHeight }}
+                viewBox={`0 0 ${BRACKET_CONNECTOR_WIDTH} ${bracketHeight}`}
+                preserveAspectRatio="none"
+              >
+                <line x1="0" y1={semiCenters[0]} x2={BRACKET_CONNECTOR_WIDTH / 2} y2={semiCenters[0]} stroke={connectorStroke} strokeWidth="1.4" />
+                <line x1="0" y1={semiCenters[1]} x2={BRACKET_CONNECTOR_WIDTH / 2} y2={semiCenters[1]} stroke={connectorStroke} strokeWidth="1.4" />
+                <line x1={BRACKET_CONNECTOR_WIDTH / 2} y1={semiCenters[0]} x2={BRACKET_CONNECTOR_WIDTH / 2} y2={semiCenters[1]} stroke={connectorStroke} strokeWidth="1.4" />
+                <line x1={BRACKET_CONNECTOR_WIDTH / 2} y1={finalCenter} x2={BRACKET_CONNECTOR_WIDTH} y2={finalCenter} stroke={connectorStroke} strokeWidth="1.8" />
+                <line x1={BRACKET_CONNECTOR_WIDTH / 2} y1={thirdTop + BRACKET_CARD_HEIGHT / 2} x2={BRACKET_CONNECTOR_WIDTH} y2={thirdTop + BRACKET_CARD_HEIGHT / 2} stroke={connectorStroke} strokeWidth="1.4" strokeDasharray="5,5" />
+              </svg>
+
+              <div className="absolute" style={{ left: xFinal, top: finalTop }}>
+                <div className="mb-2 flex items-center gap-2">
+                  <Trophy size={14} className="text-amber-400" />
+                  <span className="text-xs font-bold uppercase tracking-[0.22em] text-amber-400">Final</span>
+                </div>
+                <BCard match={bracket.final} />
+                <p className="ml-2 mt-2 text-xs text-text-muted">
+                  {bracket.final.date ? `${bracket.final.time} · ${bracket.final.venue}` : bracket.final.note}
+                </p>
+              </div>
+
+              <div className="absolute" style={{ left: xFinal, top: thirdTop }}>
+                <div className="mb-2 flex items-center gap-2">
+                  <span className="text-xs font-bold uppercase tracking-[0.22em] text-text-muted">3rd Place</span>
+                </div>
+                <BCard match={bracket.third} />
+                <p className="ml-2 mt-2 text-xs text-text-muted">
+                  {bracket.third.date ? `${bracket.third.time} · ${bracket.third.venue}` : bracket.third.note}
+                </p>
+              </div>
+            </div>
           </div>
-        ))}
 
-        {/* Connector SVG: SF to Finals */}
-        <svg
-          className="absolute pointer-events-none"
-          style={{ left: X_CON2, top: 0, width: CON, height: BHEIGHT }}
-          viewBox={`0 0 ${CON} ${BHEIGHT}`}
-          preserveAspectRatio="none"
-        >
-          <line x1="0" y1={sfC[0]} x2={CON / 2} y2={sfC[0]} stroke={LC} strokeWidth="1" />
-          <line x1="0" y1={sfC[1]} x2={CON / 2} y2={sfC[1]} stroke={LC} strokeWidth="1" />
-          <line x1={CON / 2} y1={sfC[0]} x2={CON / 2} y2={sfC[1]} stroke={LC} strokeWidth="1" />
-          <line x1={CON / 2} y1={finalC} x2={CON} y2={finalC} stroke={LC} strokeWidth="1.5" />
-          <line x1={CON / 2} y1={thirdTop + CH / 2} x2={CON} y2={thirdTop + CH / 2} stroke={LC} strokeWidth="1" strokeDasharray="3,3" />
-        </svg>
-
-        {/* Final card */}
-        <div className="absolute" style={{ left: X_FINAL, top: finalTop }}>
-          <div className="flex items-center gap-1.5 mb-1">
-            <Trophy size={10} className="text-amber-400" />
-            <span className="text-[9px] font-bold text-amber-400 uppercase tracking-widest">Final</span>
-          </div>
-          <BCard match={FINAL} />
-        </div>
-
-        {/* 3rd place card */}
-        <div className="absolute" style={{ left: X_FINAL, top: thirdTop }}>
-          <div className="flex items-center gap-1 mb-1">
-            <span className="text-[9px] font-bold text-[#555] uppercase tracking-widest">3rd Place</span>
-          </div>
-          <BCard match={THIRD} />
-          <p className="text-[8px] text-[#444] mt-0.5 ml-1">Loser SF1 vs Loser SF2</p>
-        </div>
-      </div>
-
-      <p className="text-[9px] text-[#444] mt-3 italic">
-        Eliminated teams will appear with strikethrough once results are confirmed. Dashed line = 3rd place path.
-      </p>
+          <p className="mt-4 text-sm italic text-text-muted">
+            The bracket refreshes from your registered fixtures. The dashed connector marks the 3rd-place playoff path.
+          </p>
+        </>
+      )}
     </div>
   )
-}
-
-const FIXTURES: Fixture[] = [
-  { id: 9, home: 'Chapelton FC', away: 'Porus United', date: '2026-06-06', time: '15:00', venue: 'Denbigh Field', homeScore: 1, awayScore: 0, status: 'live' },
-  { id: 1, home: 'Manchester United Clarendon', away: 'Kellits United', date: '2026-07-31', time: '10:00', venue: 'Denbigh Field', homeScore: null, awayScore: null, status: 'upcoming' },
-  { id: 2, home: 'Chapelton FC', away: 'Denbigh City FC', date: '2026-07-31', time: '12:00', venue: 'Kellits Park', homeScore: null, awayScore: null, status: 'upcoming' },
-  { id: 3, home: 'Porus United', away: 'Frankfield Boys', date: '2026-07-31', time: '14:00', venue: 'Porus Oval', homeScore: null, awayScore: null, status: 'upcoming' },
-  { id: 10, home: 'Rock River Rangers', away: 'Spaldings All Stars', date: '2026-07-31', time: '16:00', venue: 'Rock River Ground', homeScore: null, awayScore: null, status: 'upcoming' },
-  { id: 4, home: 'Chapelton FC', away: 'Spaldings All Stars', date: '2026-06-28', time: '15:00', venue: 'Denbigh Field', homeScore: 3, awayScore: 1, status: 'result' },
-  { id: 5, home: 'Rock River Rangers', away: 'Porus United', date: '2026-06-28', time: '17:00', venue: 'Rock River Ground', homeScore: 2, awayScore: 2, status: 'result' },
-  { id: 6, home: 'Frankfield Boys', away: 'Manchester United Clarendon', date: '2026-06-27', time: '15:30', venue: 'Frankfield Park', homeScore: 1, awayScore: 3, status: 'result' },
-  { id: 7, home: 'Spaldings All Stars', away: 'Porus United', date: '2026-06-21', time: '15:00', venue: 'Kellits Park', homeScore: 0, awayScore: 1, status: 'result' },
-  { id: 8, home: 'Manchester United Clarendon', away: 'Rock River Rangers', date: '2026-06-20', time: '14:00', venue: 'MUC Ground', homeScore: 4, awayScore: 0, status: 'result' },
-]
-
-function formatMatchDate(d: string) {
-  return new Date(d + 'T00:00:00').toLocaleDateString('en-GB', {
-    weekday: 'long', day: 'numeric', month: 'long', year: 'numeric',
-  })
 }
 
 function FixtureCard({ fixture, index }: { fixture: Fixture; index: number }) {
@@ -241,52 +412,61 @@ function FixtureCard({ fixture, index }: { fixture: Fixture; index: number }) {
         initial={{ opacity: 0, y: 18 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.38, delay: index * 0.055, ease: [0.22, 1, 0.36, 1] }}
-        className="card-hover group cursor-pointer"
+        className="card-hover group cursor-pointer p-5 md:p-6"
       >
-        <div className="flex items-center gap-2 text-xs text-text-muted mb-3">
-          <Clock size={11} />
-          <span>{fixture.time}</span>
-          <MapPin size={11} className="ml-1" />
-          <span className="truncate">{fixture.venue}</span>
+        <div className="mb-4 flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-text-muted">
+          <span className="inline-flex items-center gap-2">
+            <Clock size={14} />
+            {fixture.time}
+          </span>
+          <span className="inline-flex items-center gap-2 min-w-0">
+            <MapPin size={14} className="shrink-0" />
+            <span className="truncate">{fixture.venue}</span>
+          </span>
+          {fixture.round && (
+            <span className="rounded-full border border-brand-primary/20 bg-brand-primary/10 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-brand-secondary">
+              {fixture.round}
+            </span>
+          )}
           {isLive && (
-            <span className="ml-auto flex items-center gap-1.5 text-brand-secondary font-semibold">
+            <span className="ml-auto inline-flex items-center gap-1.5 font-semibold text-brand-secondary">
               <span className="live-dot" />
               LIVE
             </span>
           )}
         </div>
 
-        <div className="flex items-center justify-between gap-4">
-          <div className="flex-1 text-right">
-            <p className="font-semibold text-text-primary text-sm leading-tight group-hover:text-white transition-colors">
+        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+          <div className="flex-1 text-left md:text-right">
+            <p className="text-lg font-semibold leading-tight text-text-primary transition-colors group-hover:text-white md:text-xl">
               {fixture.home}
             </p>
           </div>
 
-          <div className="flex items-center gap-2 shrink-0">
+          <div className="flex shrink-0 items-center justify-center gap-2">
             {isResult || isLive ? (
-              <div className={`flex items-center gap-1.5 ${isLive ? 'ring-1 ring-brand-primary/40 rounded-lg px-2 py-0.5' : ''}`}>
-                <span className="text-xl font-bold text-text-primary w-6 text-right">{fixture.homeScore}</span>
-                <span className="text-text-muted text-sm font-medium">-</span>
-                <span className="text-xl font-bold text-text-primary w-6">{fixture.awayScore}</span>
+              <div className={`flex items-center gap-2 rounded-2xl px-3 py-2 ${isLive ? 'ring-1 ring-brand-primary/40 bg-brand-primary/5' : 'bg-bg-muted/60'}`}>
+                <span className="w-8 text-right text-2xl font-bold text-text-primary md:w-10 md:text-3xl">{fixture.homeScore}</span>
+                <span className="text-base font-medium text-text-muted">-</span>
+                <span className="w-8 text-2xl font-bold text-text-primary md:w-10 md:text-3xl">{fixture.awayScore}</span>
               </div>
             ) : (
-              <span className="px-3 py-1 rounded-lg bg-brand-primary/10 text-brand-secondary text-xs font-medium border border-brand-primary/20">
-                vs
+              <span className="rounded-2xl border border-brand-primary/20 bg-brand-primary/10 px-4 py-2 text-sm font-semibold uppercase tracking-wide text-brand-secondary">
+                VS
               </span>
             )}
           </div>
 
-          <div className="flex-1">
-            <p className="font-semibold text-text-primary text-sm leading-tight group-hover:text-white transition-colors">
+          <div className="flex-1 text-left">
+            <p className="text-lg font-semibold leading-tight text-text-primary transition-colors group-hover:text-white md:text-xl">
               {fixture.away}
             </p>
           </div>
         </div>
 
-        <div className="mt-3 flex justify-end">
-          <span className="text-xs text-text-muted group-hover:text-brand-secondary transition-colors flex items-center gap-1">
-            Match details <ChevronRight size={12} />
+        <div className="mt-5 flex justify-end">
+          <span className="flex items-center gap-1 text-sm text-text-muted transition-colors group-hover:text-brand-secondary">
+            Match details <ChevronRight size={14} />
           </span>
         </div>
       </motion.div>
@@ -294,47 +474,79 @@ function FixtureCard({ fixture, index }: { fixture: Fixture; index: number }) {
   )
 }
 
-const QUICK_LINKS = [
-  { href: '/gallery', label: 'Gallery', icon: Camera, desc: 'Match photos' },
-  { href: '/sponsors', label: 'Sponsors', icon: Star, desc: 'Our partners' },
-  { href: '/volunteer', label: 'Volunteer', icon: HandHeart, desc: 'Get involved' },
-  { href: '/teams', label: 'Teams', icon: Users, desc: 'All 8 clubs' },
-]
-
 function FixturesContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
-  const tab = (searchParams.get('tab') ?? 'bracket') as Tab
-  const [liveCount, setLiveCount] = useState(0)
+  const activeTab = searchParams.get('tab')
+  const tab: Tab = TABS.some(item => item.key === activeTab) ? (activeTab as Tab) : 'bracket'
+
+  const [fixtures, setFixtures] = useState<Fixture[]>([])
+  const [dbFixtures, setDbFixtures] = useState<DbFixture[]>([])
+  const [teamCount, setTeamCount] = useState(0)
+  const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    setLiveCount(FIXTURES.filter(f => f.status === 'live').length)
     const supabase = createClient()
+    let active = true
+
+    async function load() {
+      const [{ data: fixturesData }, { count: teamsCount }] = await Promise.all([
+        (supabase as any)
+          .from('fixtures')
+          .select(`
+            id, match_date, venue, round, status,
+            home_team:teams!fixtures_home_team_id_fkey(name, short_name),
+            away_team:teams!fixtures_away_team_id_fkey(name, short_name),
+            match_scores(home_score, away_score)
+          `)
+          .order('match_date', { ascending: true }),
+        (supabase as any).from('teams').select('id', { count: 'exact', head: true }),
+      ])
+
+      if (!active) return
+
+      const typedFixtures = (fixturesData ?? []) as DbFixture[]
+      setDbFixtures(typedFixtures)
+      setFixtures(typedFixtures.map(toUiFixture))
+      setTeamCount(teamsCount ?? 0)
+      setLoading(false)
+    }
+
+    load()
+
     const channel = supabase
-      .channel('fixtures_list_live')
-      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'fixtures' }, () => {})
+      .channel('fixtures_page_updates')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'fixtures' }, load)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'match_scores' }, load)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'teams' }, load)
       .subscribe()
-    return () => { supabase.removeChannel(channel) }
+
+    return () => {
+      active = false
+      supabase.removeChannel(channel)
+    }
   }, [])
 
-  function setTab(t: Tab) {
-    router.push(`/fixtures?tab=${t}`, { scroll: false })
+  function setTab(nextTab: Tab) {
+    router.push(`/fixtures?tab=${nextTab}`, { scroll: false })
   }
 
-  const filtered = FIXTURES.filter(f => {
-    if (tab === 'upcoming') return f.status === 'upcoming'
-    if (tab === 'live') return f.status === 'live'
-    if (tab === 'results') return f.status === 'result'
+  const liveCount = fixtures.filter(fixture => fixture.status === 'live').length
+
+  const filtered = fixtures.filter(fixture => {
+    if (tab === 'upcoming') return fixture.status === 'upcoming'
+    if (tab === 'live') return fixture.status === 'live'
+    if (tab === 'results') return fixture.status === 'result'
     return false
   })
 
   const sorted = [...filtered].sort((a, b) =>
-    tab === 'results' ? b.date.localeCompare(a.date) : a.date.localeCompare(b.date)
+    tab === 'results' ? b.matchDate.localeCompare(a.matchDate) : a.matchDate.localeCompare(b.matchDate)
   )
 
-  const grouped = sorted.reduce<Record<string, Fixture[]>>((acc, f) => {
-    if (!acc[f.date]) acc[f.date] = []
-    acc[f.date].push(f)
+  const grouped = sorted.reduce<Record<string, Fixture[]>>((acc, fixture) => {
+    if (!acc[fixture.dateKey]) acc[fixture.dateKey] = []
+    acc[fixture.dateKey].push(fixture)
     return acc
   }, {})
 
@@ -342,68 +554,73 @@ function FixturesContent() {
     tab === 'results' ? b.localeCompare(a) : a.localeCompare(b)
   )
 
-  const TABS: { key: Tab; label: string }[] = [
-    { key: 'bracket', label: 'Bracket' },
-    { key: 'upcoming', label: 'Upcoming' },
-    { key: 'live', label: 'Live' },
-    { key: 'results', label: 'Results' },
+  const quickLinks = [
+    { href: '/gallery', label: 'Gallery', icon: Camera, desc: 'Match photos' },
+    { href: '/sponsors', label: 'Sponsors', icon: Star, desc: 'Our partners' },
+    { href: '/volunteer', label: 'Volunteer', icon: HandHeart, desc: 'Get involved' },
+    { href: '/teams', label: 'Teams', icon: Users, desc: teamCount > 0 ? `${teamCount} registered clubs` : 'Team directory' },
   ]
+
+  const firstRoundMatches = getOpeningRoundMatchCount(teamCount)
+  const tournamentMatches = getKnockoutMatchCount(teamCount)
+  const semiFinalTeams = teamCount >= 2 ? Math.ceil(teamCount / 2) : 0
 
   return (
     <main className="min-h-screen bg-bg-base">
-      <div className="container-cesp py-12">
-        {/* Header */}
+      <div className="container-cesp py-12 md:py-16">
         <motion.div
           initial={{ opacity: 0, y: 24 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
-          className="mb-6"
+          className="mb-10"
         >
-          <h1 className="text-4xl font-bold text-text-primary mb-1">Fixtures &amp; Results</h1>
-          <p className="text-text-secondary">2026 Clarendon Elite Cup tournament</p>
+          <h1 className="mb-3 text-4xl font-bold text-text-primary md:text-5xl">Fixtures &amp; Results</h1>
+          <p className="max-w-2xl text-base leading-7 text-text-secondary md:text-lg">
+            Follow the knockout bracket, upcoming kick-offs, live matches, and final results for the Clarendon Elite Cup.
+          </p>
         </motion.div>
 
-        {/* Quick nav links */}
         <motion.div
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, delay: 0.08 }}
-          className="flex flex-wrap gap-2 mb-8"
+          className="mb-10 grid gap-3 sm:grid-cols-2 xl:grid-cols-4"
         >
-          {QUICK_LINKS.map(({ href, label, icon: Icon, desc }) => (
+          {quickLinks.map(({ href, label, icon: Icon, desc }) => (
             <Link
               key={href}
               href={href}
-              className="flex items-center gap-2 px-3 py-2 rounded-xl bg-bg-card border border-bg-border hover:border-brand-primary/30 hover:bg-bg-muted transition-all duration-200 group"
+              className="group flex items-center gap-3 rounded-2xl border border-bg-border bg-bg-card px-4 py-4 transition-all duration-200 hover:border-brand-primary/30 hover:bg-bg-muted"
             >
-              <Icon size={13} className="text-brand-secondary group-hover:text-brand-primary transition-colors" />
-              <div>
-                <p className="text-[11px] font-semibold text-text-primary leading-none">{label}</p>
-                <p className="text-[9px] text-text-muted leading-none mt-0.5">{desc}</p>
+              <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-brand-primary/10">
+                <Icon size={18} className="text-brand-secondary transition-colors group-hover:text-brand-primary" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-sm font-semibold text-text-primary md:text-base">{label}</p>
+                <p className="mt-1 text-xs leading-5 text-text-muted md:text-sm">{desc}</p>
               </div>
             </Link>
           ))}
         </motion.div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Main content */}
-          <div className="lg:col-span-2">
-            <div className="flex items-center gap-2 mb-6 flex-wrap">
+        <div className="grid grid-cols-1 gap-8 xl:grid-cols-[minmax(0,1.7fr)_minmax(320px,0.9fr)]">
+          <div>
+            <div className="mb-6 flex flex-wrap items-center gap-3">
               {TABS.map(({ key, label }) => {
                 const isActive = tab === key
                 return (
                   <button
                     key={key}
                     onClick={() => setTab(key)}
-                    className={`relative px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
+                    className={`relative rounded-2xl px-5 py-3 text-sm font-semibold transition-all duration-200 md:text-base ${
                       isActive
-                        ? 'bg-brand-primary text-white'
-                        : 'bg-bg-muted text-text-secondary hover:text-text-primary border border-bg-border'
+                        ? 'bg-brand-primary text-white shadow-glow'
+                        : 'border border-bg-border bg-bg-muted text-text-secondary hover:text-text-primary'
                     }`}
                   >
                     {label}
                     {key === 'live' && liveCount > 0 && (
-                      <span className="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full bg-brand-primary text-white text-[9px] font-bold flex items-center justify-center ring-2 ring-bg-base">
+                      <span className="absolute -right-2 -top-2 flex h-6 w-6 items-center justify-center rounded-full bg-brand-primary text-[11px] font-bold text-white ring-4 ring-bg-base">
                         {liveCount}
                       </span>
                     )}
@@ -420,34 +637,40 @@ function FixturesContent() {
                 exit={{ opacity: 0, y: -8 }}
                 transition={{ duration: 0.2 }}
               >
-                {tab === 'bracket' && <BracketView />}
+                {loading && (
+                  <div className="card py-16 text-center text-text-muted">
+                    Loading fixtures...
+                  </div>
+                )}
 
-                {tab === 'live' && filtered.length > 0 && (
-                  <div className="flex items-center gap-2 text-brand-secondary text-sm font-medium mb-4">
-                    <Radio size={14} />
+                {!loading && tab === 'bracket' && <BracketView fixtures={dbFixtures} />}
+
+                {!loading && tab === 'live' && filtered.length > 0 && (
+                  <div className="mb-5 flex items-center gap-2 text-sm font-medium text-brand-secondary md:text-base">
+                    <Radio size={16} />
                     <span>{filtered.length} match{filtered.length !== 1 ? 'es' : ''} in progress</span>
                   </div>
                 )}
 
-                {tab !== 'bracket' && (
+                {!loading && tab !== 'bracket' && (
                   sortedDates.length === 0 ? (
-                    <div className="card text-center py-16 text-text-muted">
-                      {tab === 'live' ? 'No matches are currently live.' : 'No fixtures in this category.'}
+                    <div className="card py-16 text-center text-text-muted">
+                      {tab === 'live' ? 'No matches are currently live.' : 'No fixtures in this category yet.'}
                     </div>
                   ) : (
-                    <div className="space-y-6">
+                    <div className="space-y-8">
                       {sortedDates.map(date => (
                         <div key={date}>
-                          <div className="flex items-center gap-3 mb-3">
-                            <Calendar size={13} className="text-brand-secondary shrink-0" />
-                            <span className="text-xs font-semibold text-brand-secondary uppercase tracking-wide">
+                          <div className="mb-4 flex items-center gap-3">
+                            <Calendar size={16} className="shrink-0 text-brand-secondary" />
+                            <span className="text-sm font-semibold uppercase tracking-wide text-brand-secondary">
                               {formatMatchDate(date)}
                             </span>
-                            <div className="flex-1 h-px bg-bg-border" />
+                            <div className="h-px flex-1 bg-bg-border" />
                           </div>
-                          <div className="space-y-3">
-                            {grouped[date].map((f, i) => (
-                              <FixtureCard key={f.id} fixture={f} index={i} />
+                          <div className="space-y-4">
+                            {grouped[date].map((fixture, index) => (
+                              <FixtureCard key={fixture.id} fixture={fixture} index={index} />
                             ))}
                           </div>
                         </div>
@@ -459,55 +682,72 @@ function FixturesContent() {
             </AnimatePresence>
           </div>
 
-          {/* Sidebar */}
           <div>
             <motion.div
               initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ duration: 0.6, delay: 0.2, ease: [0.22, 1, 0.36, 1] }}
             >
-              {/* Tournament format */}
-              <div className="card mb-6">
-                <p className="text-xs font-bold text-text-muted uppercase tracking-widest mb-4">Tournament Format</p>
-                <div className="space-y-3">
+              <div className="card mb-6 rounded-[28px] p-6 md:p-7">
+                <p className="mb-5 text-xs font-bold uppercase tracking-[0.24em] text-text-muted">Tournament Format</p>
+                <div className="space-y-4">
                   {[
-                    { round: 'Quarter-finals', date: '31 July', note: '8 teams, 4 matches', color: 'text-text-secondary' },
-                    { round: 'Semi-finals', date: '1 August', note: '4 teams, 2 matches', color: 'text-brand-secondary' },
-                    { round: 'Final', date: '2 August', note: '2 teams, 1 match', color: 'text-amber-400' },
-                    { round: '3rd Place', date: '2 August', note: 'SF losers', color: 'text-text-muted' },
-                  ].map(r => (
-                    <div key={r.round} className="flex items-start justify-between gap-2">
-                      <span className={`text-sm font-semibold ${r.color}`}>{r.round}</span>
-                      <div className="text-right shrink-0">
-                        <p className="text-xs text-text-muted">{r.date}</p>
-                        <p className="text-[10px] text-text-muted">{r.note}</p>
+                    {
+                      round: ROUND_STYLES.quarterfinal.label,
+                      date: `${firstRoundMatches} match${firstRoundMatches === 1 ? '' : 'es'}`,
+                      note: teamCount > 0 ? `${teamCount} teams in the opening round` : 'Waiting on team registration',
+                      color: ROUND_STYLES.quarterfinal.accent,
+                    },
+                    {
+                      round: ROUND_STYLES.semifinal.label,
+                      date: '2 matches',
+                      note: semiFinalTeams > 0 ? `${semiFinalTeams} teams advance` : 'Semi-final bracket pending',
+                      color: ROUND_STYLES.semifinal.accent,
+                    },
+                    {
+                      round: ROUND_STYLES.final.label,
+                      date: '1 match',
+                      note: 'Championship decider',
+                      color: ROUND_STYLES.final.accent,
+                    },
+                    {
+                      round: ROUND_STYLES.third.label,
+                      date: '1 match',
+                      note: 'Semi-final losers playoff',
+                      color: ROUND_STYLES.third.accent,
+                    },
+                  ].map(round => (
+                    <div key={round.round} className="flex items-start justify-between gap-4 rounded-2xl border border-bg-border bg-bg-card/60 px-4 py-4">
+                      <span className={`text-sm font-semibold md:text-base ${round.color}`}>{round.round}</span>
+                      <div className="shrink-0 text-right">
+                        <p className="text-sm text-text-secondary">{round.date}</p>
+                        <p className="mt-1 text-xs leading-5 text-text-muted">{round.note}</p>
                       </div>
                     </div>
                   ))}
                 </div>
-                <div className="divider mt-4 mb-3" />
-                <p className="text-xs text-text-muted leading-relaxed">
-                  All 8 teams participate from the quarter-final stage. Venues confirmed 14 days before each round.
+                <div className="divider mb-4 mt-5" />
+                <p className="text-sm leading-7 text-text-muted">
+                  Registered teams now drive the headline numbers on this page. With {teamCount || 0} team{teamCount === 1 ? '' : 's'} entered, the tournament currently projects {tournamentMatches} knockout match{tournamentMatches === 1 ? '' : 'es'} including the 3rd-place playoff.
                 </p>
               </div>
 
-              {/* Page links in sidebar */}
-              <p className="text-xs font-bold text-text-muted uppercase tracking-widest mb-3">Explore</p>
-              <div className="space-y-2">
-                {QUICK_LINKS.map(({ href, label, icon: Icon, desc }) => (
+              <p className="mb-3 text-xs font-bold uppercase tracking-[0.24em] text-text-muted">Explore</p>
+              <div className="space-y-3">
+                {quickLinks.map(({ href, label, icon: Icon, desc }) => (
                   <Link
                     key={href}
                     href={href}
-                    className="flex items-center gap-3 px-4 py-3 rounded-xl bg-bg-card border border-bg-border hover:border-brand-primary/30 hover:bg-bg-muted transition-all duration-200 group"
+                    className="group flex items-center gap-3 rounded-2xl border border-bg-border bg-bg-card px-4 py-4 transition-all duration-200 hover:border-brand-primary/30 hover:bg-bg-muted"
                   >
-                    <div className="w-8 h-8 rounded-lg bg-brand-primary/10 flex items-center justify-center shrink-0">
-                      <Icon size={15} className="text-brand-secondary" />
+                    <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-brand-primary/10 shrink-0">
+                      <Icon size={16} className="text-brand-secondary" />
                     </div>
-                    <div className="flex-1 min-w-0">
+                    <div className="min-w-0 flex-1">
                       <p className="text-sm font-semibold text-text-primary">{label}</p>
-                      <p className="text-xs text-text-muted">{desc}</p>
+                      <p className="mt-1 text-xs leading-5 text-text-muted">{desc}</p>
                     </div>
-                    <ChevronRight size={14} className="text-text-muted group-hover:text-brand-secondary transition-colors shrink-0" />
+                    <ChevronRight size={16} className="shrink-0 text-text-muted transition-colors group-hover:text-brand-secondary" />
                   </Link>
                 ))}
               </div>

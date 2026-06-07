@@ -1,21 +1,49 @@
 import { NextResponse } from 'next/server'
-import { createClient } from '@supabase/supabase-js'
+import { createClient } from '@/lib/supabase/server'
+
+function getKnockoutMatchCount(teamCount: number) {
+  if (teamCount < 2) return 0
+  return teamCount >= 4 ? teamCount : teamCount - 1
+}
 
 export async function GET() {
   try {
-    const supabase = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+    const supabase = await createClient()
+
+    const [{ count: teams, error: teamsError }, { count: scheduled, error: scheduledError }, { count: live, error: liveError }, { count: completed, error: completedError }] = await Promise.all([
+      supabase.from('teams').select('id', { count: 'exact', head: true }),
+      supabase.from('fixtures').select('id', { count: 'exact', head: true }).eq('status', 'scheduled'),
+      supabase.from('fixtures').select('id', { count: 'exact', head: true }).eq('status', 'live'),
+      supabase.from('fixtures').select('id', { count: 'exact', head: true }).eq('status', 'completed'),
+    ])
+
+    if (teamsError) throw teamsError
+    if (scheduledError) throw scheduledError
+    if (liveError) throw liveError
+    if (completedError) throw completedError
+
+    const teamCount = teams ?? 0
+
+    return NextResponse.json(
+      {
+        teams: teamCount,
+        matchesToPlay: getKnockoutMatchCount(teamCount),
+        scheduledFixtures: scheduled ?? 0,
+        liveFixtures: live ?? 0,
+        completedFixtures: completed ?? 0,
+      },
+      { headers: { 'Cache-Control': 'no-store' } }
     )
-
-    const { count, error } = await supabase
-      .from('teams')
-      .select('*', { count: 'exact', head: true })
-
-    if (error) throw error
-
-    return NextResponse.json({ teams: count ?? 0 }, { headers: { 'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=300' } })
   } catch {
-    return NextResponse.json({ teams: 0 })
+    return NextResponse.json(
+      {
+        teams: 0,
+        matchesToPlay: 0,
+        scheduledFixtures: 0,
+        liveFixtures: 0,
+        completedFixtures: 0,
+      },
+      { headers: { 'Cache-Control': 'no-store' } }
+    )
   }
 }

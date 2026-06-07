@@ -8,6 +8,11 @@ import {
   Calendar, Radio, ArrowDown
 } from 'lucide-react'
 
+type HomeStats = {
+  teams: number
+  matchesToPlay: number
+}
+
 const features = [
   { icon: Zap, title: 'Live Scores', description: 'Real-time match updates with live chat and goal alerts.' },
   { icon: Trophy, title: 'Fixtures & Results', description: 'Full schedule, standings, and match statistics.' },
@@ -84,18 +89,23 @@ export default function HomePage() {
   const heroY = useTransform(scrollYProgress, [0, 1], [0, 120])
   const heroOpacity = useTransform(scrollYProgress, [0, 0.6], [1, 0])
 
-  const [teamCount, setTeamCount] = useState<number>(12)
+  const [homeStats, setHomeStats] = useState<HomeStats>({ teams: 0, matchesToPlay: 0 })
 
   useEffect(() => {
-    fetch('/api/stats')
+    fetch('/api/stats', { cache: 'no-store' })
       .then(r => r.ok ? r.json() : null)
-      .then(data => { if (data?.teams > 0) setTeamCount(data.teams) })
+      .then(data => {
+        setHomeStats({
+          teams: Number(data?.teams ?? 0),
+          matchesToPlay: Number(data?.matchesToPlay ?? 0),
+        })
+      })
       .catch(() => {})
   }, [])
 
   const stats: { num: number; suffix: string; label: string }[] = [
-    { num: teamCount, suffix: '', label: 'Teams' },
-    { num: 84, suffix: '+', label: 'Matches Played' },
+    { num: homeStats.teams, suffix: '', label: 'Teams' },
+    { num: homeStats.matchesToPlay, suffix: '', label: 'Matches To Play' },
     { num: 2, suffix: 'K+', label: 'Fans' },
     { num: 100, suffix: '%', label: 'Charity' },
   ]
