@@ -43,7 +43,7 @@ function buildTeamMerch(teamName: string): MerchProduct[] {
       category: 'jerseys',
       name: `${teamName} Home Jersey`,
       description: 'Official home jersey in school colours with optional name and number personalisation.',
-      price: 45,
+      price: 7000,
       sizes: ['XS', 'S', 'M', 'L', 'XL', 'XXL'],
       customizable: true,
       badge: 'Best seller',
@@ -58,7 +58,7 @@ function buildTeamMerch(teamName: string): MerchProduct[] {
       category: 'headwear',
       name: `${teamName} Supporter Cap`,
       description: 'Structured cap in school colours with embroidered crest for matchday wear.',
-      price: 18,
+      price: 2800,
       sizes: ['One size'],
       customizable: false,
       imagePath,
@@ -72,7 +72,7 @@ function buildTeamMerch(teamName: string): MerchProduct[] {
       category: 'hydration',
       name: `${teamName} Water Bottle`,
       description: '750ml bottle finished in school colours with logo lockup for training and school runs.',
-      price: 14,
+      price: 2200,
       sizes: ['750ml'],
       customizable: false,
       imagePath,
@@ -86,7 +86,7 @@ function buildTeamMerch(teamName: string): MerchProduct[] {
       category: 'equipment',
       name: `${teamName} Captain Armband`,
       description: 'Elastic captain armband with club-inspired trim for coaches, captains, and collectors.',
-      price: 9,
+      price: 1400,
       sizes: ['Junior', 'Senior'],
       customizable: false,
       imagePath,
@@ -112,9 +112,9 @@ export function getMerchProductById(productId: string) {
 }
 
 export function formatCurrency(amount: number) {
-  return new Intl.NumberFormat('en-GB', {
+  return new Intl.NumberFormat('en-JM', {
     style: 'currency',
-    currency: 'GBP',
+    currency: 'JMD',
     maximumFractionDigits: 0,
   }).format(amount)
 }

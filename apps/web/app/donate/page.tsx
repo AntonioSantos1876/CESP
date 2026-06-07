@@ -5,10 +5,10 @@ import { useState } from 'react'
 import { Heart, CheckCircle, Shield, Users, Trophy } from 'lucide-react'
 
 const tiers = [
-  { amount: 5, label: 'Supporter', description: 'Help cover match day costs' },
-  { amount: 15, label: 'Fan', description: 'Fund player kit for one player' },
-  { amount: 30, label: 'Patron', description: 'Sponsor a full match day' },
-  { amount: 50, label: 'Champion', description: 'Keep the league running for a week' },
+  { amount: 750, label: 'Supporter', description: 'Help cover match day costs' },
+  { amount: 2000, label: 'Fan', description: 'Fund player kit for one player' },
+  { amount: 4500, label: 'Patron', description: 'Sponsor a full match day' },
+  { amount: 7500, label: 'Champion', description: 'Keep the league running for a week' },
 ]
 
 const impacts = [
@@ -18,14 +18,14 @@ const impacts = [
 ]
 
 export default function DonatePage() {
-  const [selected, setSelected] = useState(15)
+  const [selected, setSelected] = useState(2000)
   const [custom, setCustom] = useState('')
   const [loading, setLoading] = useState(false)
 
   const finalAmount = custom ? Number(custom) : selected
 
   async function handleDonate() {
-    if (!finalAmount || finalAmount < 1) return
+    if (!finalAmount || finalAmount < 100) return
     setLoading(true)
     try {
       const res = await fetch('/api/checkout/donate', {
@@ -79,7 +79,7 @@ export default function DonatePage() {
                   }`}
                 >
                   <div className={`text-xl font-bold mb-0.5 ${selected === tier.amount && !custom ? 'text-brand-secondary' : 'text-text-primary'}`}>
-                    £{tier.amount}
+                    J${tier.amount.toLocaleString()}
                   </div>
                   <div className="text-xs font-semibold text-text-primary mb-1">{tier.label}</div>
                   <div className="text-xs text-text-muted">{tier.description}</div>
@@ -88,7 +88,7 @@ export default function DonatePage() {
             </div>
 
             <div className="mb-6">
-              <label className="text-sm text-text-muted mb-2 block">Custom amount (£)</label>
+              <label className="text-sm text-text-muted mb-2 block">Custom amount (J$)</label>
               <input
                 type="number"
                 min={1}
@@ -103,7 +103,7 @@ export default function DonatePage() {
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
               onClick={handleDonate}
-              disabled={loading || !finalAmount || finalAmount < 1}
+              disabled={loading || !finalAmount || finalAmount < 100}
               className="btn-primary w-full py-4 text-base justify-center"
             >
               {loading ? (
@@ -114,7 +114,7 @@ export default function DonatePage() {
               ) : (
                 <span className="flex items-center gap-2">
                   <Heart size={18} />
-                  Donate £{finalAmount || '-'} now
+                  Donate J${finalAmount ? finalAmount.toLocaleString() : '-'} now
                 </span>
               )}
             </motion.button>

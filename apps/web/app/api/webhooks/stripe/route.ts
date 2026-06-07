@@ -44,7 +44,7 @@ export async function POST(req: Request) {
             stripe_session_id: session.id,
             stripe_payment_intent_id: session.payment_intent as string,
             amount: donationAmount,
-            currency: session.currency?.toUpperCase() ?? 'GBP',
+            currency: session.currency?.toUpperCase() ?? 'JMD',
             status: 'completed',
             metadata,
           })

@@ -45,6 +45,32 @@ function ProductLogoPatch({ product, className = '' }: { product: MerchProduct; 
   )
 }
 
+function ProductLogoSticker({ product, className = '' }: { product: MerchProduct; className?: string }) {
+  const logoPath = getTeamLogoPath(product.teamName)
+
+  if (!logoPath) {
+    return (
+      <div className={`relative flex items-center justify-center rounded-xl bg-white/15 ${className}`.trim()}>
+        <span className="text-[10px] font-black uppercase tracking-[0.2em] text-white/80">
+          {product.branding.shortName}
+        </span>
+      </div>
+    )
+  }
+
+  return (
+    <div className={`relative drop-shadow-[0_8px_20px_rgba(0,0,0,0.45)] ${className}`.trim()}>
+      <Image
+        src={logoPath}
+        alt={`${product.teamName} crest`}
+        fill
+        sizes="96px"
+        className="object-contain"
+      />
+    </div>
+  )
+}
+
 function ProductArtwork({ product }: { product: MerchProduct }) {
   if (product.kind === 'jersey' && product.imagePath) {
     return (
@@ -87,7 +113,7 @@ function ProductArtwork({ product }: { product: MerchProduct }) {
                 background: `linear-gradient(90deg, ${hexToRgba(product.branding.primary, 0.98)} 0%, ${hexToRgba(product.branding.accent, 0.94)} 100%)`,
               }}
             />
-            <ProductLogoPatch product={product} className="absolute left-1/2 top-[4.35rem] h-16 w-16 -translate-x-1/2" />
+            <ProductLogoSticker product={product} className="absolute left-1/2 top-[4.35rem] h-16 w-16 -translate-x-1/2" />
           </div>
         </div>
       </div>
@@ -116,7 +142,7 @@ function ProductArtwork({ product }: { product: MerchProduct }) {
               }}
             />
             <div className="absolute inset-x-3 top-[4.4rem] h-[5.4rem] rounded-[1.6rem] border border-white/30 bg-white/18" />
-            <ProductLogoPatch product={product} className="absolute left-1/2 top-[5.05rem] h-16 w-16 -translate-x-1/2" />
+            <ProductLogoSticker product={product} className="absolute left-1/2 top-[5.05rem] h-16 w-16 -translate-x-1/2" />
           </div>
         </div>
       </div>
@@ -141,7 +167,7 @@ function ProductArtwork({ product }: { product: MerchProduct }) {
           >
             <div className="absolute inset-y-3 left-6 right-6 rounded-[1.4rem] border border-white/20 bg-black/12" />
             <div className="absolute inset-y-0 left-1/2 flex -translate-x-1/2 items-center">
-              <ProductLogoPatch product={product} className="h-16 w-16" />
+              <ProductLogoSticker product={product} className="h-16 w-16" />
             </div>
             <div className="absolute left-6 top-1/2 -translate-y-1/2 text-xl font-black tracking-[0.3em] text-white/85">C</div>
           </div>
