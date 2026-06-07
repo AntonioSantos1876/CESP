@@ -8,9 +8,10 @@ import {
   Trophy,
 } from 'lucide-react'
 import Link from 'next/link'
+import Image from 'next/image'
 import { TeamLink } from '@/components/TeamLink'
 import { createClient } from '@/lib/supabase/client'
-import { DEMO_SCHOOL_FIXTURES, getTeamBranding, getTeamHref, hexToRgba } from '@/lib/school-teams'
+import { DEMO_SCHOOL_FIXTURES, getTeamBranding, getTeamHref, getTeamLogoPath, hexToRgba } from '@/lib/school-teams'
 
 type Tab = 'bracket' | 'upcoming' | 'live' | 'results'
 type FixtureStatus = 'upcoming' | 'live' | 'result'
@@ -48,6 +49,7 @@ type BracketSlot = {
   eliminated: boolean
   primary: string
   secondary: string
+  logoPath: string | null
 } | null
 
 type BMatch = {
@@ -166,6 +168,7 @@ function normalizeRound(round: string | null): BracketRound | null {
 
 function makeSlot(name: string, shortName?: string | null, eliminated = false): BracketSlot {
   const branding = getTeamBranding(name)
+  const logoPath = getTeamLogoPath(name)
   const trimmedShortName = shortName?.trim()
   if (trimmedShortName) {
     return {
@@ -174,6 +177,7 @@ function makeSlot(name: string, shortName?: string | null, eliminated = false): 
       eliminated,
       primary: branding.primary,
       secondary: branding.secondary,
+      logoPath,
     }
   }
 
@@ -188,6 +192,7 @@ function makeSlot(name: string, shortName?: string | null, eliminated = false): 
     eliminated,
     primary: branding.primary,
     secondary: branding.secondary,
+    logoPath,
   }
 }
 
@@ -325,12 +330,24 @@ function BSlotRow({ slot, score, border }: { slot: BracketSlot; score: number | 
     <div className={`flex items-center gap-3 px-4 py-3 ${border ? 'border-t border-[#262626]' : ''}`}>
       {slot ? (
         <Link href={getTeamHref(slot.name)} className="flex min-w-0 flex-1 items-center gap-3 transition-opacity hover:opacity-100">
-          <div
-            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border text-[11px] font-black uppercase tracking-wide"
-            style={badgeStyle}
-          >
-            {slot.abbr}
-          </div>
+          {slot.logoPath ? (
+            <div className={`relative h-9 w-9 shrink-0 ${slot.eliminated ? 'opacity-35' : ''}`}>
+              <Image
+                src={slot.logoPath}
+                alt={`${slot.name} crest`}
+                fill
+                sizes="36px"
+                className="object-contain"
+              />
+            </div>
+          ) : (
+            <div
+              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border text-[11px] font-black uppercase tracking-wide"
+              style={badgeStyle}
+            >
+              {slot.abbr}
+            </div>
+          )}
           <span
             className={`min-w-0 flex-1 truncate text-sm font-semibold leading-snug md:text-[15px] ${
               slot.eliminated ? 'line-through opacity-35 text-text-muted' : 'text-text-primary'
