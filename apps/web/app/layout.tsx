@@ -40,6 +40,14 @@ export const metadata: Metadata = {
   alternates: {
     canonical: APP_URL,
   },
+  icons: {
+    icon: [
+      { url: '/brand/cesp-logo.svg', type: 'image/svg+xml' },
+      { url: '/favicon.ico', sizes: 'any' },
+    ],
+    shortcut: '/favicon.ico',
+    apple: '/brand/cesp-logo.svg',
+  },
 }
 
 export const viewport: Viewport = {

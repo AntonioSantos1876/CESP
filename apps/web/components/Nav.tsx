@@ -1,14 +1,15 @@
 'use client'
 
+import { CespLogo } from '@/components/CespLogo'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useState, useEffect } from 'react'
 import { useCart } from '@/components/cart-provider'
 import { createClient } from '@/lib/supabase/client'
 import {
-  Trophy, Home, Calendar, Users, Newspaper, Heart,
+  Home, Calendar, Users, Newspaper, Heart,
   ShoppingBag, Radio, User, LogOut, Menu, X, ChevronDown, Bell, ShoppingCart,
-  HandHeart, Star, Camera,
+  HandHeart, Star, Camera, ShieldCheck,
 } from 'lucide-react'
 
 const navLinks = [
@@ -77,7 +78,7 @@ export function Nav({ user }: NavProps) {
       <div className="container-cesp flex items-center justify-between h-16 gap-4">
         {/* Logo */}
         <Link href="/" className="flex items-center gap-2 shrink-0">
-          <Trophy size={22} className="text-brand-primary" />
+          <CespLogo size={34} priority />
           <span className="font-bold text-gradient hidden sm:inline">Clarendon Elite Cup</span>
           <span className="font-bold text-gradient sm:hidden">CEC</span>
         </Link>
@@ -191,7 +192,7 @@ export function Nav({ user }: NavProps) {
                         className="flex items-center gap-2 px-4 py-3 text-sm text-text-secondary hover:bg-bg-hover hover:text-text-primary transition-colors border-t border-bg-border"
                         onClick={() => setProfileOpen(false)}
                       >
-                        <Trophy size={14} />
+                        <ShieldCheck size={14} />
                         Admin
                       </Link>
                     )}

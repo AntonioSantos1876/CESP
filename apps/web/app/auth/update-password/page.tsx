@@ -1,9 +1,10 @@
 'use client'
 
+import { CespLogo } from '@/components/CespLogo'
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
-import { Trophy, Eye, EyeOff } from 'lucide-react'
+import { Eye, EyeOff } from 'lucide-react'
 import Link from 'next/link'
 
 export default function UpdatePasswordPage() {
@@ -45,7 +46,7 @@ export default function UpdatePasswordPage() {
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
           <Link href="/" className="inline-flex items-center gap-2 text-gradient font-bold text-2xl">
-            <Trophy size={28} className="text-brand-primary" />
+            <CespLogo size={38} priority />
             Clarendon Elite Cup
           </Link>
           <p className="text-text-secondary text-sm mt-2">Set a new password</p>

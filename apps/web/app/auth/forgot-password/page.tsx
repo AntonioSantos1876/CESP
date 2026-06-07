@@ -1,9 +1,10 @@
 'use client'
 
+import { CespLogo } from '@/components/CespLogo'
 import { useState } from 'react'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
-import { Trophy, ArrowLeft } from 'lucide-react'
+import { ArrowLeft } from 'lucide-react'
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState('')
@@ -36,7 +37,7 @@ export default function ForgotPasswordPage() {
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
           <Link href="/" className="inline-flex items-center gap-2 text-gradient font-bold text-2xl">
-            <Trophy size={28} className="text-brand-primary" />
+            <CespLogo size={38} priority />
             Clarendon Elite Cup
           </Link>
           <p className="text-text-secondary text-sm mt-2">Reset your password</p>

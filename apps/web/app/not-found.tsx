@@ -1,11 +1,12 @@
+import { CespLogo } from '@/components/CespLogo'
 import Link from 'next/link'
-import { Trophy, Home, Calendar, ArrowLeft } from 'lucide-react'
+import { Home, Calendar } from 'lucide-react'
 
 export default function NotFound() {
   return (
     <main className="min-h-screen bg-bg-base flex flex-col items-center justify-center px-4 text-center">
       <div className="mb-6">
-        <Trophy size={40} className="text-brand-primary mx-auto" />
+        <CespLogo size={64} priority className="mx-auto" />
       </div>
 
       <p className="text-sm font-semibold text-brand-secondary uppercase tracking-widest mb-3">404</p>

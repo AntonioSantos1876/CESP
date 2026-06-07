@@ -1,0 +1,44 @@
+<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="512" height="512" rx="40" fill="#000000"/>
+  <defs>
+    <path id="topArc" d="M96 256C96 167.634 167.634 96 256 96C344.366 96 416 167.634 416 256"/>
+    <path id="bottomArc" d="M416 256C416 344.366 344.366 416 256 416C167.634 416 96 344.366 96 256"/>
+  </defs>
+
+  <circle cx="256" cy="256" r="220" stroke="white" stroke-width="18"/>
+  <circle cx="256" cy="256" r="178" stroke="white" stroke-width="16"/>
+  <circle cx="256" cy="256" r="118" fill="black" stroke="white" stroke-width="14"/>
+  <circle cx="256" cy="256" r="82" fill="#050505"/>
+
+  <g fill="white" font-family="Arial, Helvetica, sans-serif" font-weight="700" letter-spacing="4">
+    <text font-size="29">
+      <textPath href="#topArc" startOffset="50%" text-anchor="middle">CLARENDON ELITE</textPath>
+    </text>
+    <text font-size="24">
+      <textPath href="#bottomArc" startOffset="50%" text-anchor="middle">DEVELOP.IMPROVE.PROMOTE</textPath>
+    </text>
+  </g>
+
+  <g fill="#FF5B12">
+    <polygon points="68,245 73,259 88,259 76,268 81,282 68,273 55,282 60,268 48,259 63,259"/>
+    <polygon points="68,215 73,229 88,229 76,238 81,252 68,243 55,252 60,238 48,229 63,229"/>
+    <polygon points="68,275 73,289 88,289 76,298 81,312 68,303 55,312 60,298 48,289 63,289"/>
+    <polygon points="444,245 449,259 464,259 452,268 457,282 444,273 431,282 436,268 424,259 439,259"/>
+    <polygon points="444,215 449,229 464,229 452,238 457,252 444,243 431,252 436,238 424,229 439,229"/>
+    <polygon points="444,275 449,289 464,289 452,298 457,312 444,303 431,312 436,298 424,289 439,289"/>
+  </g>
+
+  <text x="256" y="180" fill="white" font-family="Arial, Helvetica, sans-serif" font-size="17" text-anchor="middle">SPORTS PROGRAM</text>
+
+  <g transform="translate(210 205)">
+    <path d="M0 76L34 18L54 46L21 98Z" fill="#FF5B12"/>
+    <circle cx="18" cy="14" r="9" fill="#FF5B12"/>
+    <path d="M44 84L74 34L96 62L58 98Z" fill="#17A8FF"/>
+    <circle cx="72" cy="24" r="10" fill="#17A8FF"/>
+    <path d="M48 48L66 12L79 20L63 54Z" fill="white"/>
+    <circle cx="65" cy="7" r="5" fill="#FF8A40"/>
+    <circle cx="83" cy="2" r="4" fill="#2DB8FF"/>
+  </g>
+
+  <text x="256" y="348" fill="white" font-family="Arial, Helvetica, sans-serif" font-size="28" text-anchor="middle">EST.2025</text>
+</svg>
