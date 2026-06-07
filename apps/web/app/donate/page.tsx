@@ -12,7 +12,7 @@ const tiers = [
 ]
 
 const impacts = [
-  { icon: Users, title: '200+ players', description: 'Given competitive football at no cost' },
+  { icon: Users, title: '200 players', description: 'Across 8 school teams, 25 players each' },
   { icon: Trophy, title: '84+ matches', description: 'Played in the 2026 season' },
   { icon: Heart, title: '100% charity', description: 'All surplus goes back into the community' },
 ]
