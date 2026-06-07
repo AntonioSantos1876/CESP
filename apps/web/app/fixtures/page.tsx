@@ -9,7 +9,7 @@ import {
 } from 'lucide-react'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
-import { DEMO_SCHOOL_FIXTURES, getTeamBranding } from '@/lib/school-teams'
+import { DEMO_SCHOOL_FIXTURES, getTeamBranding, hexToRgba } from '@/lib/school-teams'
 
 type Tab = 'bracket' | 'upcoming' | 'live' | 'results'
 type FixtureStatus = 'upcoming' | 'live' | 'result'
@@ -41,7 +41,13 @@ type Fixture = {
   matchDate: string
 }
 
-type BracketSlot = { name: string; abbr: string; eliminated: boolean } | null
+type BracketSlot = {
+  name: string
+  abbr: string
+  eliminated: boolean
+  primary: string
+  secondary: string
+} | null
 
 type BMatch = {
   id: string
@@ -158,9 +164,16 @@ function normalizeRound(round: string | null): BracketRound | null {
 }
 
 function makeSlot(name: string, shortName?: string | null, eliminated = false): BracketSlot {
+  const branding = getTeamBranding(name)
   const trimmedShortName = shortName?.trim()
   if (trimmedShortName) {
-    return { name, abbr: trimmedShortName.slice(0, 3).toUpperCase(), eliminated }
+    return {
+      name,
+      abbr: trimmedShortName.slice(0, 3).toUpperCase(),
+      eliminated,
+      primary: branding.primary,
+      secondary: branding.secondary,
+    }
   }
 
   const words = name.split(' ').filter(Boolean)
@@ -168,7 +181,13 @@ function makeSlot(name: string, shortName?: string | null, eliminated = false): 
     words.length >= 2
       ? `${words[0][0]}${words[words.length - 1][0]}`.toUpperCase()
       : name.slice(0, 2).toUpperCase()
-  return { name, abbr, eliminated }
+  return {
+    name,
+    abbr,
+    eliminated,
+    primary: branding.primary,
+    secondary: branding.secondary,
+  }
 }
 
 function getScore(matchScores: DbFixture['match_scores']) {
@@ -293,9 +312,22 @@ function getRoundHeaderDate(matches: BMatch[]) {
 }
 
 function BSlotRow({ slot, score, border }: { slot: BracketSlot; score: number | null; border: boolean }) {
+  const badgeStyle = slot
+    ? {
+        background: `linear-gradient(145deg, ${hexToRgba(slot.primary, slot.eliminated ? 0.18 : 0.92)} 0%, ${hexToRgba(slot.primary, slot.eliminated ? 0.1 : 0.72)} 100%)`,
+        borderColor: hexToRgba(slot.primary, slot.eliminated ? 0.25 : 0.95),
+        color: slot.secondary,
+      }
+    : undefined
+
   return (
     <div className={`flex items-center gap-3 px-4 py-3 ${border ? 'border-t border-[#262626]' : ''}`}>
-      <div className="flex h-9 w-9 items-center justify-center rounded-xl border border-[#333333] bg-[#1A1A1A] text-[11px] font-black uppercase tracking-wide text-text-muted shrink-0">
+      <div
+        className={`flex h-9 w-9 items-center justify-center rounded-xl border text-[11px] font-black uppercase tracking-wide shrink-0 ${
+          slot ? '' : 'border-[#333333] bg-[#1A1A1A] text-text-muted'
+        }`}
+        style={badgeStyle}
+      >
         {slot ? slot.abbr : '?'}
       </div>
       <span
