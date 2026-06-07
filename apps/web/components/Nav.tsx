@@ -61,8 +61,7 @@ export function Nav({ user }: NavProps) {
   async function handleSignOut() {
     const supabase = createClient()
     await supabase.auth.signOut()
-    router.push('/')
-    router.refresh()
+    window.location.href = '/auth/login'
   }
 
   const isActive = (href: string) =>
