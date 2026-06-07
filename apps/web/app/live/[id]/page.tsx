@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import {
   Radio, MessageSquare, BarChart2, Users, ChevronLeft,
   Eye, Send, Plus, Minus, Timer, StopCircle, AlertCircle,
-  Pencil, Check, X,
+  Pencil, Check, X, Maximize, Minimize,
 } from 'lucide-react'
 import Link from 'next/link'
 import { useParams } from 'next/navigation'
@@ -40,10 +40,10 @@ type TeamLineup = { formation: string; players: Player[] }
 type Lineups = { home: TeamLineup; away: TeamLineup }
 
 const MATCHES: Record<string, MatchData> = {
-  '9': { id: 9, home: 'Chapelton FC', away: 'Porus United', date: '2026-06-06', time: '15:00', venue: 'Denbigh Field', homeScore: 1, awayScore: 0, status: 'live', youtubeId: 'live_placeholder', clock: "62'" },
-  '4': { id: 4, home: 'Chapelton FC', away: 'Spaldings All Stars', date: '2026-06-28', time: '15:00', venue: 'Denbigh Field', homeScore: 3, awayScore: 1, status: 'vod', youtubeId: 'dQw4w9WgXcQ', clock: 'FT' },
-  '5': { id: 5, home: 'Rock River Rangers', away: 'Porus United', date: '2026-06-28', time: '17:00', venue: 'Rock River Ground', homeScore: 2, awayScore: 2, status: 'vod', youtubeId: 'dQw4w9WgXcQ', clock: 'FT' },
-  '6': { id: 6, home: 'Frankfield Boys', away: 'Manchester United Clarendon', date: '2026-06-27', time: '15:30', venue: 'Frankfield Park', homeScore: 1, awayScore: 3, status: 'vod', youtubeId: 'dQw4w9WgXcQ', clock: 'FT' },
+  '9': { id: 9, home: 'Chapelton FC', away: 'Porus United', date: '2026-06-06', time: '15:00', venue: 'Glenmuir High School', homeScore: 1, awayScore: 0, status: 'live', youtubeId: 'live_placeholder', clock: "62'" },
+  '4': { id: 4, home: 'Chapelton FC', away: 'Spaldings All Stars', date: '2026-06-28', time: '15:00', venue: 'Glenmuir High School', homeScore: 3, awayScore: 1, status: 'vod', youtubeId: 'dQw4w9WgXcQ', clock: 'FT' },
+  '5': { id: 5, home: 'Rock River Rangers', away: 'Porus United', date: '2026-06-28', time: '17:00', venue: 'Glenmuir High School', homeScore: 2, awayScore: 2, status: 'vod', youtubeId: 'dQw4w9WgXcQ', clock: 'FT' },
+  '6': { id: 6, home: 'Frankfield Boys', away: 'Manchester United Clarendon', date: '2026-06-27', time: '15:30', venue: 'Glenmuir High School', homeScore: 1, awayScore: 3, status: 'vod', youtubeId: 'dQw4w9WgXcQ', clock: 'FT' },
 }
 
 const MOCK_CHAT: ChatMessage[] = [
@@ -450,8 +450,10 @@ export default function StreamPage() {
   const [extraTime, setExtraTime] = useState(0)
   const [lineups, setLineups] = useState<Lineups>(DEFAULT_LINEUPS)
   const [loggedIn, setLoggedIn] = useState(false)
+  const [isFullscreen, setIsFullscreen] = useState(false)
   const chatEndRef = useRef<HTMLDivElement>(null)
   const clockRef = useRef<number>(62)
+  const playerRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -490,6 +492,22 @@ export default function StreamPage() {
       })
     return () => { supabase.removeChannel(matchChannel) }
   }, [match.id])
+
+  useEffect(() => {
+    function onFullscreenChange() {
+      setIsFullscreen(!!document.fullscreenElement)
+    }
+    document.addEventListener('fullscreenchange', onFullscreenChange)
+    return () => document.removeEventListener('fullscreenchange', onFullscreenChange)
+  }, [])
+
+  function toggleFullscreen() {
+    if (!document.fullscreenElement) {
+      playerRef.current?.requestFullscreen()
+    } else {
+      document.exitFullscreen()
+    }
+  }
 
   const sendMessage = useCallback(() => {
     const text = chatInput.trim()
@@ -562,10 +580,11 @@ export default function StreamPage() {
 
         {/* YouTube player */}
         <motion.div
+          ref={playerRef}
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ duration: 0.6, delay: 0.1 }}
-          className="relative w-full rounded-xl overflow-hidden bg-black mb-4"
+          className="relative w-full rounded-xl overflow-hidden bg-black mb-4 group"
           style={{ paddingTop: '56.25%' }}
         >
           <iframe
@@ -584,6 +603,13 @@ export default function StreamPage() {
               <p className="text-xs">YouTube stream link will be added by the operator</p>
             </div>
           )}
+          <button
+            onClick={toggleFullscreen}
+            className="absolute bottom-3 right-3 p-2 rounded-lg bg-black/60 text-white opacity-0 group-hover:opacity-100 transition-opacity hover:bg-black/80 z-10"
+            aria-label={isFullscreen ? 'Exit fullscreen' : 'Enter fullscreen'}
+          >
+            {isFullscreen ? <Minimize size={16} /> : <Maximize size={16} />}
+          </button>
         </motion.div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

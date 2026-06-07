@@ -82,18 +82,17 @@ export function Nav({ user }: NavProps) {
         </Link>
 
         {/* Desktop links */}
-        <div className="hidden lg:flex items-center gap-1">
-          {navLinks.map(({ href, label, icon: Icon }) => (
+        <div className="hidden xl:flex items-center gap-0.5">
+          {navLinks.map(({ href, label }) => (
             <Link
               key={href}
               href={href}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+              className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-colors whitespace-nowrap ${
                 isActive(href)
                   ? 'bg-brand-primary/15 text-brand-secondary'
                   : 'text-text-secondary hover:text-text-primary hover:bg-bg-hover'
               }`}
             >
-              <Icon size={14} />
               {label}
               {label === 'Live' && (
                 <span className="live-dot ml-0.5" />
@@ -207,7 +206,7 @@ export function Nav({ user }: NavProps) {
           {/* Mobile hamburger */}
           <button
             onClick={() => setMobileOpen(v => !v)}
-            className="lg:hidden p-2 text-text-secondary hover:text-text-primary transition-colors"
+            className="xl:hidden p-2 text-text-secondary hover:text-text-primary transition-colors"
           >
             {mobileOpen ? <X size={20} /> : <Menu size={20} />}
           </button>
@@ -216,7 +215,7 @@ export function Nav({ user }: NavProps) {
 
       {/* Mobile menu */}
       {mobileOpen && (
-        <div className="lg:hidden border-t border-bg-border bg-bg-base">
+        <div className="xl:hidden border-t border-bg-border bg-bg-base">
           <div className="container-cesp py-4 flex flex-col gap-1">
             {navLinks.map(({ href, label, icon: Icon }) => (
               <Link
