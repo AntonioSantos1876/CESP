@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import { Radio, Bell, Play, Clock, Calendar, Eye, Film, ChevronRight } from 'lucide-react'
 import Link from 'next/link'
+import { TeamLink } from '@/components/TeamLink'
 import { createClient } from '@/lib/supabase/client'
 
 type StreamStatus = 'live' | 'upcoming' | 'vod'
@@ -173,81 +174,91 @@ export default function LivePage() {
               <h2 className="text-sm font-bold text-brand-secondary uppercase tracking-widest">Live Now</h2>
             </div>
 
-            <Link href={`/live/${liveMatch.id}`}>
-              <motion.div
-                whileHover={{ scale: 1.01 }}
-                transition={{ duration: 0.2 }}
-                className="relative rounded-2xl overflow-hidden border border-brand-primary/30 bg-gradient-to-br from-brand-primary/10 via-bg-card to-bg-card cursor-pointer group"
-              >
-                <div className="absolute inset-0 pointer-events-none">
-                  <motion.div
-                    className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[300px] rounded-full bg-brand-primary/8 blur-3xl"
-                    animate={{ scale: [1, 1.15, 1], opacity: [0.5, 0.8, 0.5] }}
-                    transition={{ duration: 5, repeat: Infinity, ease: 'easeInOut' }}
-                  />
-                </div>
+            <motion.div
+              whileHover={{ scale: 1.01 }}
+              transition={{ duration: 0.2 }}
+              className="relative overflow-hidden rounded-2xl border border-brand-primary/30 bg-gradient-to-br from-brand-primary/10 via-bg-card to-bg-card group"
+            >
+              <div className="absolute inset-0 pointer-events-none">
+                <motion.div
+                  className="absolute top-1/2 left-1/2 h-[300px] w-[500px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-brand-primary/8 blur-3xl"
+                  animate={{ scale: [1, 1.15, 1], opacity: [0.5, 0.8, 0.5] }}
+                  transition={{ duration: 5, repeat: Infinity, ease: 'easeInOut' }}
+                />
+              </div>
 
-                <div className="relative z-10 p-8 md:p-10">
-                  <div className="flex items-center justify-between mb-8">
-                    <div className="flex items-center gap-2">
-                      <span className="live-dot" />
-                      <span className="text-brand-secondary text-sm font-bold">LIVE</span>
-                    </div>
-                    <div className="flex items-center gap-1.5 text-text-muted text-sm">
-                      <Eye size={14} />
-                      <span>{viewers.toLocaleString()} watching</span>
-                    </div>
+              <div className="relative z-10 p-8 md:p-10">
+                <div className="mb-8 flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span className="live-dot" />
+                    <span className="text-brand-secondary text-sm font-bold">LIVE</span>
                   </div>
-
-                  <div className="flex items-center justify-center gap-6 md:gap-12 mb-8">
-                    <div className="flex-1 text-center">
-                      <p className="font-bold text-white text-lg md:text-2xl">{liveMatch.home}</p>
-                    </div>
-
-                    <div className="flex items-center gap-3 shrink-0">
-                      <motion.span
-                        key={liveMatch.homeScore}
-                        initial={{ scale: 1.4, color: '#E85D04' }}
-                        animate={{ scale: 1, color: '#FFFFFF' }}
-                        transition={{ duration: 0.4 }}
-                        className="text-5xl md:text-6xl font-black text-white tabular-nums"
-                      >
-                        {liveMatch.homeScore ?? 0}
-                      </motion.span>
-                      <span className="text-2xl text-text-muted font-light">-</span>
-                      <motion.span
-                        key={liveMatch.awayScore}
-                        initial={{ scale: 1.4, color: '#E85D04' }}
-                        animate={{ scale: 1, color: '#FFFFFF' }}
-                        transition={{ duration: 0.4 }}
-                        className="text-5xl md:text-6xl font-black text-white tabular-nums"
-                      >
-                        {liveMatch.awayScore ?? 0}
-                      </motion.span>
-                    </div>
-
-                    <div className="flex-1 text-center">
-                      <p className="font-bold text-white text-lg md:text-2xl">{liveMatch.away}</p>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center justify-center gap-2 text-text-muted text-sm mb-8">
-                    <Clock size={13} />
-                    <span>{liveMatch.time}</span>
-                    <span className="mx-1 text-bg-border">|</span>
-                    <span>{liveMatch.venue}</span>
-                  </div>
-
-                  <div className="flex justify-center">
-                    <span className="btn-primary inline-flex items-center gap-2 px-8 py-3">
-                      <Play size={16} fill="currentColor" />
-                      Watch Live
-                      <ChevronRight size={16} className="group-hover:translate-x-1 transition-transform" />
-                    </span>
+                  <div className="flex items-center gap-1.5 text-sm text-text-muted">
+                    <Eye size={14} />
+                    <span>{viewers.toLocaleString()} watching</span>
                   </div>
                 </div>
-              </motion.div>
-            </Link>
+
+                <div className="mb-8 flex items-center justify-center gap-6 md:gap-12">
+                  <div className="flex-1 text-center">
+                    <TeamLink
+                      teamName={liveMatch.home}
+                      logoSize={60}
+                      className="inline-flex max-w-full flex-col items-center gap-3"
+                      nameClassName="text-center text-lg font-bold text-white md:text-2xl"
+                      showLogo
+                    />
+                  </div>
+
+                  <div className="flex shrink-0 items-center gap-3">
+                    <motion.span
+                      key={liveMatch.homeScore}
+                      initial={{ scale: 1.4, color: '#E85D04' }}
+                      animate={{ scale: 1, color: '#FFFFFF' }}
+                      transition={{ duration: 0.4 }}
+                      className="text-5xl font-black text-white tabular-nums md:text-6xl"
+                    >
+                      {liveMatch.homeScore ?? 0}
+                    </motion.span>
+                    <span className="text-2xl font-light text-text-muted">-</span>
+                    <motion.span
+                      key={liveMatch.awayScore}
+                      initial={{ scale: 1.4, color: '#E85D04' }}
+                      animate={{ scale: 1, color: '#FFFFFF' }}
+                      transition={{ duration: 0.4 }}
+                      className="text-5xl font-black text-white tabular-nums md:text-6xl"
+                    >
+                      {liveMatch.awayScore ?? 0}
+                    </motion.span>
+                  </div>
+
+                  <div className="flex-1 text-center">
+                    <TeamLink
+                      teamName={liveMatch.away}
+                      logoSize={60}
+                      className="inline-flex max-w-full flex-col items-center gap-3"
+                      nameClassName="text-center text-lg font-bold text-white md:text-2xl"
+                      showLogo
+                    />
+                  </div>
+                </div>
+
+                <div className="mb-8 flex items-center justify-center gap-2 text-sm text-text-muted">
+                  <Clock size={13} />
+                  <span>{liveMatch.time}</span>
+                  <span className="mx-1 text-bg-border">|</span>
+                  <span>{liveMatch.venue}</span>
+                </div>
+
+                <div className="flex justify-center">
+                  <Link href={`/live/${liveMatch.id}`} className="btn-primary inline-flex items-center gap-2 px-8 py-3">
+                    <Play size={16} fill="currentColor" />
+                    Watch Live
+                    <ChevronRight size={16} className="transition-transform group-hover:translate-x-1" />
+                  </Link>
+                </div>
+              </div>
+            </motion.div>
           </motion.section>
         )}
 
@@ -275,9 +286,20 @@ export default function LivePage() {
                     <span className="ml-1">{match.time}</span>
                   </div>
                   <div className="flex items-center gap-2 font-medium text-sm text-text-primary min-w-0">
-                    <span className="truncate">{match.home}</span>
+                    <TeamLink
+                      teamName={match.home}
+                      logoSize={34}
+                      reverse
+                      className="min-w-0 max-w-[15rem] md:max-w-none"
+                      nameClassName="text-sm font-medium text-text-primary"
+                    />
                     <span className="text-text-muted shrink-0">vs</span>
-                    <span className="truncate">{match.away}</span>
+                    <TeamLink
+                      teamName={match.away}
+                      logoSize={34}
+                      className="min-w-0 max-w-[15rem] md:max-w-none"
+                      nameClassName="text-sm font-medium text-text-primary"
+                    />
                   </div>
                 </div>
                 <button
@@ -305,38 +327,50 @@ export default function LivePage() {
           <h2 className="text-sm font-bold text-text-muted uppercase tracking-widest mb-4">Match Replays</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {vods.map((match, i) => (
-              <Link key={match.id} href={`/live/${match.id}`}>
-                <motion.div
-                  initial={{ opacity: 0, y: 16 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.4, delay: 0.3 + i * 0.06 }}
-                  className="card-hover group cursor-pointer"
-                >
-                  <div className="flex items-center gap-2 mb-3">
-                    <Film size={14} className="text-text-muted" />
-                    <span className="text-xs text-text-muted">{formatDate(match.date)} replay</span>
-                  </div>
+              <motion.div
+                key={match.id}
+                initial={{ opacity: 0, y: 16 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.4, delay: 0.3 + i * 0.06 }}
+                className="card-hover group"
+              >
+                <div className="mb-3 flex items-center gap-2">
+                  <Film size={14} className="text-text-muted" />
+                  <span className="text-xs text-text-muted">{formatDate(match.date)} replay</span>
+                </div>
 
-                  <div className="flex items-center gap-3 mb-3">
-                    <div className="flex-1 text-right">
-                      <p className="font-semibold text-sm text-text-primary">{match.home}</p>
-                    </div>
-                    <div className="flex items-center gap-1.5 shrink-0">
-                      <span className="text-xl font-bold text-text-primary">{match.homeScore}</span>
-                      <span className="text-text-muted text-sm">-</span>
-                      <span className="text-xl font-bold text-text-primary">{match.awayScore}</span>
-                    </div>
-                    <div className="flex-1">
-                      <p className="font-semibold text-sm text-text-primary">{match.away}</p>
-                    </div>
+                <div className="mb-3 flex items-center gap-3">
+                  <div className="flex-1 text-right">
+                    <TeamLink
+                      teamName={match.home}
+                      logoSize={36}
+                      reverse
+                      className="w-full justify-end"
+                      nameClassName="text-sm font-semibold text-text-primary"
+                    />
                   </div>
+                  <div className="flex shrink-0 items-center gap-1.5">
+                    <span className="text-xl font-bold text-text-primary">{match.homeScore}</span>
+                    <span className="text-sm text-text-muted">-</span>
+                    <span className="text-xl font-bold text-text-primary">{match.awayScore}</span>
+                  </div>
+                  <div className="flex-1">
+                    <TeamLink
+                      teamName={match.away}
+                      logoSize={36}
+                      className="w-full justify-start"
+                      nameClassName="text-sm font-semibold text-text-primary"
+                    />
+                  </div>
+                </div>
 
-                  <div className="flex items-center justify-end gap-1 text-xs text-text-muted group-hover:text-brand-secondary transition-colors">
+                <div className="flex items-center justify-end gap-1 text-xs text-text-muted transition-colors group-hover:text-brand-secondary">
+                  <Link href={`/live/${match.id}`} className="inline-flex items-center gap-1 hover:text-brand-secondary">
                     <Play size={11} />
                     Watch replay
-                  </div>
-                </motion.div>
-              </Link>
+                  </Link>
+                </div>
+              </motion.div>
             ))}
           </div>
         </motion.section>

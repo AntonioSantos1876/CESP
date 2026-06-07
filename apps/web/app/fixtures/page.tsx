@@ -8,8 +8,9 @@ import {
   Trophy,
 } from 'lucide-react'
 import Link from 'next/link'
+import { TeamLink } from '@/components/TeamLink'
 import { createClient } from '@/lib/supabase/client'
-import { DEMO_SCHOOL_FIXTURES, getTeamBranding, hexToRgba } from '@/lib/school-teams'
+import { DEMO_SCHOOL_FIXTURES, getTeamBranding, getTeamHref, hexToRgba } from '@/lib/school-teams'
 
 type Tab = 'bracket' | 'upcoming' | 'live' | 'results'
 type FixtureStatus = 'upcoming' | 'live' | 'result'
@@ -322,25 +323,32 @@ function BSlotRow({ slot, score, border }: { slot: BracketSlot; score: number | 
 
   return (
     <div className={`flex items-center gap-3 px-4 py-3 ${border ? 'border-t border-[#262626]' : ''}`}>
-      <div
-        className={`flex h-9 w-9 items-center justify-center rounded-xl border text-[11px] font-black uppercase tracking-wide shrink-0 ${
-          slot ? '' : 'border-[#333333] bg-[#1A1A1A] text-text-muted'
-        }`}
-        style={badgeStyle}
-      >
-        {slot ? slot.abbr : '?'}
-      </div>
-      <span
-        className={`min-w-0 flex-1 truncate text-sm font-semibold leading-snug md:text-[15px] ${
-          slot?.eliminated
-            ? 'line-through opacity-35 text-text-muted'
-            : slot
-              ? 'text-text-primary'
-              : 'text-text-muted italic'
-        }`}
-      >
-        {slot ? slot.name : 'TBD'}
-      </span>
+      {slot ? (
+        <Link href={getTeamHref(slot.name)} className="flex min-w-0 flex-1 items-center gap-3 transition-opacity hover:opacity-100">
+          <div
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border text-[11px] font-black uppercase tracking-wide"
+            style={badgeStyle}
+          >
+            {slot.abbr}
+          </div>
+          <span
+            className={`min-w-0 flex-1 truncate text-sm font-semibold leading-snug md:text-[15px] ${
+              slot.eliminated ? 'line-through opacity-35 text-text-muted' : 'text-text-primary'
+            }`}
+          >
+            {slot.name}
+          </span>
+        </Link>
+      ) : (
+        <>
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-[#333333] bg-[#1A1A1A] text-[11px] font-black uppercase tracking-wide text-text-muted">
+            ?
+          </div>
+          <span className="min-w-0 flex-1 truncate text-sm font-semibold italic leading-snug text-text-muted md:text-[15px]">
+            TBD
+          </span>
+        </>
+      )}
       {score !== null && (
         <span className={`w-8 shrink-0 text-right text-lg font-black tabular-nums ${slot?.eliminated ? 'text-text-muted opacity-35' : 'text-white'}`}>
           {score}
@@ -477,70 +485,75 @@ function FixtureCard({ fixture, index }: { fixture: Fixture; index: number }) {
   const isLive = fixture.status === 'live'
 
   return (
-    <Link href={`/fixtures/${fixture.id}`}>
-      <motion.div
-        initial={{ opacity: 0, y: 18 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.38, delay: index * 0.055, ease: [0.22, 1, 0.36, 1] }}
-        className="card-hover group cursor-pointer p-5 md:p-6"
-      >
-        <div className="mb-4 flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-text-muted">
-          <span className="inline-flex items-center gap-2">
-            <Clock size={14} />
-            {fixture.time}
+    <motion.div
+      initial={{ opacity: 0, y: 18 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.38, delay: index * 0.055, ease: [0.22, 1, 0.36, 1] }}
+      className="card-hover group p-5 md:p-6"
+    >
+      <div className="mb-4 flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-text-muted">
+        <span className="inline-flex items-center gap-2">
+          <Clock size={14} />
+          {fixture.time}
+        </span>
+        <span className="inline-flex min-w-0 items-center gap-2">
+          <MapPin size={14} className="shrink-0" />
+          <span className="truncate">{fixture.venue}</span>
+        </span>
+        {fixture.round && (
+          <span className="rounded-full border border-brand-primary/20 bg-brand-primary/10 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-brand-secondary">
+            {fixture.round}
           </span>
-          <span className="inline-flex items-center gap-2 min-w-0">
-            <MapPin size={14} className="shrink-0" />
-            <span className="truncate">{fixture.venue}</span>
+        )}
+        {isLive && (
+          <span className="ml-auto inline-flex items-center gap-1.5 font-semibold text-brand-secondary">
+            <span className="live-dot" />
+            LIVE
           </span>
-          {fixture.round && (
-            <span className="rounded-full border border-brand-primary/20 bg-brand-primary/10 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-brand-secondary">
-              {fixture.round}
+        )}
+      </div>
+
+      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+        <div className="flex-1 md:text-right">
+          <TeamLink
+            teamName={fixture.home}
+            logoSize={42}
+            reverse
+            className="w-full justify-start md:justify-end"
+            nameClassName="text-lg font-semibold leading-tight text-text-primary md:text-xl"
+          />
+        </div>
+
+        <div className="flex shrink-0 items-center justify-center gap-2">
+          {isResult || isLive ? (
+            <div className={`flex items-center gap-2 rounded-2xl px-3 py-2 ${isLive ? 'ring-1 ring-brand-primary/40 bg-brand-primary/5' : 'bg-bg-muted/60'}`}>
+              <span className="w-8 text-right text-2xl font-bold text-text-primary md:w-10 md:text-3xl">{fixture.homeScore}</span>
+              <span className="text-base font-medium text-text-muted">-</span>
+              <span className="w-8 text-2xl font-bold text-text-primary md:w-10 md:text-3xl">{fixture.awayScore}</span>
+            </div>
+          ) : (
+            <span className="rounded-2xl border border-brand-primary/20 bg-brand-primary/10 px-4 py-2 text-sm font-semibold uppercase tracking-wide text-brand-secondary">
+              VS
             </span>
           )}
-          {isLive && (
-            <span className="ml-auto inline-flex items-center gap-1.5 font-semibold text-brand-secondary">
-              <span className="live-dot" />
-              LIVE
-            </span>
-          )}
         </div>
 
-        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-          <div className="flex-1 text-left md:text-right">
-            <p className="text-lg font-semibold leading-tight text-text-primary transition-colors group-hover:text-white md:text-xl">
-              {fixture.home}
-            </p>
-          </div>
-
-          <div className="flex shrink-0 items-center justify-center gap-2">
-            {isResult || isLive ? (
-              <div className={`flex items-center gap-2 rounded-2xl px-3 py-2 ${isLive ? 'ring-1 ring-brand-primary/40 bg-brand-primary/5' : 'bg-bg-muted/60'}`}>
-                <span className="w-8 text-right text-2xl font-bold text-text-primary md:w-10 md:text-3xl">{fixture.homeScore}</span>
-                <span className="text-base font-medium text-text-muted">-</span>
-                <span className="w-8 text-2xl font-bold text-text-primary md:w-10 md:text-3xl">{fixture.awayScore}</span>
-              </div>
-            ) : (
-              <span className="rounded-2xl border border-brand-primary/20 bg-brand-primary/10 px-4 py-2 text-sm font-semibold uppercase tracking-wide text-brand-secondary">
-                VS
-              </span>
-            )}
-          </div>
-
-          <div className="flex-1 text-left">
-            <p className="text-lg font-semibold leading-tight text-text-primary transition-colors group-hover:text-white md:text-xl">
-              {fixture.away}
-            </p>
-          </div>
+        <div className="flex-1 text-left">
+          <TeamLink
+            teamName={fixture.away}
+            logoSize={42}
+            className="w-full justify-start"
+            nameClassName="text-lg font-semibold leading-tight text-text-primary md:text-xl"
+          />
         </div>
+      </div>
 
-        <div className="mt-5 flex justify-end">
-          <span className="flex items-center gap-1 text-sm text-text-muted transition-colors group-hover:text-brand-secondary">
-            Match details <ChevronRight size={14} />
-          </span>
-        </div>
-      </motion.div>
-    </Link>
+      <div className="mt-5 flex justify-end">
+        <Link href={`/fixtures/${fixture.id}`} className="flex items-center gap-1 text-sm text-text-muted transition-colors hover:text-brand-secondary">
+          Match details <ChevronRight size={14} />
+        </Link>
+      </div>
+    </motion.div>
   )
 }
 

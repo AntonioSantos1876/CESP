@@ -4,7 +4,7 @@ import Image from 'next/image'
 import Link from 'next/link'
 import { useMemo, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { ShoppingBag, Shirt, X } from 'lucide-react'
+import { ShoppingBag, X } from 'lucide-react'
 import { useCart } from '@/components/cart-provider'
 import {
   MERCH_CATEGORY_LABELS,
@@ -12,13 +12,37 @@ import {
   type MerchCategory,
   type MerchProduct,
 } from '@/lib/merch'
-import { hexToRgba } from '@/lib/school-teams'
+import { getTeamHref, getTeamLogoPath, hexToRgba } from '@/lib/school-teams'
 
 type CatalogProps = {
   products: MerchProduct[]
   compact?: boolean
   showFilters?: boolean
   showCartSummary?: boolean
+}
+
+function ProductLogoPatch({ product, className = '' }: { product: MerchProduct; className?: string }) {
+  const logoPath = getTeamLogoPath(product.teamName)
+
+  return (
+    <div
+      className={`relative overflow-hidden rounded-full border border-black/10 bg-white/95 shadow-[0_10px_28px_rgba(0,0,0,0.18)] ${className}`.trim()}
+    >
+      {logoPath ? (
+        <Image
+          src={logoPath}
+          alt={`${product.teamName} crest`}
+          fill
+          sizes="96px"
+          className="object-cover object-center"
+        />
+      ) : (
+        <div className="flex h-full w-full items-center justify-center text-[10px] font-black uppercase tracking-[0.2em] text-black/65">
+          {product.branding.shortName}
+        </div>
+      )}
+    </div>
+  )
 }
 
 function ProductArtwork({ product }: { product: MerchProduct }) {
@@ -40,6 +64,92 @@ function ProductArtwork({ product }: { product: MerchProduct }) {
     )
   }
 
+  if (product.kind === 'cap') {
+    return (
+      <div
+        className="relative aspect-[4/5] overflow-hidden rounded-[1.5rem] border border-white/10"
+        style={{
+          background: `radial-gradient(circle at 50% 12%, ${hexToRgba(product.branding.secondary, 0.95)} 0%, ${hexToRgba(product.branding.secondary, 0.4)} 18%, transparent 34%), linear-gradient(160deg, ${hexToRgba(product.branding.secondary, 0.8)} 0%, ${hexToRgba(product.branding.primary, 0.92)} 72%)`,
+        }}
+      >
+        <div className="absolute inset-0 opacity-25" style={{ backgroundImage: `radial-gradient(circle at 15% 22%, ${hexToRgba(product.branding.accent, 0.8)} 0, transparent 22%), radial-gradient(circle at 82% 18%, ${hexToRgba(product.branding.secondary, 0.85)} 0, transparent 18%)` }} />
+        <div className="relative flex h-full items-center justify-center px-6">
+          <div className="relative h-[15.5rem] w-[15rem]">
+            <div
+              className="absolute left-1/2 top-10 h-32 w-44 -translate-x-1/2 rounded-t-[4.5rem] rounded-b-[2.5rem] border border-black/15 shadow-[0_20px_40px_rgba(0,0,0,0.24)]"
+              style={{
+                background: `linear-gradient(180deg, ${hexToRgba(product.branding.secondary, 0.42)} 0%, ${hexToRgba(product.branding.primary, 0.96)} 100%)`,
+              }}
+            />
+            <div
+              className="absolute left-1/2 top-[8.65rem] h-7 w-40 -translate-x-1/2 rounded-[999px] border border-black/15 shadow-[0_18px_30px_rgba(0,0,0,0.22)]"
+              style={{
+                background: `linear-gradient(90deg, ${hexToRgba(product.branding.primary, 0.98)} 0%, ${hexToRgba(product.branding.accent, 0.94)} 100%)`,
+              }}
+            />
+            <ProductLogoPatch product={product} className="absolute left-1/2 top-[4.35rem] h-16 w-16 -translate-x-1/2" />
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  if (product.kind === 'bottle') {
+    return (
+      <div
+        className="relative aspect-[4/5] overflow-hidden rounded-[1.5rem] border border-white/10"
+        style={{
+          background: `linear-gradient(155deg, ${hexToRgba(product.branding.secondary, 0.88)} 0%, ${hexToRgba(product.branding.primary, 0.22)} 35%, ${hexToRgba(product.branding.primary, 0.94)} 100%)`,
+        }}
+      >
+        <div className="absolute inset-0 opacity-20" style={{ backgroundImage: `linear-gradient(135deg, transparent 0 22%, ${hexToRgba(product.branding.accent, 0.5)} 22% 26%, transparent 26% 48%, ${hexToRgba(product.branding.secondary, 0.45)} 48% 52%, transparent 52%)` }} />
+        <div className="relative flex h-full items-center justify-center px-6">
+          <div className="relative h-[16rem] w-[8rem]">
+            <div
+              className="absolute left-1/2 top-3 h-7 w-12 -translate-x-1/2 rounded-t-[1rem] rounded-b-md border border-black/15"
+              style={{ backgroundColor: product.branding.accent }}
+            />
+            <div
+              className="absolute inset-x-0 top-8 bottom-0 rounded-[2.4rem] border border-black/15 shadow-[0_24px_40px_rgba(0,0,0,0.22)]"
+              style={{
+                background: `linear-gradient(180deg, ${hexToRgba(product.branding.secondary, 0.58)} 0%, ${hexToRgba(product.branding.primary, 0.97)} 32%, ${hexToRgba(product.branding.primary, 0.9)} 100%)`,
+              }}
+            />
+            <div className="absolute inset-x-3 top-[4.4rem] h-[5.4rem] rounded-[1.6rem] border border-white/30 bg-white/18" />
+            <ProductLogoPatch product={product} className="absolute left-1/2 top-[5.05rem] h-16 w-16 -translate-x-1/2" />
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  if (product.kind === 'armband') {
+    return (
+      <div
+        className="relative aspect-[4/5] overflow-hidden rounded-[1.5rem] border border-white/10"
+        style={{
+          background: `linear-gradient(160deg, ${hexToRgba(product.branding.secondary, 0.9)} 0%, ${hexToRgba(product.branding.primary, 0.9)} 78%)`,
+        }}
+      >
+        <div className="absolute inset-0 opacity-20" style={{ backgroundImage: `repeating-linear-gradient(135deg, transparent 0 18px, ${hexToRgba(product.branding.accent, 0.8)} 18px 30px)` }} />
+        <div className="relative flex h-full items-center justify-center px-6">
+          <div
+            className="relative h-28 w-full max-w-[15rem] rounded-[2rem] border border-black/15 shadow-[0_24px_40px_rgba(0,0,0,0.24)]"
+            style={{
+              background: `linear-gradient(90deg, ${hexToRgba(product.branding.primary, 0.98)} 0%, ${hexToRgba(product.branding.accent, 0.92)} 50%, ${hexToRgba(product.branding.primary, 0.98)} 100%)`,
+            }}
+          >
+            <div className="absolute inset-y-3 left-6 right-6 rounded-[1.4rem] border border-white/20 bg-black/12" />
+            <div className="absolute inset-y-0 left-1/2 flex -translate-x-1/2 items-center">
+              <ProductLogoPatch product={product} className="h-16 w-16" />
+            </div>
+            <div className="absolute left-6 top-1/2 -translate-y-1/2 text-xl font-black tracking-[0.3em] text-white/85">C</div>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div
       className="relative aspect-[4/5] overflow-hidden rounded-[1.5rem] border border-white/10"
@@ -51,9 +161,7 @@ function ProductArtwork({ product }: { product: MerchProduct }) {
         backgroundImage: `radial-gradient(circle at 20% 20%, ${hexToRgba(product.branding.accent, 0.95)} 0, transparent 34%), radial-gradient(circle at 80% 22%, ${hexToRgba(product.branding.secondary, 0.75)} 0, transparent 28%)`,
       }} />
       <div className="relative flex h-full flex-col items-center justify-center gap-3 px-6 text-center">
-        <div className="flex h-20 w-20 items-center justify-center rounded-full border border-white/20 bg-black/15">
-          <Shirt size={38} style={{ color: product.branding.primary }} />
-        </div>
+        <ProductLogoPatch product={product} className="h-20 w-20" />
         <div>
           <p className="text-sm font-bold uppercase tracking-[0.35em] text-black/70">{product.branding.shortName}</p>
           <p className="mt-2 text-2xl font-black text-black/75">{product.name}</p>
@@ -107,7 +215,9 @@ function OptionsModal({
         >
           <div className="mb-5 flex items-start justify-between gap-4">
             <div>
-              <p className="text-xs font-bold uppercase tracking-[0.35em] text-text-muted">{product.teamName}</p>
+              <Link href={getTeamHref(product.teamName)} className="text-xs font-bold uppercase tracking-[0.35em] text-text-muted transition-colors hover:text-text-primary">
+                {product.teamName}
+              </Link>
               <h3 className="mt-2 text-2xl font-black text-text-primary">{product.name}</h3>
               <p className="mt-2 max-w-xl text-sm text-text-secondary">{product.description}</p>
             </div>
@@ -244,7 +354,9 @@ function ProductCard({
       <div className={`${compact ? 'p-4' : 'p-5'}`}>
         <div className="mb-3 flex items-start justify-between gap-3">
           <div>
-            <p className="text-[11px] font-bold uppercase tracking-[0.35em] text-text-muted">{product.teamName}</p>
+            <Link href={getTeamHref(product.teamName)} className="text-[11px] font-bold uppercase tracking-[0.35em] text-text-muted transition-colors hover:text-text-primary">
+              {product.teamName}
+            </Link>
             <h3 className="mt-2 text-xl font-black leading-tight text-text-primary">{product.name}</h3>
           </div>
           <div

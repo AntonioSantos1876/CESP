@@ -3,9 +3,10 @@
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { motion } from 'framer-motion'
-import { Users, Trophy, Target, TrendingUp } from 'lucide-react'
+import { Users, Trophy, Target, TrendingUp, ChevronRight } from 'lucide-react'
+import { TeamLogo } from '@/components/TeamLogo'
 import { createClient } from '@/lib/supabase/client'
-import { SCHOOL_TEAM_ORDER, getTeamBranding } from '@/lib/school-teams'
+import { SCHOOL_TEAM_ORDER, getTeamBranding, getTeamHref } from '@/lib/school-teams'
 
 type TeamRow = {
   id: string
@@ -194,7 +195,7 @@ export default function TeamsPage() {
         >
           <h1 className="text-4xl font-bold text-text-primary mb-2">Teams</h1>
           <p className="text-text-secondary">
-            {loading ? 'Loading clubs...' : `All ${teams.length} registered clubs competing in the Clarendon Elite Cup`}
+            {loading ? 'Loading schools...' : `All ${teams.length} registered schools competing in the Clarendon Elite Cup`}
           </p>
         </motion.div>
 
@@ -205,69 +206,80 @@ export default function TeamsPage() {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
             {teams.map((team, index) => (
-              <motion.div
-                key={team.id}
-                initial={{ opacity: 0, y: 24 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.5, delay: index * 0.08, ease: [0.22, 1, 0.36, 1] }}
-                whileHover={{ y: -4 }}
-                className="card-hover overflow-hidden"
-              >
-                <div
-                  className="h-1.5 w-full rounded-t-lg -mt-5 -mx-5 mb-4"
-                  style={{ backgroundColor: team.color, width: 'calc(100% + 2.5rem)' }}
-                />
-
-                <div className="flex items-center gap-3 mb-4">
+              <Link key={team.id} href={getTeamHref(team.name)} className="block">
+                <motion.div
+                  initial={{ opacity: 0, y: 24 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.5, delay: index * 0.08, ease: [0.22, 1, 0.36, 1] }}
+                  whileHover={{ y: -4 }}
+                  className="card-hover overflow-hidden"
+                >
                   <div
-                    className="w-12 h-12 rounded-2xl flex items-center justify-center text-white font-bold text-sm shrink-0"
-                    style={{ backgroundColor: `${team.color}22`, border: `2px solid ${team.color}44` }}
-                  >
-                    <span style={{ color: team.color }}>{team.shortName}</span>
-                  </div>
-                  <div>
-                    <h2 className="font-bold text-text-primary leading-tight">{team.name}</h2>
-                    <p className="text-xs text-text-muted">Staff lead: {team.manager}</p>
-                  </div>
-                </div>
+                    className="h-1.5 w-full rounded-t-lg -mt-5 -mx-5 mb-4"
+                    style={{ backgroundColor: team.color, width: 'calc(100% + 2.5rem)' }}
+                  />
 
-                <div className="grid grid-cols-4 gap-2 mb-4">
-                  {[
-                    { label: 'P', value: team.played },
-                    { label: 'W', value: team.won },
-                    { label: 'D', value: team.drawn },
-                    { label: 'L', value: team.lost },
-                  ].map(stat => (
-                    <div key={stat.label} className="bg-bg-muted rounded-xl p-2 text-center">
-                      <div className="text-lg font-bold text-text-primary">{stat.value}</div>
-                      <div className="text-xs text-text-muted">{stat.label}</div>
+                  <div className="mb-4 flex items-center gap-3">
+                    <TeamLogo teamName={team.name} size={52} />
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <h2 className="font-bold leading-tight text-text-primary">{team.name}</h2>
+                          <p className="text-xs text-text-muted">Staff lead: {team.manager}</p>
+                        </div>
+                        <span
+                          className="rounded-full px-3 py-1 text-[11px] font-bold uppercase tracking-[0.28em]"
+                          style={{ backgroundColor: `${team.color}22`, color: team.color }}
+                        >
+                          {team.shortName}
+                        </span>
+                      </div>
                     </div>
-                  ))}
-                </div>
+                  </div>
 
-                <div className="space-y-2 text-sm">
-                  <div className="flex items-center gap-2 text-text-secondary">
-                    <Target size={14} className="shrink-0" />
-                    <span>{team.goalsFor} scored, {team.goalsAgainst} conceded</span>
+                  <div className="mb-4 grid grid-cols-4 gap-2">
+                    {[
+                      { label: 'P', value: team.played },
+                      { label: 'W', value: team.won },
+                      { label: 'D', value: team.drawn },
+                      { label: 'L', value: team.lost },
+                    ].map(stat => (
+                      <div key={stat.label} className="rounded-xl bg-bg-muted p-2 text-center">
+                        <div className="text-lg font-bold text-text-primary">{stat.value}</div>
+                        <div className="text-xs text-text-muted">{stat.label}</div>
+                      </div>
+                    ))}
                   </div>
-                  <div className="flex items-center gap-2 text-text-secondary">
-                    <TrendingUp size={14} className="shrink-0" />
-                    <span>Top scorer: {team.topScorer}</span>
-                  </div>
-                  <div className="flex items-center gap-2 text-text-secondary">
-                    <Trophy size={14} className="shrink-0" />
-                    <span className="font-semibold" style={{ color: team.color }}>
-                      {team.points} pts
-                    </span>
-                  </div>
-                </div>
 
-                {team.description && (
-                  <p className="mt-4 text-sm leading-6 text-text-muted">
-                    {team.description}
-                  </p>
-                )}
-              </motion.div>
+                  <div className="space-y-2 text-sm">
+                    <div className="flex items-center gap-2 text-text-secondary">
+                      <Target size={14} className="shrink-0" />
+                      <span>{team.goalsFor} scored, {team.goalsAgainst} conceded</span>
+                    </div>
+                    <div className="flex items-center gap-2 text-text-secondary">
+                      <TrendingUp size={14} className="shrink-0" />
+                      <span>Top scorer: {team.topScorer}</span>
+                    </div>
+                    <div className="flex items-center gap-2 text-text-secondary">
+                      <Trophy size={14} className="shrink-0" />
+                      <span className="font-semibold" style={{ color: team.color }}>
+                        {team.points} pts
+                      </span>
+                    </div>
+                  </div>
+
+                  {team.description && (
+                    <p className="mt-4 text-sm leading-6 text-text-muted">
+                      {team.description}
+                    </p>
+                  )}
+
+                  <div className="mt-5 flex items-center gap-2 text-sm font-semibold" style={{ color: team.color }}>
+                    View team page
+                    <ChevronRight size={15} />
+                  </div>
+                </motion.div>
+              </Link>
             ))}
           </div>
         )}

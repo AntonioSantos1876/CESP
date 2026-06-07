@@ -9,6 +9,7 @@ import {
 } from 'lucide-react'
 import Link from 'next/link'
 import { useParams } from 'next/navigation'
+import { TeamLink } from '@/components/TeamLink'
 import { createClient } from '@/lib/supabase/client'
 import { getTeamBranding, hexToRgba } from '@/lib/school-teams'
 
@@ -548,7 +549,13 @@ export default function StreamPage() {
           className="bg-bg-card border border-bg-border rounded-xl px-5 py-4 mb-3 flex items-center justify-between"
         >
           <div className="flex items-center gap-3 min-w-0 flex-1 justify-end">
-            <p className="font-bold text-white text-sm md:text-base truncate text-right">{match.home}</p>
+            <TeamLink
+              teamName={match.home}
+              logoSize={42}
+              reverse
+              className="max-w-full justify-end"
+              nameClassName="text-right text-sm font-bold text-white md:text-base"
+            />
           </div>
 
           <div className="mx-4 md:mx-6 flex items-center gap-3 shrink-0">
@@ -569,7 +576,12 @@ export default function StreamPage() {
           </div>
 
           <div className="flex items-center gap-3 min-w-0 flex-1">
-            <p className="font-bold text-white text-sm md:text-base truncate">{match.away}</p>
+            <TeamLink
+              teamName={match.away}
+              logoSize={42}
+              className="max-w-full justify-start"
+              nameClassName="text-sm font-bold text-white md:text-base"
+            />
           </div>
 
           <div className="ml-4 flex items-center gap-2 shrink-0">
@@ -687,9 +699,13 @@ export default function StreamPage() {
                 {tab === 'stats' && (
                   <div className="card space-y-4">
                     <div className="flex items-center justify-between text-xs font-semibold text-text-muted mb-2">
-                      <span className="truncate max-w-[40%] text-text-primary">{match.home}</span>
+                      <Link href={`/teams/${getTeamBranding(match.home).slug}`} className="truncate max-w-[40%] text-text-primary hover:text-white">
+                        {match.home}
+                      </Link>
                       <span>Stat</span>
-                      <span className="truncate max-w-[40%] text-right text-text-primary">{match.away}</span>
+                      <Link href={`/teams/${getTeamBranding(match.away).slug}`} className="truncate max-w-[40%] text-right text-text-primary hover:text-white">
+                        {match.away}
+                      </Link>
                     </div>
                     {STATS.map(stat => {
                       const total = stat.homeVal + stat.awayVal || 1

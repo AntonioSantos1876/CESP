@@ -8,8 +8,9 @@ import {
   ChevronLeft, ChevronRight, Trophy
 } from 'lucide-react'
 import Link from 'next/link'
+import { TeamLogo } from '@/components/TeamLogo'
 import { createClient } from '@/lib/supabase/client'
-import { getTeamBranding, hexToRgba } from '@/lib/school-teams'
+import { getTeamBranding, getTeamHref, hexToRgba } from '@/lib/school-teams'
 
 type FixtureStatus = 'upcoming' | 'live' | 'result'
 type DetailTab = 'info' | 'lineups'
@@ -427,13 +428,10 @@ export default function FixtureDetailPage() {
           {/* Teams + score */}
           <div className="flex items-center justify-between gap-4">
             <div className="flex-1 text-center">
-              <div
-                className="w-14 h-14 rounded-2xl flex items-center justify-center mx-auto mb-2"
-                style={{ backgroundColor: hexToRgba(homeBranding.primary, 0.14) }}
-              >
-                <Trophy size={24} style={{ color: homeBranding.primary }} />
-              </div>
-              <p className="font-bold text-text-primary text-sm leading-tight">{fixture.home}</p>
+              <Link href={getTeamHref(fixture.home)} className="inline-flex flex-col items-center gap-2 transition-opacity hover:opacity-100">
+                <TeamLogo teamName={fixture.home} size={56} />
+                <p className="font-bold text-text-primary text-sm leading-tight">{fixture.home}</p>
+              </Link>
             </div>
 
             <div className="shrink-0 text-center px-4">
@@ -456,13 +454,10 @@ export default function FixtureDetailPage() {
             </div>
 
             <div className="flex-1 text-center">
-              <div
-                className="w-14 h-14 rounded-2xl flex items-center justify-center mx-auto mb-2"
-                style={{ backgroundColor: hexToRgba(awayBranding.primary, 0.14) }}
-              >
-                <Trophy size={24} style={{ color: awayBranding.primary }} />
-              </div>
-              <p className="font-bold text-text-primary text-sm leading-tight">{fixture.away}</p>
+              <Link href={getTeamHref(fixture.away)} className="inline-flex flex-col items-center gap-2 transition-opacity hover:opacity-100">
+                <TeamLogo teamName={fixture.away} size={56} />
+                <p className="font-bold text-text-primary text-sm leading-tight">{fixture.away}</p>
+              </Link>
             </div>
           </div>
 

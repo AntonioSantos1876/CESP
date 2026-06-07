@@ -1,4 +1,4 @@
-import { SCHOOL_TEAM_BRANDING, SCHOOL_TEAM_ORDER, type TeamBranding } from '@/lib/school-teams'
+import { SCHOOL_TEAM_BRANDING, SCHOOL_TEAM_ORDER, getTeamSlug, type TeamBranding } from '@/lib/school-teams'
 
 export type MerchCategory = 'jerseys' | 'headwear' | 'hydration' | 'equipment'
 export type MerchKind = 'jersey' | 'cap' | 'bottle' | 'armband'
@@ -29,13 +29,9 @@ const TEAM_JERSEY_ASSETS: Record<string, string> = {
   'Vere Technical High School': '/merch/teams/vere-technical-high-school.jpeg',
 }
 
-function slugifyTeam(teamName: string) {
-  return teamName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
-}
-
 function buildTeamMerch(teamName: string): MerchProduct[] {
   const branding = SCHOOL_TEAM_BRANDING[teamName]
-  const teamSlug = slugifyTeam(teamName)
+  const teamSlug = getTeamSlug(teamName)
   const imagePath = TEAM_JERSEY_ASSETS[teamName]
 
   return [
