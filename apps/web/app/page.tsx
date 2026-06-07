@@ -1,6 +1,7 @@
 'use client'
 
 import Link from 'next/link'
+import Image from 'next/image'
 import { motion, useScroll, useTransform, useInView } from 'framer-motion'
 import { useEffect, useRef } from 'react'
 import {
@@ -126,6 +127,18 @@ export default function HomePage() {
 
   return (
     <main className="min-h-screen bg-bg-base overflow-x-hidden">
+      {/* Tournament banner */}
+      <div className="w-full">
+        <Image
+          src="/cesp-banner.png"
+          alt="Clarendon Elite Cup 2026 — July 31 to August 2"
+          width={1920}
+          height={1080}
+          priority
+          className="w-full h-auto"
+        />
+      </div>
+
       {/* Hero */}
       <section ref={heroRef} className="relative min-h-[90vh] flex items-center justify-center overflow-hidden">
         {/* Animated background orbs */}
