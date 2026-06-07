@@ -59,7 +59,7 @@ const BRACKET_CARD_WIDTH = 272
 const BRACKET_CARD_HEIGHT = 126
 const BRACKET_CONNECTOR_WIDTH = 44
 const BRACKET_TOP_PADDING = 18
-const BRACKET_QUARTER_GAP = 20
+const BRACKET_QUARTER_GAP = 42
 const BRACKET_RIGHT_PADDING = 56
 const BRACKET_FINAL_COLUMN_GAP = 72
 
@@ -434,9 +434,6 @@ function BracketView({ fixtures }: { fixtures: DbFixture[] }) {
             </div>
           </div>
 
-          <p className="mt-4 text-sm italic text-text-muted">
-            The bracket refreshes from your registered fixtures. The dashed connector marks the 3rd-place playoff path.
-          </p>
         </>
       )}
     </div>
