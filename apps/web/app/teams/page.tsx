@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { motion } from 'framer-motion'
 import { Users, Trophy, Target, TrendingUp } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
+import { SCHOOL_TEAM_ORDER, getTeamBranding } from '@/lib/school-teams'
 
 type TeamRow = {
   id: string
@@ -48,6 +49,17 @@ type TeamCard = {
   points: number
   description: string | null
 }
+
+const FALLBACK_TEAMS: TeamRow[] = SCHOOL_TEAM_ORDER.map(name => {
+  const branding = getTeamBranding(name)
+  return {
+    id: name.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
+    name,
+    short_name: branding.shortName,
+    home_colour: branding.primary,
+    description: null,
+  }
+})
 
 function getScore(matchScores: FixtureRow['match_scores']) {
   if (!matchScores) return null
@@ -101,7 +113,9 @@ export default function TeamsPage() {
         goalCounts.set(goal.team_id, teamGoals)
       })
 
-      const cards = ((teamsData ?? []) as TeamRow[]).map(team => ({
+      const sourceTeams = ((teamsData ?? []) as TeamRow[]).length > 0 ? (teamsData as TeamRow[]) : FALLBACK_TEAMS
+
+      const cards = sourceTeams.map(team => ({
         id: team.id,
         name: team.name,
         shortName: team.short_name,
@@ -162,7 +176,7 @@ export default function TeamsPage() {
         }
       })
 
-      setTeams(cards.sort((left, right) => right.points - left.points || right.goalsFor - left.goalsFor || left.name.localeCompare(right.name)))
+      setTeams(cards.sort((left, right) => left.name.localeCompare(right.name)))
       setLoading(false)
     }
 

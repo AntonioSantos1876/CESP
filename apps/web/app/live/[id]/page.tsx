@@ -10,6 +10,7 @@ import {
 import Link from 'next/link'
 import { useParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
+import { getTeamBranding, hexToRgba } from '@/lib/school-teams'
 
 type StreamStatus = 'live' | 'vod'
 type Tab = 'chat' | 'stats' | 'lineups'
@@ -40,10 +41,10 @@ type TeamLineup = { formation: string; players: Player[] }
 type Lineups = { home: TeamLineup; away: TeamLineup }
 
 const MATCHES: Record<string, MatchData> = {
-  '9': { id: 9, home: 'Chapelton FC', away: 'Porus United', date: '2026-06-06', time: '15:00', venue: 'Glenmuir High School', homeScore: 1, awayScore: 0, status: 'live', youtubeId: 'live_placeholder', clock: "62'" },
-  '4': { id: 4, home: 'Chapelton FC', away: 'Spaldings All Stars', date: '2026-06-28', time: '15:00', venue: 'Glenmuir High School', homeScore: 3, awayScore: 1, status: 'vod', youtubeId: 'dQw4w9WgXcQ', clock: 'FT' },
-  '5': { id: 5, home: 'Rock River Rangers', away: 'Porus United', date: '2026-06-28', time: '17:00', venue: 'Glenmuir High School', homeScore: 2, awayScore: 2, status: 'vod', youtubeId: 'dQw4w9WgXcQ', clock: 'FT' },
-  '6': { id: 6, home: 'Frankfield Boys', away: 'Manchester United Clarendon', date: '2026-06-27', time: '15:30', venue: 'Glenmuir High School', homeScore: 1, awayScore: 3, status: 'vod', youtubeId: 'dQw4w9WgXcQ', clock: 'FT' },
+  '9': { id: 9, home: 'Excelsior High School', away: 'Mona High School', date: '2026-06-06', time: '15:00', venue: 'Glenmuir High School', homeScore: 1, awayScore: 0, status: 'live', youtubeId: 'live_placeholder', clock: "62'" },
+  '4': { id: 4, home: 'Munro College', away: 'Vere Technical High School', date: '2026-07-31', time: '16:00', venue: 'Glenmuir High School', homeScore: 0, awayScore: 0, status: 'vod', youtubeId: 'dQw4w9WgXcQ', clock: 'FT' },
+  '5': { id: 5, home: 'Denbigh High School', away: 'Glenmuir High School', date: '2026-08-01', time: '14:00', venue: 'Glenmuir High School', homeScore: 2, awayScore: 1, status: 'vod', youtubeId: 'dQw4w9WgXcQ', clock: 'FT' },
+  '6': { id: 6, home: 'Kingston College', away: 'Munro College', date: '2026-08-01', time: '16:00', venue: 'Glenmuir High School', homeScore: 1, awayScore: 3, status: 'vod', youtubeId: 'dQw4w9WgXcQ', clock: 'FT' },
 }
 
 const MOCK_CHAT: ChatMessage[] = [
@@ -184,6 +185,8 @@ function FootballPitch({ lineups, homeTeam, awayTeam }: {
 }) {
   const homeCoords = getCoords(lineups.home.formation, lineups.home.players.length)
   const awayCoords = getCoords(lineups.away.formation, lineups.away.players.length)
+  const homeBranding = getTeamBranding(homeTeam)
+  const awayBranding = getTeamBranding(awayTeam)
 
   return (
     <svg viewBox="0 0 100 160" className="w-full max-w-[300px] mx-auto block rounded-2xl shadow-2xl overflow-hidden">
@@ -205,27 +208,27 @@ function FootballPitch({ lineups, homeTeam, awayTeam }: {
       <rect x="36" y="3" width="28" height="14" fill="none" stroke="rgba(255,255,255,0.5)" strokeWidth="0.7" />
       <circle cx="50" cy="21" r="0.9" fill="rgba(255,255,255,0.7)" />
 
-      {/* Home players (orange, attacking upward) */}
+      {/* Home players */}
       {lineups.home.players.map((p, i) => {
         const c = homeCoords[i]
         if (!c) return null
         return (
           <g key={`h${p.num}`}>
-            <circle cx={c.x} cy={c.y} r="5" fill="#E85D04" stroke="white" strokeWidth="0.8" />
+            <circle cx={c.x} cy={c.y} r="5" fill={homeBranding.primary} stroke={homeBranding.secondary} strokeWidth="0.8" />
             <text x={c.x} y={c.y} textAnchor="middle" dominantBaseline="central" fontSize="4" fill="white" fontWeight="bold">{p.num}</text>
             <text x={c.x} y={c.y + 8} textAnchor="middle" fontSize="2.8" fill="rgba(255,255,255,0.85)">{p.name.split(' ').slice(-1)[0]}</text>
           </g>
         )
       })}
 
-      {/* Away players (blue, attacking downward - mirrored) */}
+      {/* Away players */}
       {lineups.away.players.map((p, i) => {
         const raw = awayCoords[i]
         if (!raw) return null
         const c = mirrorCoord(raw)
         return (
           <g key={`a${p.num}`}>
-            <circle cx={c.x} cy={c.y} r="5" fill="#1d4ed8" stroke="white" strokeWidth="0.8" />
+            <circle cx={c.x} cy={c.y} r="5" fill={awayBranding.primary} stroke={awayBranding.secondary} strokeWidth="0.8" />
             <text x={c.x} y={c.y} textAnchor="middle" dominantBaseline="central" fontSize="4" fill="white" fontWeight="bold">{p.num}</text>
             <text x={c.x} y={c.y - 8} textAnchor="middle" fontSize="2.8" fill="rgba(255,255,255,0.85)">{p.name.split(' ').slice(-1)[0]}</text>
           </g>
@@ -233,8 +236,8 @@ function FootballPitch({ lineups, homeTeam, awayTeam }: {
       })}
 
       {/* Team attack direction labels */}
-      <text x="50" y="157" textAnchor="middle" fontSize="3" fill="rgba(232,93,4,0.6)">{homeTeam.split(' ')[0]} attacking up</text>
-      <text x="50" y="7.5" textAnchor="middle" fontSize="3" fill="rgba(29,78,216,0.6)">{awayTeam.split(' ')[0]} attacking down</text>
+      <text x="50" y="157" textAnchor="middle" fontSize="3" fill={hexToRgba(homeBranding.accent, 0.9)}>{homeTeam.split(' ')[0]} attacking up</text>
+      <text x="50" y="7.5" textAnchor="middle" fontSize="3" fill={hexToRgba(awayBranding.accent, 0.9)}>{awayTeam.split(' ')[0]} attacking down</text>
     </svg>
   )
 }
@@ -276,8 +279,8 @@ function LineupsTab({ lineups, setLineups, homeTeam, awayTeam, loggedIn }: {
   }
 
   const sides: { key: 'home' | 'away'; name: string; color: string }[] = [
-    { key: 'home', name: homeTeam, color: 'text-brand-secondary' },
-    { key: 'away', name: awayTeam, color: 'text-blue-400' },
+    { key: 'home', name: homeTeam, color: getTeamBranding(homeTeam).accent },
+    { key: 'away', name: awayTeam, color: getTeamBranding(awayTeam).accent },
   ]
 
   return (
@@ -289,13 +292,13 @@ function LineupsTab({ lineups, setLineups, homeTeam, awayTeam, loggedIn }: {
           return (
             <div key={key} className="card">
               <div className="mb-3">
-                <p className={`font-bold text-sm truncate ${color}`}>{name}</p>
+                <p className="font-bold text-sm truncate" style={{ color }}>{name}</p>
                 <span className="text-xs text-text-muted">{lineup.formation}</span>
               </div>
               <div className="space-y-1.5">
                 {lineup.players.map(p => (
                   <div key={p.num} className="flex items-center gap-2 text-sm">
-                    <span className={`text-xs font-bold w-5 shrink-0 text-center ${color}`}>{p.num}</span>
+                    <span className="text-xs font-bold w-5 shrink-0 text-center" style={{ color }}>{p.num}</span>
                     <span className="text-text-primary truncate flex-1">{p.name}</span>
                     <span className="text-[10px] text-text-muted ml-auto shrink-0 bg-bg-muted px-1.5 py-0.5 rounded">{p.pos}</span>
                   </div>
@@ -311,11 +314,11 @@ function LineupsTab({ lineups, setLineups, homeTeam, awayTeam, loggedIn }: {
         <p className="text-xs font-bold text-text-muted uppercase tracking-widest mb-4 text-center">Pitch Formation</p>
         <div className="flex flex-col sm:flex-row gap-4 items-center justify-center mb-3">
           <div className="flex items-center gap-2 text-xs">
-            <div className="w-3 h-3 rounded-full bg-brand-primary" />
+            <div className="w-3 h-3 rounded-full" style={{ backgroundColor: getTeamBranding(homeTeam).primary }} />
             <span className="text-text-secondary">{homeTeam} ({lineups.home.formation})</span>
           </div>
           <div className="flex items-center gap-2 text-xs">
-            <div className="w-3 h-3 rounded-full bg-blue-600" />
+            <div className="w-3 h-3 rounded-full" style={{ backgroundColor: getTeamBranding(awayTeam).primary }} />
             <span className="text-text-secondary">{awayTeam} ({lineups.away.formation})</span>
           </div>
         </div>
@@ -437,6 +440,8 @@ export default function StreamPage() {
   const params = useParams()
   const id = Array.isArray(params.id) ? params.id[0] : params.id ?? '9'
   const match = MATCHES[id] ?? MATCHES['9']
+  const homeBranding = getTeamBranding(match.home)
+  const awayBranding = getTeamBranding(match.away)
 
   const [tab, setTab] = useState<Tab>('chat')
   const [messages, setMessages] = useState<ChatMessage[]>(MOCK_CHAT)
@@ -645,8 +650,11 @@ export default function StreamPage() {
                     <div className="flex-1 overflow-y-auto p-4 space-y-3">
                       {messages.map(msg => (
                         <div key={msg.id} className="flex gap-2">
-                          <div className="w-6 h-6 rounded-full bg-brand-primary/20 flex items-center justify-center shrink-0 mt-0.5">
-                            <span className="text-[10px] font-bold text-brand-secondary">
+                          <div
+                            className="w-6 h-6 rounded-full flex items-center justify-center shrink-0 mt-0.5"
+                            style={{ backgroundColor: hexToRgba(homeBranding.primary, 0.2) }}
+                          >
+                            <span className="text-[10px] font-bold" style={{ color: homeBranding.accent }}>
                               {msg.author.charAt(0).toUpperCase()}
                             </span>
                           </div>
@@ -694,7 +702,7 @@ export default function StreamPage() {
                             <span className="font-semibold text-text-primary">{stat.away}</span>
                           </div>
                           <div className="flex h-1.5 rounded-full overflow-hidden bg-bg-muted">
-                            <div className="bg-brand-primary rounded-l-full transition-all duration-700" style={{ width: `${homePct}%` }} />
+                            <div className="rounded-l-full transition-all duration-700" style={{ width: `${homePct}%`, backgroundColor: homeBranding.primary }} />
                             <div className="bg-text-muted rounded-r-full transition-all duration-700" style={{ width: `${100 - homePct}%` }} />
                           </div>
                         </div>

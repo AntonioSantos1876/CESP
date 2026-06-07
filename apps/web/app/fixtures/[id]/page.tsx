@@ -9,6 +9,7 @@ import {
 } from 'lucide-react'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
+import { getTeamBranding, hexToRgba } from '@/lib/school-teams'
 
 type FixtureStatus = 'upcoming' | 'live' | 'result'
 type DetailTab = 'info' | 'lineups'
@@ -45,57 +46,57 @@ type FixtureData = {
 
 const ALL_FIXTURES: FixtureData[] = [
   {
-    id: 9, home: 'Chapelton FC', away: 'Porus United', date: '2026-06-06', time: '15:00',
+    id: 9, home: 'Excelsior High School', away: 'Mona High School', date: '2026-06-06', time: '15:00',
     venue: 'Glenmuir High School', homeScore: 1, awayScore: 0, status: 'live',
-    round: 'Round 6', season: '2026 Clarendon Elite Cup', referee: 'M. Thompson',
+    round: 'Exhibition Match', season: '2026 Clarendon Elite Cup', referee: 'M. Thompson',
     youtubeId: 'dQw4w9WgXcQ',
   },
   {
-    id: 1, home: 'Chapelton FC', away: 'Manchester United Clarendon', date: '2026-07-05', time: '15:00',
+    id: 1, home: 'Denbigh High School', away: 'Excelsior High School', date: '2026-07-31', time: '10:00',
     venue: 'Glenmuir High School', homeScore: null, awayScore: null, status: 'upcoming',
-    round: 'Round 7', season: '2026 Clarendon Elite Cup', referee: 'J. Brown',
+    round: 'Quarter-final 1', season: '2026 Clarendon Elite Cup', referee: 'J. Brown',
     youtubeId: null,
   },
   {
-    id: 2, home: 'Spaldings All Stars', away: 'Rock River Rangers', date: '2026-07-05', time: '17:00',
+    id: 2, home: 'Glenmuir High School', away: 'Kingston College', date: '2026-07-31', time: '12:00',
     venue: 'Glenmuir High School', homeScore: null, awayScore: null, status: 'upcoming',
-    round: 'Round 7', season: '2026 Clarendon Elite Cup', referee: 'D. Wilson',
+    round: 'Quarter-final 2', season: '2026 Clarendon Elite Cup', referee: 'D. Wilson',
     youtubeId: null,
   },
   {
-    id: 3, home: 'Porus United', away: 'Frankfield Boys', date: '2026-07-06', time: '14:00',
+    id: 3, home: 'Manchester High School', away: 'Mona High School', date: '2026-07-31', time: '14:00',
     venue: 'Glenmuir High School', homeScore: null, awayScore: null, status: 'upcoming',
-    round: 'Round 7', season: '2026 Clarendon Elite Cup', referee: 'A. Clarke',
+    round: 'Quarter-final 3', season: '2026 Clarendon Elite Cup', referee: 'A. Clarke',
     youtubeId: null,
   },
   {
-    id: 4, home: 'Chapelton FC', away: 'Spaldings All Stars', date: '2026-06-28', time: '15:00',
+    id: 4, home: 'Munro College', away: 'Vere Technical High School', date: '2026-07-31', time: '16:00',
+    venue: 'Glenmuir High School', homeScore: null, awayScore: null, status: 'upcoming',
+    round: 'Quarter-final 4', season: '2026 Clarendon Elite Cup', referee: 'R. Davis',
+    youtubeId: null,
+  },
+  {
+    id: 5, home: 'Denbigh High School', away: 'Glenmuir High School', date: '2026-08-01', time: '14:00',
     venue: 'Glenmuir High School', homeScore: 3, awayScore: 1, status: 'result',
-    round: 'Round 5', season: '2026 Clarendon Elite Cup', referee: 'M. Thompson',
+    round: 'Semi-final 1', season: '2026 Clarendon Elite Cup', referee: 'M. Thompson',
     youtubeId: null,
   },
   {
-    id: 5, home: 'Rock River Rangers', away: 'Porus United', date: '2026-06-28', time: '17:00',
+    id: 6, home: 'Kingston College', away: 'Munro College', date: '2026-08-01', time: '16:00',
     venue: 'Glenmuir High School', homeScore: 2, awayScore: 2, status: 'result',
-    round: 'Round 5', season: '2026 Clarendon Elite Cup', referee: 'J. Brown',
+    round: 'Semi-final 2', season: '2026 Clarendon Elite Cup', referee: 'J. Brown',
     youtubeId: null,
   },
   {
-    id: 6, home: 'Frankfield Boys', away: 'Manchester United Clarendon', date: '2026-06-27', time: '15:30',
+    id: 7, home: 'Excelsior High School', away: 'Munro College', date: '2026-08-02', time: '12:00',
     venue: 'Glenmuir High School', homeScore: 1, awayScore: 3, status: 'result',
-    round: 'Round 5', season: '2026 Clarendon Elite Cup', referee: 'R. Davis',
+    round: '3rd Place', season: '2026 Clarendon Elite Cup', referee: 'D. Wilson',
     youtubeId: null,
   },
   {
-    id: 7, home: 'Spaldings All Stars', away: 'Porus United', date: '2026-06-21', time: '15:00',
-    venue: 'Glenmuir High School', homeScore: 0, awayScore: 1, status: 'result',
-    round: 'Round 4', season: '2026 Clarendon Elite Cup', referee: 'D. Wilson',
-    youtubeId: null,
-  },
-  {
-    id: 8, home: 'Manchester United Clarendon', away: 'Rock River Rangers', date: '2026-06-20', time: '14:00',
-    venue: 'MUC Ground', homeScore: 4, awayScore: 0, status: 'result',
-    round: 'Round 4', season: '2026 Clarendon Elite Cup', referee: 'A. Clarke',
+    id: 8, home: 'Denbigh High School', away: 'Kingston College', date: '2026-08-02', time: '15:00',
+    venue: 'Glenmuir High School', homeScore: 4, awayScore: 0, status: 'result',
+    round: 'Final', season: '2026 Clarendon Elite Cup', referee: 'A. Clarke',
     youtubeId: null,
   },
 ]
@@ -144,6 +145,8 @@ function PitchViewer({
   activeTeam: LineupTeam
 }) {
   const [selectedPlayer, setSelectedPlayer] = useState<(Player & { team: LineupTeam }) | null>(null)
+  const homeBranding = getTeamBranding(homeTeam)
+  const awayBranding = getTeamBranding(awayTeam)
 
   function handlePlayerClick(player: Player, team: LineupTeam) {
     if (selectedPlayer?.number === player.number && selectedPlayer.team === team) {
@@ -155,8 +158,9 @@ function PitchViewer({
 
   function renderPlayers(lineup: LineupData, team: LineupTeam) {
     const isActive = activeTeam === team
-    const color = team === 'home' ? '#E85D04' : '#374151'
-    const borderColor = team === 'home' ? '#FF8C42' : '#6B7280'
+    const branding = team === 'home' ? homeBranding : awayBranding
+    const color = branding.primary
+    const borderColor = branding.secondary
 
     return lineup.players.map(p => {
       const isSelected = selectedPlayer?.number === p.number && selectedPlayer.team === team
@@ -237,11 +241,11 @@ function PitchViewer({
           <circle cx="150" cy="356" r="2.5" fill="white" fillOpacity="0.65" />
           {/* Team labels */}
           <text x="150" y="410" textAnchor="middle" fill="white" fontSize="8" opacity="0.5"
-            style={{ fontFamily: 'system-ui, sans-serif' }}>
+            style={{ fontFamily: 'system-ui, sans-serif', fill: homeBranding.accent }}>
             {homeTeam.split(' ')[0]} attacking
           </text>
           <text x="150" y="18" textAnchor="middle" fill="white" fontSize="8" opacity="0.5"
-            style={{ fontFamily: 'system-ui, sans-serif' }}>
+            style={{ fontFamily: 'system-ui, sans-serif', fill: awayBranding.accent }}>
             {awayTeam.split(' ')[0]} attacking
           </text>
           {/* Players */}
@@ -261,7 +265,10 @@ function PitchViewer({
             transition={{ duration: 0.18 }}
             className="mt-3 mx-auto max-w-xs card flex items-center gap-4"
           >
-            <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 font-bold text-white text-sm ${selectedPlayer.team === 'home' ? 'bg-brand-primary' : 'bg-bg-hover'}`}>
+            <div
+              className="w-10 h-10 rounded-full flex items-center justify-center shrink-0 font-bold text-white text-sm"
+              style={{ backgroundColor: selectedPlayer.team === 'home' ? homeBranding.primary : awayBranding.primary }}
+            >
               {selectedPlayer.number}
             </div>
             <div className="flex-1">
@@ -275,11 +282,11 @@ function PitchViewer({
       {/* Formation + legend */}
       <div className="mt-4 flex items-center justify-center gap-6 text-xs text-text-muted">
         <div className="flex items-center gap-1.5">
-          <span className="w-3 h-3 rounded-full bg-brand-primary inline-block" />
+          <span className="w-3 h-3 rounded-full inline-block" style={{ backgroundColor: homeBranding.primary }} />
           {homeTeam.split(' ')[0]} ({HOME_LINEUP.formation})
         </div>
         <div className="flex items-center gap-1.5">
-          <span className="w-3 h-3 rounded-full bg-bg-hover border border-bg-border inline-block" />
+          <span className="w-3 h-3 rounded-full inline-block border" style={{ backgroundColor: awayBranding.primary, borderColor: awayBranding.secondary }} />
           {awayTeam.split(' ')[0]} ({AWAY_LINEUP.formation})
         </div>
       </div>
@@ -292,11 +299,20 @@ function PitchViewer({
             onClick={() => handlePlayerClick(p, activeTeam)}
             className={`flex items-center gap-2 text-left px-3 py-2 rounded-lg text-xs transition-colors ${
               selectedPlayer?.number === p.number && selectedPlayer.team === activeTeam
-                ? 'bg-brand-primary/20 text-brand-secondary'
+                ? ''
                 : 'hover:bg-bg-muted text-text-secondary'
             }`}
+            style={selectedPlayer?.number === p.number && selectedPlayer.team === activeTeam
+              ? {
+                  backgroundColor: hexToRgba(activeTeam === 'home' ? homeBranding.primary : awayBranding.primary, 0.18),
+                  color: activeTeam === 'home' ? homeBranding.accent : awayBranding.accent,
+                }
+              : undefined}
           >
-            <span className={`w-5 h-5 rounded-full flex items-center justify-center text-white font-bold text-[9px] shrink-0 ${activeTeam === 'home' ? 'bg-brand-primary' : 'bg-bg-hover'}`}>
+            <span
+              className="w-5 h-5 rounded-full flex items-center justify-center text-white font-bold text-[9px] shrink-0"
+              style={{ backgroundColor: activeTeam === 'home' ? homeBranding.primary : awayBranding.primary }}
+            >
               {p.number}
             </span>
             <span className="truncate">{p.name}</span>
@@ -320,6 +336,8 @@ export default function FixtureDetailPage() {
   const isLive = currentStatus === 'live'
   const isResult = currentStatus === 'result'
   const hasScore = isLive || isResult
+  const homeBranding = getTeamBranding(fixture?.home ?? '')
+  const awayBranding = getTeamBranding(fixture?.away ?? '')
 
   useEffect(() => {
     if (!fixture) return
@@ -409,8 +427,11 @@ export default function FixtureDetailPage() {
           {/* Teams + score */}
           <div className="flex items-center justify-between gap-4">
             <div className="flex-1 text-center">
-              <div className="w-14 h-14 rounded-2xl bg-brand-primary/10 flex items-center justify-center mx-auto mb-2">
-                <Trophy size={24} className="text-brand-primary" />
+              <div
+                className="w-14 h-14 rounded-2xl flex items-center justify-center mx-auto mb-2"
+                style={{ backgroundColor: hexToRgba(homeBranding.primary, 0.14) }}
+              >
+                <Trophy size={24} style={{ color: homeBranding.primary }} />
               </div>
               <p className="font-bold text-text-primary text-sm leading-tight">{fixture.home}</p>
             </div>
@@ -435,8 +456,11 @@ export default function FixtureDetailPage() {
             </div>
 
             <div className="flex-1 text-center">
-              <div className="w-14 h-14 rounded-2xl bg-bg-hover flex items-center justify-center mx-auto mb-2">
-                <Trophy size={24} className="text-text-muted" />
+              <div
+                className="w-14 h-14 rounded-2xl flex items-center justify-center mx-auto mb-2"
+                style={{ backgroundColor: hexToRgba(awayBranding.primary, 0.14) }}
+              >
+                <Trophy size={24} style={{ color: awayBranding.primary }} />
               </div>
               <p className="font-bold text-text-primary text-sm leading-tight">{fixture.away}</p>
             </div>
@@ -545,9 +569,10 @@ export default function FixtureDetailPage() {
                     onClick={() => setLineupTeam('home')}
                     className={`flex-1 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
                       lineupTeam === 'home'
-                        ? 'bg-brand-primary text-white'
+                        ? 'text-white'
                         : 'bg-bg-muted text-text-secondary hover:text-text-primary border border-bg-border'
                     }`}
+                    style={lineupTeam === 'home' ? { backgroundColor: homeBranding.primary } : undefined}
                   >
                     {fixture.home.split(' ')[0]}
                   </button>
@@ -555,9 +580,10 @@ export default function FixtureDetailPage() {
                     onClick={() => setLineupTeam('away')}
                     className={`flex-1 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
                       lineupTeam === 'away'
-                        ? 'bg-brand-primary text-white'
+                        ? 'text-white'
                         : 'bg-bg-muted text-text-secondary hover:text-text-primary border border-bg-border'
                     }`}
+                    style={lineupTeam === 'away' ? { backgroundColor: awayBranding.primary } : undefined}
                   >
                     {fixture.away.split(' ')[0]}
                   </button>
