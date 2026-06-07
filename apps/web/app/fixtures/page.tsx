@@ -55,12 +55,12 @@ type BMatch = {
   note?: string
 }
 
-const BRACKET_CARD_WIDTH = 248
-const BRACKET_CARD_HEIGHT = 104
-const BRACKET_CONNECTOR_WIDTH = 56
+const BRACKET_CARD_WIDTH = 272
+const BRACKET_CARD_HEIGHT = 126
+const BRACKET_CONNECTOR_WIDTH = 44
 const BRACKET_TOP_PADDING = 18
 const BRACKET_QUARTER_GAP = 20
-const BRACKET_RIGHT_PADDING = 40
+const BRACKET_RIGHT_PADDING = 56
 const BRACKET_FINAL_COLUMN_GAP = 72
 
 const quarterTop = Array.from({ length: 4 }, (_, index) => BRACKET_TOP_PADDING + index * (BRACKET_CARD_HEIGHT + BRACKET_QUARTER_GAP))
@@ -299,7 +299,7 @@ function BSlotRow({ slot, score, border }: { slot: BracketSlot; score: number | 
         {slot ? slot.abbr : '?'}
       </div>
       <span
-        className={`min-w-0 flex-1 text-sm font-semibold leading-snug md:text-[15px] ${
+        className={`min-w-0 flex-1 truncate text-sm font-semibold leading-snug md:text-[15px] ${
           slot?.eliminated
             ? 'line-through opacity-35 text-text-muted'
             : slot
