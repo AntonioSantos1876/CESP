@@ -2,16 +2,16 @@
 
 import Link from 'next/link'
 import { motion, useScroll, useTransform, useInView } from 'framer-motion'
-import { useRef, useEffect, useState } from 'react'
+import { useEffect, useRef } from 'react'
 import {
   Trophy, Zap, Users, Camera, Heart, ShoppingBag, ChevronRight,
   Calendar, Radio, ArrowDown
 } from 'lucide-react'
 
-type HomeStats = {
-  teams: number
-  matchesToPlay: number
-}
+const HOME_STATS = {
+  teams: 8,
+  matchesToPlay: 8,
+} as const
 
 const features = [
   { icon: Zap, title: 'Live Scores', description: 'Real-time match updates with live chat and goal alerts.' },
@@ -89,23 +89,9 @@ export default function HomePage() {
   const heroY = useTransform(scrollYProgress, [0, 1], [0, 120])
   const heroOpacity = useTransform(scrollYProgress, [0, 0.6], [1, 0])
 
-  const [homeStats, setHomeStats] = useState<HomeStats>({ teams: 0, matchesToPlay: 0 })
-
-  useEffect(() => {
-    fetch('/api/stats', { cache: 'no-store' })
-      .then(r => r.ok ? r.json() : null)
-      .then(data => {
-        setHomeStats({
-          teams: Number(data?.teams ?? 0),
-          matchesToPlay: Number(data?.matchesToPlay ?? 0),
-        })
-      })
-      .catch(() => {})
-  }, [])
-
   const stats: { num: number; suffix: string; label: string }[] = [
-    { num: homeStats.teams, suffix: '', label: 'Teams' },
-    { num: homeStats.matchesToPlay, suffix: '', label: 'Matches To Play' },
+    { num: HOME_STATS.teams, suffix: '', label: 'Teams' },
+    { num: HOME_STATS.matchesToPlay, suffix: '', label: 'Matches To Play' },
     { num: 2, suffix: 'K+', label: 'Fans' },
     { num: 100, suffix: '%', label: 'Charity' },
   ]

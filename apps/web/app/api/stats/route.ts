@@ -1,10 +1,8 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 
-function getKnockoutMatchCount(teamCount: number) {
-  if (teamCount < 2) return 0
-  return teamCount >= 4 ? teamCount : teamCount - 1
-}
+const STATIC_TEAM_COUNT = 8
+const STATIC_MATCHES_TO_PLAY = 8
 
 export async function GET() {
   try {
@@ -22,12 +20,10 @@ export async function GET() {
     if (liveError) throw liveError
     if (completedError) throw completedError
 
-    const teamCount = teams ?? 0
-
     return NextResponse.json(
       {
-        teams: teamCount,
-        matchesToPlay: getKnockoutMatchCount(teamCount),
+        teams: STATIC_TEAM_COUNT,
+        matchesToPlay: STATIC_MATCHES_TO_PLAY,
         scheduledFixtures: scheduled ?? 0,
         liveFixtures: live ?? 0,
         completedFixtures: completed ?? 0,
@@ -37,8 +33,8 @@ export async function GET() {
   } catch {
     return NextResponse.json(
       {
-        teams: 0,
-        matchesToPlay: 0,
+        teams: STATIC_TEAM_COUNT,
+        matchesToPlay: STATIC_MATCHES_TO_PLAY,
         scheduledFixtures: 0,
         liveFixtures: 0,
         completedFixtures: 0,
