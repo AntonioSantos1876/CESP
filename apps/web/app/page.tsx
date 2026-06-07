@@ -5,7 +5,7 @@ import { motion, useScroll, useTransform, useInView } from 'framer-motion'
 import { useEffect, useRef } from 'react'
 import {
   Trophy, Zap, Users, Camera, Heart, ShoppingBag, ChevronRight,
-  Calendar, Radio, ArrowDown
+  Calendar, Radio, ArrowDown, Award,
 } from 'lucide-react'
 import { SponsorShowcase } from '@/components/SponsorShowcase'
 
@@ -227,6 +227,67 @@ export default function HomePage() {
               </div>
             </FadeInWhenVisible>
           ))}
+        </div>
+      </section>
+
+      {/* About section */}
+      <section className="section border-b border-bg-border">
+        <div className="container-cesp">
+          <FadeInWhenVisible>
+            <div className="mx-auto max-w-5xl text-center mb-12">
+              <p className="text-xs font-bold uppercase tracking-[0.35em] text-brand-secondary">About</p>
+              <h2 className="mt-4 text-heading-xl font-bold text-text-primary">Built for football, built for Clarendon</h2>
+            </div>
+          </FadeInWhenVisible>
+
+          <div className="grid gap-6 lg:grid-cols-2 max-w-5xl mx-auto">
+            <FadeInWhenVisible direction="left">
+              <div className="card h-full p-8">
+                <p className="text-xs font-bold uppercase tracking-[0.28em] text-brand-secondary mb-5">The Programme</p>
+                <h3 className="text-xl font-bold text-text-primary mb-4">Clarendon Elite Sports Programme</h3>
+                <p className="text-text-secondary leading-7 mb-4">
+                  Founded by former Denbigh and Glenmuir footballer Anthony Baker, the Clarendon Elite Sports Programme is a not-for-profit initiative created to develop, improve and promote exceptional sportsmanship among high-school athletes.
+                </p>
+                <p className="text-text-secondary leading-7">
+                  Using football as a vehicle for youth development, the programme aims to nurture talent, build character and give back to the Clarendon community, fostering community pride and celebrating teamwork and integrity for young players.
+                </p>
+              </div>
+            </FadeInWhenVisible>
+
+            <FadeInWhenVisible direction="right">
+              <div className="card h-full p-8">
+                <p className="text-xs font-bold uppercase tracking-[0.28em] text-amber-400 mb-5">2026 Season</p>
+                <h3 className="text-xl font-bold text-text-primary mb-4">Clarendon Elite Cup 2026</h3>
+                <p className="text-text-secondary leading-7 mb-6">
+                  After a successful inaugural tournament in 2025, which Glenmuir High School won, the cup returns for its sophomore year at Glenmuir High School from 31 July to 2 August. New entrants Kingston College, Mona High and Manning Cup champions Excelsior join Munro College, Vere Technical, Manchester High, Denbigh High and host Glenmuir.
+                </p>
+                <div className="space-y-1">
+                  <p className="text-xs font-bold uppercase tracking-[0.25em] text-text-muted mb-3">Prize Money</p>
+                  <div className="flex items-center justify-between py-2.5 border-b border-bg-border">
+                    <div className="flex items-center gap-2">
+                      <Award size={14} className="text-amber-400 shrink-0" />
+                      <span className="text-sm text-text-secondary">Champions</span>
+                    </div>
+                    <span className="text-sm font-bold text-amber-400">$550,000</span>
+                  </div>
+                  <div className="flex items-center justify-between py-2.5 border-b border-bg-border">
+                    <div className="flex items-center gap-2">
+                      <Award size={14} className="text-text-muted shrink-0" />
+                      <span className="text-sm text-text-secondary">Runners-up</span>
+                    </div>
+                    <span className="text-sm font-bold text-text-primary">$250,000</span>
+                  </div>
+                  <div className="flex items-center justify-between py-2.5">
+                    <div className="flex items-center gap-2">
+                      <Award size={14} className="text-text-muted shrink-0" />
+                      <span className="text-sm text-text-secondary">Third place</span>
+                    </div>
+                    <span className="text-sm font-bold text-text-primary">$100,000</span>
+                  </div>
+                </div>
+              </div>
+            </FadeInWhenVisible>
+          </div>
         </div>
       </section>
 
