@@ -18,7 +18,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'Amount must be at least £1' }, { status: 400 })
   }
 
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000'
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'https://clarendon-elite-sports-program.vercel.app'
 
   const session = await stripe.checkout.sessions.create({
     mode: 'payment',
