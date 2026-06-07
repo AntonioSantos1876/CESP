@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from 'next'
 import { Inter } from 'next/font/google'
 import './globals.css'
+import { CartProvider } from '@/components/cart-provider'
 import { NavServer } from '@/components/NavServer'
 
 const inter = Inter({
@@ -56,8 +57,10 @@ export default function RootLayout({
   return (
     <html lang="en" className="dark" suppressHydrationWarning>
       <body className={`${inter.variable} font-sans bg-bg-base text-text-primary antialiased`}>
-        <NavServer />
-        {children}
+        <CartProvider>
+          <NavServer />
+          {children}
+        </CartProvider>
       </body>
     </html>
   )

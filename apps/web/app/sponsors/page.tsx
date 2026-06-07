@@ -3,6 +3,8 @@
 import { motion } from 'framer-motion'
 import { Star, Award, Shield, ExternalLink, Mail } from 'lucide-react'
 import Link from 'next/link'
+import { MerchandiseCatalog } from '@/components/merchandise'
+import { FEATURED_JERSEYS } from '@/lib/merch'
 
 type Tier = {
   name: string
@@ -149,6 +151,31 @@ export default function SponsorsPage() {
             <TierCard key={tier.name} tier={tier} index={i} />
           ))}
         </div>
+
+        <motion.section
+          initial={{ opacity: 0, y: 24 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6, delay: 0.25, ease: [0.22, 1, 0.36, 1] }}
+          className="mb-12 rounded-[2.25rem] border border-white/10 bg-[#101010] p-8"
+        >
+          <div className="mb-8 flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
+            <div>
+              <p className="text-xs font-bold uppercase tracking-[0.35em] text-brand-secondary">Supporter merch</p>
+              <h2 className="mt-2 text-3xl font-black text-text-primary">School jerseys now on sale</h2>
+              <p className="mt-3 max-w-3xl text-text-secondary">
+                Support your school directly from this page. Every jersey can be customised before it goes into the cart, then finished in checkout.
+              </p>
+            </div>
+            <Link href="/shop" className="btn-secondary w-full text-center lg:w-auto">
+              View full shop
+            </Link>
+          </div>
+
+          <MerchandiseCatalog
+            products={FEATURED_JERSEYS}
+            compact
+          />
+        </motion.section>
 
         {/* Become a sponsor CTA */}
         <motion.div

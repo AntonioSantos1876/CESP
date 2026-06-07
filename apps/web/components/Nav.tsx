@@ -1,12 +1,13 @@
 'use client'
 
 import Link from 'next/link'
-import { usePathname, useRouter } from 'next/navigation'
+import { usePathname } from 'next/navigation'
 import { useState, useEffect } from 'react'
+import { useCart } from '@/components/cart-provider'
 import { createClient } from '@/lib/supabase/client'
 import {
   Trophy, Home, Calendar, Users, Newspaper, Heart,
-  ShoppingBag, Radio, User, LogOut, Menu, X, ChevronDown, Bell,
+  ShoppingBag, Radio, User, LogOut, Menu, X, ChevronDown, Bell, ShoppingCart,
   HandHeart, Star, Camera,
 } from 'lucide-react'
 
@@ -29,7 +30,7 @@ interface NavProps {
 
 export function Nav({ user }: NavProps) {
   const pathname = usePathname()
-  const router = useRouter()
+  const { itemCount } = useCart()
   const [mobileOpen, setMobileOpen] = useState(false)
   const [profileOpen, setProfileOpen] = useState(false)
   const [unreadCount, setUnreadCount] = useState(0)
@@ -103,6 +104,19 @@ export function Nav({ user }: NavProps) {
 
         {/* Right side */}
         <div className="flex items-center gap-2">
+          <Link
+            href="/cart"
+            aria-label="Cart"
+            className="relative rounded-xl p-2 text-text-secondary transition-colors hover:bg-bg-hover hover:text-text-primary"
+          >
+            <ShoppingCart size={18} />
+            {itemCount > 0 && (
+              <span className="absolute right-1 top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-brand-primary px-1 text-[10px] font-bold leading-none text-white">
+                {itemCount > 9 ? '9+' : itemCount}
+              </span>
+            )}
+          </Link>
+
           {/* Notification bell */}
           {user && (
             <div className="relative">
