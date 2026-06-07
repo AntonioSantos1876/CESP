@@ -61,10 +61,10 @@ export const SCHOOL_TEAM_ORDER = Object.keys(SCHOOL_TEAM_BRANDING).sort((left, r
 )
 
 export const DEMO_SCHOOL_FIXTURES = [
-  { id: 1, home: 'Denbigh High School', away: 'Excelsior High School', date: '2026-07-31', time: '10:00', venue: 'Glenmuir High School', status: 'upcoming', homeScore: null, awayScore: null, round: 'Quarter-final 1' },
-  { id: 2, home: 'Glenmuir High School', away: 'Kingston College', date: '2026-07-31', time: '12:00', venue: 'Glenmuir High School', status: 'upcoming', homeScore: null, awayScore: null, round: 'Quarter-final 2' },
-  { id: 3, home: 'Manchester High School', away: 'Mona High School', date: '2026-07-31', time: '14:00', venue: 'Glenmuir High School', status: 'upcoming', homeScore: null, awayScore: null, round: 'Quarter-final 3' },
-  { id: 4, home: 'Munro College', away: 'Vere Technical High School', date: '2026-07-31', time: '16:00', venue: 'Glenmuir High School', status: 'upcoming', homeScore: null, awayScore: null, round: 'Quarter-final 4' },
+  { id: 1, home: 'Vere Technical High School', away: 'Mona High School', date: '2026-07-31', time: '10:00', venue: 'Glenmuir High School', status: 'upcoming', homeScore: null, awayScore: null, round: 'Quarter-final 1' },
+  { id: 2, home: 'Denbigh High School', away: 'Excelsior High School', date: '2026-07-31', time: '12:00', venue: 'Glenmuir High School', status: 'upcoming', homeScore: null, awayScore: null, round: 'Quarter-final 2' },
+  { id: 3, home: 'Kingston College', away: 'Manchester High School', date: '2026-07-31', time: '14:00', venue: 'Glenmuir High School', status: 'upcoming', homeScore: null, awayScore: null, round: 'Quarter-final 3' },
+  { id: 4, home: 'Glenmuir High School', away: 'Munro College', date: '2026-07-31', time: '16:00', venue: 'Glenmuir High School', status: 'upcoming', homeScore: null, awayScore: null, round: 'Quarter-final 4' },
   { id: 9, home: 'Excelsior High School', away: 'Mona High School', date: '2026-06-06', time: '15:00', venue: 'Glenmuir High School', status: 'live', homeScore: 1, awayScore: 0, round: 'Exhibition Match' },
 ]
 

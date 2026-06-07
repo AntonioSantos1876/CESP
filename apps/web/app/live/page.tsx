@@ -38,8 +38,8 @@ const STREAMS: Stream[] = [
   },
   {
     id: 1,
-    home: 'Denbigh High School',
-    away: 'Excelsior High School',
+    home: 'Vere Technical High School',
+    away: 'Mona High School',
     date: '2026-07-31',
     time: '10:00',
     venue: 'Glenmuir High School',
@@ -49,8 +49,8 @@ const STREAMS: Stream[] = [
   },
   {
     id: 2,
-    home: 'Glenmuir High School',
-    away: 'Kingston College',
+    home: 'Denbigh High School',
+    away: 'Excelsior High School',
     date: '2026-07-31',
     time: '12:00',
     venue: 'Glenmuir High School',
@@ -60,8 +60,8 @@ const STREAMS: Stream[] = [
   },
   {
     id: 3,
-    home: 'Manchester High School',
-    away: 'Mona High School',
+    home: 'Kingston College',
+    away: 'Manchester High School',
     date: '2026-07-31',
     time: '14:00',
     venue: 'Glenmuir High School',
@@ -71,8 +71,8 @@ const STREAMS: Stream[] = [
   },
   {
     id: 4,
-    home: 'Munro College',
-    away: 'Vere Technical High School',
+    home: 'Glenmuir High School',
+    away: 'Munro College',
     date: '2026-07-31',
     time: '16:00',
     venue: 'Glenmuir High School',

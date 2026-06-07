@@ -9,6 +9,7 @@ import {
 } from 'lucide-react'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
+import { DEMO_SCHOOL_FIXTURES, getTeamBranding } from '@/lib/school-teams'
 
 type Tab = 'bracket' | 'upcoming' | 'live' | 'results'
 type FixtureStatus = 'upcoming' | 'live' | 'result'
@@ -187,6 +188,34 @@ function toUiFixture(fixture: DbFixture): Fixture {
     status: mapStatus(fixture.status),
     round: fixture.round,
     matchDate: fixture.match_date,
+  }
+}
+
+function getDemoMatchDate(date: string, time: string) {
+  return `${date}T${time}:00`
+}
+
+function toFallbackDbFixture(
+  fixture: typeof DEMO_SCHOOL_FIXTURES[number]
+): DbFixture {
+  return {
+    id: String(fixture.id),
+    match_date: getDemoMatchDate(fixture.date, fixture.time),
+    venue: fixture.venue,
+    round: fixture.round,
+    status: fixture.status === 'live' ? 'live' : fixture.status === 'result' ? 'completed' : 'scheduled',
+    home_team: {
+      name: fixture.home,
+      short_name: getTeamBranding(fixture.home).shortName,
+    },
+    away_team: {
+      name: fixture.away,
+      short_name: getTeamBranding(fixture.away).shortName,
+    },
+    match_scores:
+      fixture.homeScore !== null && fixture.awayScore !== null
+        ? [{ home_score: fixture.homeScore, away_score: fixture.awayScore }]
+        : [],
   }
 }
 
@@ -506,9 +535,13 @@ function FixturesContent() {
       if (!active) return
 
       const typedFixtures = (fixturesData ?? []) as DbFixture[]
-      setDbFixtures(typedFixtures)
-      setFixtures(typedFixtures.map(toUiFixture))
-      setTeamCount(teamsCount ?? 0)
+      const sourceFixtures = typedFixtures.length > 0
+        ? typedFixtures
+        : DEMO_SCHOOL_FIXTURES.map(toFallbackDbFixture)
+
+      setDbFixtures(sourceFixtures)
+      setFixtures(sourceFixtures.map(toUiFixture))
+      setTeamCount((teamsCount ?? 0) > 0 ? (teamsCount ?? 0) : 8)
       setLoading(false)
     }
 
