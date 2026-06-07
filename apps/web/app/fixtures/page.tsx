@@ -601,16 +601,15 @@ function FixturesContent() {
 
   const firstRoundMatches = getOpeningRoundMatchCount(teamCount)
   const tournamentMatches = getKnockoutMatchCount(teamCount)
-  const semiFinalTeams = teamCount >= 2 ? Math.ceil(teamCount / 2) : 0
 
   return (
     <main className="min-h-screen bg-bg-base">
-      <div className="container-cesp py-12 md:py-16">
+      <div className="w-full px-4 py-12 sm:px-6 lg:px-8 xl:px-10 2xl:px-12 md:py-16">
         <motion.div
           initial={{ opacity: 0, y: 24 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
-          className="mb-10"
+          className="mx-auto mb-10 max-w-7xl"
         >
           <h1 className="mb-3 text-4xl font-bold text-text-primary md:text-5xl">Fixtures &amp; Results</h1>
           <p className="max-w-2xl text-base leading-7 text-text-secondary md:text-lg">
@@ -618,136 +617,86 @@ function FixturesContent() {
           </p>
         </motion.div>
 
-        <div className="grid grid-cols-1 gap-8 xl:grid-cols-[minmax(0,1.7fr)_minmax(320px,0.9fr)]">
-          <div>
-            <div className="mb-6 flex flex-wrap items-center gap-3">
-              {TABS.map(({ key, label }) => {
-                const isActive = tab === key
-                return (
-                  <button
-                    key={key}
-                    onClick={() => setTab(key)}
-                    className={`relative rounded-2xl px-5 py-3 text-sm font-semibold transition-all duration-200 md:text-base ${
-                      isActive
-                        ? 'bg-brand-primary text-white shadow-glow'
-                        : 'border border-bg-border bg-bg-muted text-text-secondary hover:text-text-primary'
-                    }`}
-                  >
-                    {label}
-                    {key === 'live' && liveCount > 0 && (
-                      <span className="absolute -right-2 -top-2 flex h-6 w-6 items-center justify-center rounded-full bg-brand-primary text-[11px] font-bold text-white ring-4 ring-bg-base">
-                        {liveCount}
-                      </span>
-                    )}
-                  </button>
-                )
-              })}
+        <div className="mx-auto max-w-[120rem]">
+          <div className="mb-6 flex flex-wrap items-center gap-3">
+            {TABS.map(({ key, label }) => {
+              const isActive = tab === key
+              return (
+                <button
+                  key={key}
+                  onClick={() => setTab(key)}
+                  className={`relative rounded-2xl px-5 py-3 text-sm font-semibold transition-all duration-200 md:text-base ${
+                    isActive
+                      ? 'bg-brand-primary text-white shadow-glow'
+                      : 'border border-bg-border bg-bg-muted text-text-secondary hover:text-text-primary'
+                  }`}
+                >
+                  {label}
+                  {key === 'live' && liveCount > 0 && (
+                    <span className="absolute -right-2 -top-2 flex h-6 w-6 items-center justify-center rounded-full bg-brand-primary text-[11px] font-bold text-white ring-4 ring-bg-base">
+                      {liveCount}
+                    </span>
+                  )}
+                </button>
+              )
+            })}
+
+            <div className="ml-auto hidden rounded-full border border-bg-border bg-bg-card/70 px-4 py-2 text-sm text-text-muted xl:inline-flex">
+              {teamCount} teams · {firstRoundMatches} quarter-finals · {tournamentMatches} total knockout matches
             </div>
-
-            <AnimatePresence mode="wait">
-              <motion.div
-                key={tab}
-                initial={{ opacity: 0, y: 8 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -8 }}
-                transition={{ duration: 0.2 }}
-              >
-                {loading && (
-                  <div className="card py-16 text-center text-text-muted">
-                    Loading fixtures...
-                  </div>
-                )}
-
-                {!loading && tab === 'bracket' && <BracketView fixtures={dbFixtures} />}
-
-                {!loading && tab === 'live' && filtered.length > 0 && (
-                  <div className="mb-5 flex items-center gap-2 text-sm font-medium text-brand-secondary md:text-base">
-                    <Radio size={16} />
-                    <span>{filtered.length} match{filtered.length !== 1 ? 'es' : ''} in progress</span>
-                  </div>
-                )}
-
-                {!loading && tab !== 'bracket' && (
-                  sortedDates.length === 0 ? (
-                    <div className="card py-16 text-center text-text-muted">
-                      {tab === 'live' ? 'No matches are currently live.' : 'No fixtures in this category yet.'}
-                    </div>
-                  ) : (
-                    <div className="space-y-8">
-                      {sortedDates.map(date => (
-                        <div key={date}>
-                          <div className="mb-4 flex items-center gap-3">
-                            <Calendar size={16} className="shrink-0 text-brand-secondary" />
-                            <span className="text-sm font-semibold uppercase tracking-wide text-brand-secondary">
-                              {formatMatchDate(date)}
-                            </span>
-                            <div className="h-px flex-1 bg-bg-border" />
-                          </div>
-                          <div className="space-y-4">
-                            {grouped[date].map((fixture, index) => (
-                              <FixtureCard key={fixture.id} fixture={fixture} index={index} />
-                            ))}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )
-                )}
-              </motion.div>
-            </AnimatePresence>
           </div>
 
-          <div>
+          <AnimatePresence mode="wait">
             <motion.div
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ duration: 0.6, delay: 0.2, ease: [0.22, 1, 0.36, 1] }}
+              key={tab}
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -8 }}
+              transition={{ duration: 0.2 }}
             >
-              <div className="card mb-6 rounded-[28px] p-6 md:p-7">
-                <p className="mb-5 text-xs font-bold uppercase tracking-[0.24em] text-text-muted">Tournament Format</p>
-                <div className="space-y-4">
-                  {[
-                    {
-                      round: ROUND_STYLES.quarterfinal.label,
-                      date: `${firstRoundMatches} match${firstRoundMatches === 1 ? '' : 'es'}`,
-                      note: teamCount > 0 ? `${teamCount} teams in the opening round` : 'Waiting on team registration',
-                      color: ROUND_STYLES.quarterfinal.accent,
-                    },
-                    {
-                      round: ROUND_STYLES.semifinal.label,
-                      date: '2 matches',
-                      note: semiFinalTeams > 0 ? `${semiFinalTeams} teams advance` : 'Semi-final bracket pending',
-                      color: ROUND_STYLES.semifinal.accent,
-                    },
-                    {
-                      round: ROUND_STYLES.final.label,
-                      date: '1 match',
-                      note: 'Championship decider',
-                      color: ROUND_STYLES.final.accent,
-                    },
-                    {
-                      round: ROUND_STYLES.third.label,
-                      date: '1 match',
-                      note: 'Semi-final losers playoff',
-                      color: ROUND_STYLES.third.accent,
-                    },
-                  ].map(round => (
-                    <div key={round.round} className="flex items-start justify-between gap-4 rounded-2xl border border-bg-border bg-bg-card/60 px-4 py-4">
-                      <span className={`text-sm font-semibold md:text-base ${round.color}`}>{round.round}</span>
-                      <div className="shrink-0 text-right">
-                        <p className="text-sm text-text-secondary">{round.date}</p>
-                        <p className="mt-1 text-xs leading-5 text-text-muted">{round.note}</p>
-                      </div>
-                    </div>
-                  ))}
+              {loading && (
+                <div className="card py-16 text-center text-text-muted">
+                  Loading fixtures...
                 </div>
-                <div className="divider mb-4 mt-5" />
-                <p className="text-sm leading-7 text-text-muted">
-                  Registered teams now drive the headline numbers on this page. With {teamCount || 0} team{teamCount === 1 ? '' : 's'} entered, the tournament currently projects {tournamentMatches} knockout match{tournamentMatches === 1 ? '' : 'es'} including the 3rd-place playoff.
-                </p>
-              </div>
+              )}
+
+              {!loading && tab === 'bracket' && <BracketView fixtures={dbFixtures} />}
+
+              {!loading && tab === 'live' && filtered.length > 0 && (
+                <div className="mb-5 flex items-center gap-2 text-sm font-medium text-brand-secondary md:text-base">
+                  <Radio size={16} />
+                  <span>{filtered.length} match{filtered.length !== 1 ? 'es' : ''} in progress</span>
+                </div>
+              )}
+
+              {!loading && tab !== 'bracket' && (
+                sortedDates.length === 0 ? (
+                  <div className="card py-16 text-center text-text-muted">
+                    {tab === 'live' ? 'No matches are currently live.' : 'No fixtures in this category yet.'}
+                  </div>
+                ) : (
+                  <div className="space-y-8">
+                    {sortedDates.map(date => (
+                      <div key={date}>
+                        <div className="mb-4 flex items-center gap-3">
+                          <Calendar size={16} className="shrink-0 text-brand-secondary" />
+                          <span className="text-sm font-semibold uppercase tracking-wide text-brand-secondary">
+                            {formatMatchDate(date)}
+                          </span>
+                          <div className="h-px flex-1 bg-bg-border" />
+                        </div>
+                        <div className="space-y-4">
+                          {grouped[date].map((fixture, index) => (
+                            <FixtureCard key={fixture.id} fixture={fixture} index={index} />
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )
+              )}
             </motion.div>
-          </div>
+          </AnimatePresence>
         </div>
       </div>
     </main>

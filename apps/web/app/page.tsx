@@ -22,6 +22,33 @@ const features = [
   { icon: ShoppingBag, title: 'Merch Store', description: 'Official Clarendon Elite Cup merchandise.' },
 ]
 
+const TOURNAMENT_FORMAT = [
+  {
+    round: 'Quarter-finals',
+    summary: '4 matches',
+    note: 'Eight schools open the knockout bracket on 31 July 2026.',
+    accent: 'text-brand-secondary',
+  },
+  {
+    round: 'Semi-finals',
+    summary: '2 matches',
+    note: 'The winners return on 1 August 2026 for the semis.',
+    accent: 'text-brand-secondary',
+  },
+  {
+    round: 'Final',
+    summary: '1 match',
+    note: 'The championship match is played on 2 August 2026.',
+    accent: 'text-amber-400',
+  },
+  {
+    round: '3rd Place',
+    summary: '1 match',
+    note: 'The semi-final losers playoff is also on 2 August 2026.',
+    accent: 'text-text-muted',
+  },
+] as const
+
 function CountUp({ target, suffix = '' }: { target: number; suffix?: string }) {
   const ref = useRef<HTMLSpanElement>(null)
   const isInView = useInView(ref, { once: true, margin: '0px' })
@@ -199,6 +226,32 @@ export default function HomePage() {
               </div>
             </FadeInWhenVisible>
           ))}
+        </div>
+      </section>
+
+      <section className="section border-b border-bg-border">
+        <div className="container-cesp">
+          <FadeInWhenVisible>
+            <div className="mx-auto max-w-5xl text-center">
+              <p className="text-xs font-bold uppercase tracking-[0.35em] text-brand-secondary">Tournament Format</p>
+              <h2 className="mt-4 text-heading-xl font-bold text-text-primary">Straight knockout football across one tournament weekend</h2>
+              <p className="mx-auto mt-4 max-w-3xl text-text-secondary">
+                The competition starts with eight schools, moves into semi-finals on 1 August 2026, and finishes with the final plus 3rd-place playoff on 2 August 2026.
+              </p>
+            </div>
+          </FadeInWhenVisible>
+
+          <div className="mt-10 grid gap-5 md:grid-cols-2 xl:grid-cols-4">
+            {TOURNAMENT_FORMAT.map((round, index) => (
+              <FadeInWhenVisible key={round.round} delay={index * 0.08}>
+                <div className="card h-full rounded-[1.75rem] p-6">
+                  <p className={`text-xs font-bold uppercase tracking-[0.28em] ${round.accent}`}>{round.round}</p>
+                  <p className="mt-4 text-2xl font-black text-text-primary">{round.summary}</p>
+                  <p className="mt-3 text-sm leading-7 text-text-secondary">{round.note}</p>
+                </div>
+              </FadeInWhenVisible>
+            ))}
+          </div>
         </div>
       </section>
 
