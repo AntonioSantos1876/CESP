@@ -7,6 +7,7 @@ import {
   Trophy, Zap, Users, Camera, Heart, ShoppingBag, ChevronRight,
   Calendar, Radio, ArrowDown
 } from 'lucide-react'
+import { SponsorShowcase } from '@/components/SponsorShowcase'
 
 const HOME_STATS = {
   teams: 8,
@@ -319,6 +320,20 @@ export default function HomePage() {
                 </motion.div>
               </div>
             </div>
+          </FadeInWhenVisible>
+        </div>
+      </section>
+
+      <section className="section pt-0">
+        <div className="container-cesp">
+          <FadeInWhenVisible>
+            <SponsorShowcase
+              compact
+              showLink
+              heading="Main Sponsors"
+              eyebrow="Our Sponsors"
+              description="The Clarendon Elite Cup is proudly backed by our main sponsors. Their support helps bring the tournament to life across the full weekend."
+            />
           </FadeInWhenVisible>
         </div>
       </section>

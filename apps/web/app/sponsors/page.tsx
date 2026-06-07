@@ -1,10 +1,9 @@
 'use client'
 
 import { motion } from 'framer-motion'
-import { Star, Award, Shield, ExternalLink, Mail } from 'lucide-react'
+import { Star, Award, Shield, Mail } from 'lucide-react'
 import Link from 'next/link'
-import { MerchandiseCatalog } from '@/components/merchandise'
-import { FEATURED_JERSEYS } from '@/lib/merch'
+import { SponsorShowcase } from '@/components/SponsorShowcase'
 
 type Tier = {
   name: string
@@ -13,7 +12,7 @@ type Tier = {
   border: string
   icon: React.FC<{ size: number; className?: string; style?: React.CSSProperties }>
   perks: string[]
-  sponsors: { name: string; tagline: string; url?: string }[]
+  summary: string
 }
 
 const TIERS: Tier[] = [
@@ -30,9 +29,7 @@ const TIERS: Tier[] = [
       'Social media feature (monthly)',
       'VIP seats at all home matches',
     ],
-    sponsors: [
-      { name: 'Clarendon Hardware', tagline: 'Building Clarendon together', url: '#' },
-    ],
+    summary: 'Best for headline partners who want premium visibility all weekend.',
   },
   {
     name: 'Silver',
@@ -46,10 +43,7 @@ const TIERS: Tier[] = [
       'Named match sponsorship for 1 fixture',
       'Complimentary tickets to home matches',
     ],
-    sponsors: [
-      { name: 'Porus Pharmacy', tagline: 'Health for the community', url: '#' },
-      { name: 'Kellits Bakery', tagline: 'Freshly baked every match day', url: '#' },
-    ],
+    summary: 'A strong fit for brands that want matchday presence and season exposure.',
   },
   {
     name: 'Bronze',
@@ -62,11 +56,7 @@ const TIERS: Tier[] = [
       'Social media mention at season start',
       'Two complimentary tickets per season',
     ],
-    sponsors: [
-      { name: 'Denbigh Motors', tagline: 'Your local car specialists', url: '#' },
-      { name: 'May Pen Print', tagline: 'Print, design, deliver', url: '#' },
-      { name: 'Frankfield Feeds', tagline: 'Agriculture and supplies', url: '#' },
-    ],
+    summary: 'Ideal for local supporters who want to back the competition and community.',
   },
 ]
 
@@ -81,41 +71,18 @@ function TierCard({ tier, index }: { tier: Tier; index: number }) {
     >
       <div className="absolute top-0 right-0 w-48 h-48 rounded-full blur-3xl opacity-10" style={{ background: tier.colour, transform: 'translate(30%, -30%)' }} />
 
-      <div className="flex items-center gap-3 mb-5">
+      <div className="mb-5 flex items-center gap-3">
         <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ background: tier.colour + '22' }}>
           <Icon size={20} style={{ color: tier.colour }} />
         </div>
         <div>
           <h2 className="text-lg font-bold text-text-primary">{tier.name} Sponsor</h2>
-          <p className="text-xs text-text-muted">{tier.sponsors.length} current {tier.sponsors.length === 1 ? 'partner' : 'partners'}</p>
+          <p className="text-xs text-text-muted">{tier.summary}</p>
         </div>
       </div>
 
-      {/* Current sponsors */}
-      {tier.sponsors.length > 0 && (
-        <div className="space-y-3 mb-5">
-          {tier.sponsors.map(sponsor => (
-            <div key={sponsor.name} className="flex items-center gap-3 bg-bg-card/60 rounded-xl px-4 py-3">
-              <div className="w-10 h-10 rounded-lg bg-bg-muted flex items-center justify-center shrink-0 text-xs font-bold text-text-muted">
-                {sponsor.name.slice(0, 2).toUpperCase()}
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="font-semibold text-sm text-text-primary truncate">{sponsor.name}</p>
-                <p className="text-xs text-text-muted truncate">{sponsor.tagline}</p>
-              </div>
-              {sponsor.url && (
-                <a href={sponsor.url} target="_blank" rel="noopener noreferrer" className="shrink-0">
-                  <ExternalLink size={14} className="text-text-muted hover:text-brand-secondary transition-colors" />
-                </a>
-              )}
-            </div>
-          ))}
-        </div>
-      )}
-
       <div className="divider mb-4" />
 
-      {/* Perks */}
       <h3 className="text-xs font-bold text-text-muted uppercase tracking-widest mb-3">What you get</h3>
       <ul className="space-y-2">
         {tier.perks.map(perk => (
@@ -125,6 +92,13 @@ function TierCard({ tier, index }: { tier: Tier; index: number }) {
           </li>
         ))}
       </ul>
+
+      <a
+        href="mailto:sponsors@clarendonelite.com"
+        className="btn-secondary mt-6 inline-flex w-full items-center justify-center"
+      >
+        Join as a sponsor
+      </a>
     </motion.div>
   )
 }
@@ -146,38 +120,25 @@ export default function SponsorsPage() {
           </p>
         </motion.div>
 
+        <motion.section
+          initial={{ opacity: 0, y: 24 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6, delay: 0.25, ease: [0.22, 1, 0.36, 1] }}
+          className="mb-12"
+        >
+          <SponsorShowcase
+            heading="Main Sponsors"
+            eyebrow="Proud Partners"
+            description="These are the main sponsors helping power the Clarendon Elite Cup. Their backing supports the tournament, the teams, and the wider community around it."
+          />
+        </motion.section>
+
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
           {TIERS.map((tier, i) => (
             <TierCard key={tier.name} tier={tier} index={i} />
           ))}
         </div>
 
-        <motion.section
-          initial={{ opacity: 0, y: 24 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6, delay: 0.25, ease: [0.22, 1, 0.36, 1] }}
-          className="mb-12 rounded-[2.25rem] border border-white/10 bg-[#101010] p-8"
-        >
-          <div className="mb-8 flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
-            <div>
-              <p className="text-xs font-bold uppercase tracking-[0.35em] text-brand-secondary">Supporter merch</p>
-              <h2 className="mt-2 text-3xl font-black text-text-primary">School jerseys now on sale</h2>
-              <p className="mt-3 max-w-3xl text-text-secondary">
-                Support your school directly from this page. Every jersey can be customised before it goes into the cart, then finished in checkout.
-              </p>
-            </div>
-            <Link href="/shop" className="btn-secondary w-full text-center lg:w-auto">
-              View full shop
-            </Link>
-          </div>
-
-          <MerchandiseCatalog
-            products={FEATURED_JERSEYS}
-            compact
-          />
-        </motion.section>
-
-        {/* Become a sponsor CTA */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -187,17 +148,17 @@ export default function SponsorsPage() {
           <div className="w-12 h-12 rounded-2xl bg-brand-primary/15 flex items-center justify-center mx-auto mb-4">
             <Star size={22} className="text-brand-primary" />
           </div>
-          <h2 className="text-xl font-bold text-text-primary mb-2">Become a sponsor</h2>
+          <h2 className="text-xl font-bold text-text-primary mb-2">Join as a sponsor</h2>
           <p className="text-text-secondary text-sm mb-6 max-w-md mx-auto">
-            Join our growing list of partners and help grow football in Clarendon. Packages start from as little as £250 per season.
+            Join the sponsor lineup and help grow football in Clarendon. We can match your brand with the right level of tournament exposure.
           </p>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
             <a href="mailto:sponsors@clarendonelite.com" className="btn-primary inline-flex items-center gap-2">
               <Mail size={16} />
               Get in touch
             </a>
-            <Link href="/donate" className="btn-ghost text-brand-secondary inline-flex items-center gap-2">
-              Or make a donation
+            <Link href="/shop" className="btn-ghost text-brand-secondary inline-flex items-center gap-2">
+              Visit the merch shop
             </Link>
           </div>
         </motion.div>
