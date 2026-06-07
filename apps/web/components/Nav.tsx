@@ -249,13 +249,22 @@ export function Nav({ user }: NavProps) {
               </Link>
             ))}
             {!user && (
-              <Link
-                href="/auth/login"
-                onClick={() => setMobileOpen(false)}
-                className="btn-secondary text-sm px-4 py-3 rounded-xl mt-2 text-center"
-              >
-                Sign in
-              </Link>
+              <div className="flex flex-col gap-2 mt-2">
+                <Link
+                  href="/auth/register"
+                  onClick={() => setMobileOpen(false)}
+                  className="btn-primary text-sm px-4 py-3 rounded-xl text-center"
+                >
+                  Sign up free
+                </Link>
+                <Link
+                  href="/auth/login"
+                  onClick={() => setMobileOpen(false)}
+                  className="btn-ghost text-sm px-4 py-3 rounded-xl text-center"
+                >
+                  Sign in
+                </Link>
+              </div>
             )}
           </div>
         </div>
