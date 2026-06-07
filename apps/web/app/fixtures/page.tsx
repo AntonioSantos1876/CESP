@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { useRouter, useSearchParams } from 'next/navigation'
 import {
   Calendar, Clock, MapPin, ChevronRight, Radio,
-  Trophy, Camera, Star, HandHeart, Users,
+  Trophy,
 } from 'lucide-react'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
@@ -554,13 +554,6 @@ function FixturesContent() {
     tab === 'results' ? b.localeCompare(a) : a.localeCompare(b)
   )
 
-  const quickLinks = [
-    { href: '/gallery', label: 'Gallery', icon: Camera, desc: 'Match photos' },
-    { href: '/sponsors', label: 'Sponsors', icon: Star, desc: 'Our partners' },
-    { href: '/volunteer', label: 'Volunteer', icon: HandHeart, desc: 'Get involved' },
-    { href: '/teams', label: 'Teams', icon: Users, desc: teamCount > 0 ? `${teamCount} registered clubs` : 'Team directory' },
-  ]
-
   const firstRoundMatches = getOpeningRoundMatchCount(teamCount)
   const tournamentMatches = getKnockoutMatchCount(teamCount)
   const semiFinalTeams = teamCount >= 2 ? Math.ceil(teamCount / 2) : 0
@@ -578,29 +571,6 @@ function FixturesContent() {
           <p className="max-w-2xl text-base leading-7 text-text-secondary md:text-lg">
             Follow the knockout bracket, upcoming kick-offs, live matches, and final results for the Clarendon Elite Cup.
           </p>
-        </motion.div>
-
-        <motion.div
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, delay: 0.08 }}
-          className="mb-10 grid gap-3 sm:grid-cols-2 xl:grid-cols-4"
-        >
-          {quickLinks.map(({ href, label, icon: Icon, desc }) => (
-            <Link
-              key={href}
-              href={href}
-              className="group flex items-center gap-3 rounded-2xl border border-bg-border bg-bg-card px-4 py-4 transition-all duration-200 hover:border-brand-primary/30 hover:bg-bg-muted"
-            >
-              <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-brand-primary/10">
-                <Icon size={18} className="text-brand-secondary transition-colors group-hover:text-brand-primary" />
-              </div>
-              <div className="min-w-0">
-                <p className="text-sm font-semibold text-text-primary md:text-base">{label}</p>
-                <p className="mt-1 text-xs leading-5 text-text-muted md:text-sm">{desc}</p>
-              </div>
-            </Link>
-          ))}
         </motion.div>
 
         <div className="grid grid-cols-1 gap-8 xl:grid-cols-[minmax(0,1.7fr)_minmax(320px,0.9fr)]">
@@ -730,26 +700,6 @@ function FixturesContent() {
                 <p className="text-sm leading-7 text-text-muted">
                   Registered teams now drive the headline numbers on this page. With {teamCount || 0} team{teamCount === 1 ? '' : 's'} entered, the tournament currently projects {tournamentMatches} knockout match{tournamentMatches === 1 ? '' : 'es'} including the 3rd-place playoff.
                 </p>
-              </div>
-
-              <p className="mb-3 text-xs font-bold uppercase tracking-[0.24em] text-text-muted">Explore</p>
-              <div className="space-y-3">
-                {quickLinks.map(({ href, label, icon: Icon, desc }) => (
-                  <Link
-                    key={href}
-                    href={href}
-                    className="group flex items-center gap-3 rounded-2xl border border-bg-border bg-bg-card px-4 py-4 transition-all duration-200 hover:border-brand-primary/30 hover:bg-bg-muted"
-                  >
-                    <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-brand-primary/10 shrink-0">
-                      <Icon size={16} className="text-brand-secondary" />
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <p className="text-sm font-semibold text-text-primary">{label}</p>
-                      <p className="mt-1 text-xs leading-5 text-text-muted">{desc}</p>
-                    </div>
-                    <ChevronRight size={16} className="shrink-0 text-text-muted transition-colors group-hover:text-brand-secondary" />
-                  </Link>
-                ))}
               </div>
             </motion.div>
           </div>

@@ -1,9 +1,28 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import { Eye, EyeOff, Trophy } from 'lucide-react'
+
+type RequestedRole = 'fan' | 'supporter' | 'volunteer' | 'photographer' | 'coach' | 'livestream_operator' | 'team_admin'
+type TeamRequestType = 'none' | 'existing' | 'new'
+
+type TeamOption = {
+  id: string
+  name: string
+  short_name: string
+}
+
+const ROLE_OPTIONS: { value: RequestedRole; label: string; desc: string }[] = [
+  { value: 'fan', label: 'Fan', desc: 'General access with no special review needed.' },
+  { value: 'supporter', label: 'Supporter', desc: 'Choose a team to follow right away.' },
+  { value: 'volunteer', label: 'Volunteer', desc: 'Apply to help with league operations.' },
+  { value: 'photographer', label: 'Photographer', desc: 'Request media access for coverage.' },
+  { value: 'coach', label: 'Coach', desc: 'Manage one team and its squad once approved.' },
+  { value: 'livestream_operator', label: 'Livestream Operator', desc: 'Request live-production access.' },
+  { value: 'team_admin', label: 'Team Admin', desc: 'Help manage one team once approved.' },
+]
 
 export default function RegisterPage() {
   const [fullName, setFullName] = useState('')
@@ -13,13 +32,84 @@ export default function RegisterPage() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState(false)
+  const [teams, setTeams] = useState<TeamOption[]>([])
+  const [desiredRole, setDesiredRole] = useState<RequestedRole>('fan')
+  const [teamRequestType, setTeamRequestType] = useState<TeamRequestType>('none')
+  const [existingTeamId, setExistingTeamId] = useState('')
+  const [newTeamName, setNewTeamName] = useState('')
+  const [newTeamShortName, setNewTeamShortName] = useState('')
+
+  useEffect(() => {
+    async function loadTeams() {
+      const supabase = createClient()
+      const { data } = await (supabase as any)
+        .from('teams')
+        .select('id, name, short_name')
+        .order('name', { ascending: true })
+
+      setTeams(data ?? [])
+    }
+
+    loadTeams()
+  }, [])
+
+  useEffect(() => {
+    if (desiredRole === 'fan') {
+      setTeamRequestType('none')
+      setExistingTeamId('')
+      return
+    }
+
+    if (desiredRole === 'supporter') {
+      setTeamRequestType('existing')
+      return
+    }
+
+    if (desiredRole === 'coach' || desiredRole === 'team_admin') {
+      if (teamRequestType === 'none') setTeamRequestType('existing')
+      return
+    }
+
+    if (teamRequestType === 'new') {
+      setTeamRequestType('none')
+      setNewTeamName('')
+      setNewTeamShortName('')
+    }
+  }, [desiredRole, teamRequestType])
+
+  function validateForm() {
+    if (password.length < 8) {
+      return 'Password must be at least 8 characters.'
+    }
+
+    if (desiredRole === 'supporter' && !existingTeamId) {
+      return 'Please choose the team you want to support.'
+    }
+
+    if ((desiredRole === 'coach' || desiredRole === 'team_admin') && teamRequestType === 'none') {
+      return 'Please choose an existing team or create a new one.'
+    }
+
+    if (teamRequestType === 'existing' && !existingTeamId) {
+      return 'Please choose a team.'
+    }
+
+    if (teamRequestType === 'new') {
+      if (!newTeamName.trim()) return 'Please enter a team name.'
+      if (!newTeamShortName.trim()) return 'Please enter a short team name.'
+    }
+
+    return ''
+  }
 
   async function handleRegister(e: React.FormEvent) {
     e.preventDefault()
-    if (password.length < 8) {
-      setError('Password must be at least 8 characters.')
+    const validationError = validateForm()
+    if (validationError) {
+      setError(validationError)
       return
     }
+
     setLoading(true)
     setError('')
 
@@ -28,7 +118,14 @@ export default function RegisterPage() {
       email,
       password,
       options: {
-        data: { full_name: fullName },
+        data: {
+          full_name: fullName,
+          requested_role: desiredRole,
+          requested_team_type: teamRequestType,
+          requested_team_id: teamRequestType === 'existing' ? existingTeamId : '',
+          requested_team_name: teamRequestType === 'new' ? newTeamName.trim() : '',
+          requested_team_short_name: teamRequestType === 'new' ? newTeamShortName.trim() : '',
+        },
         emailRedirectTo: `${process.env.NEXT_PUBLIC_APP_URL}/auth/callback`,
       },
     })
@@ -52,6 +149,8 @@ export default function RegisterPage() {
   }
 
   if (success) {
+    const reviewNeeded = !['fan', 'supporter'].includes(desiredRole)
+
     return (
       <div className="min-h-screen bg-bg-base flex items-center justify-center px-4">
         <div className="w-full max-w-md text-center space-y-4">
@@ -65,6 +164,11 @@ export default function RegisterPage() {
             We sent a confirmation link to <span className="text-text-primary font-medium">{email}</span>.
             Click it to activate your account.
           </p>
+          <p className="text-sm text-text-muted">
+            {reviewNeeded
+              ? 'Your requested role will stay pending review after signup. You will keep fan access until an admin approves it.'
+              : 'Your account will open with standard fan access after confirmation.'}
+          </p>
           <Link href="/auth/login" className="btn-secondary inline-flex mt-4">
             Back to login
           </Link>
@@ -74,19 +178,17 @@ export default function RegisterPage() {
   }
 
   return (
-    <div className="min-h-screen bg-bg-base flex items-center justify-center px-4">
-      <div className="w-full max-w-md">
-        {/* Logo */}
+    <div className="min-h-screen bg-bg-base flex items-center justify-center px-4 py-10">
+      <div className="w-full max-w-2xl">
         <div className="text-center mb-8">
           <Link href="/" className="inline-flex items-center gap-2 text-gradient font-bold text-2xl">
             <Trophy size={28} className="text-brand-primary" />
             Clarendon Elite Cup
           </Link>
-          <p className="text-text-secondary text-sm mt-2">Create your free account</p>
+          <p className="text-text-secondary text-sm mt-2">Create your free account and tell us how you want to be involved.</p>
         </div>
 
         <div className="card space-y-6">
-          {/* Google OAuth */}
           <button
             onClick={handleGoogleLogin}
             className="w-full flex items-center justify-center gap-3 px-4 py-3 rounded-xl border border-bg-border bg-bg-muted hover:bg-bg-hover transition-colors text-text-primary font-medium text-sm"
@@ -100,37 +202,43 @@ export default function RegisterPage() {
             Continue with Google
           </button>
 
+          <p className="text-xs text-text-muted -mt-2">
+            Google signup creates the account first. You can request a team or upgraded role afterward from your profile.
+          </p>
+
           <div className="divider" />
 
-          <form onSubmit={handleRegister} className="space-y-4">
+          <form onSubmit={handleRegister} className="space-y-5">
             {error && (
               <div className="px-4 py-3 rounded-xl bg-error/10 border border-error/20 text-error text-sm">
                 {error}
               </div>
             )}
 
-            <div className="space-y-1">
-              <label className="text-sm font-medium text-text-secondary">Full name</label>
-              <input
-                type="text"
-                value={fullName}
-                onChange={e => setFullName(e.target.value)}
-                required
-                placeholder="Michael Crawford"
-                className="input"
-              />
-            </div>
+            <div className="grid gap-4 md:grid-cols-2">
+              <div className="space-y-1">
+                <label className="text-sm font-medium text-text-secondary">Full name</label>
+                <input
+                  type="text"
+                  value={fullName}
+                  onChange={e => setFullName(e.target.value)}
+                  required
+                  placeholder="Michael Crawford"
+                  className="input"
+                />
+              </div>
 
-            <div className="space-y-1">
-              <label className="text-sm font-medium text-text-secondary">Email</label>
-              <input
-                type="email"
-                value={email}
-                onChange={e => setEmail(e.target.value)}
-                required
-                placeholder="you@example.com"
-                className="input"
-              />
+              <div className="space-y-1">
+                <label className="text-sm font-medium text-text-secondary">Email</label>
+                <input
+                  type="email"
+                  value={email}
+                  onChange={e => setEmail(e.target.value)}
+                  required
+                  placeholder="you@example.com"
+                  className="input"
+                />
+              </div>
             </div>
 
             <div className="space-y-1">
@@ -154,6 +262,130 @@ export default function RegisterPage() {
                 </button>
               </div>
             </div>
+
+            <div className="space-y-3">
+              <div>
+                <label className="text-sm font-medium text-text-secondary">How do you want to join?</label>
+                <p className="text-xs text-text-muted mt-1">
+                  Everyone signs up with fan access first. Non-fan roles go to the admin review queue automatically.
+                </p>
+              </div>
+
+              <div className="grid gap-3 md:grid-cols-2">
+                {ROLE_OPTIONS.map(option => (
+                  <button
+                    key={option.value}
+                    type="button"
+                    onClick={() => setDesiredRole(option.value)}
+                    className={`rounded-2xl border px-4 py-4 text-left transition-colors ${
+                      desiredRole === option.value
+                        ? 'border-brand-primary bg-brand-primary/10'
+                        : 'border-bg-border bg-bg-muted hover:border-brand-primary/30'
+                    }`}
+                  >
+                    <p className="text-sm font-semibold text-text-primary">{option.label}</p>
+                    <p className="mt-1 text-xs leading-5 text-text-muted">{option.desc}</p>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {desiredRole !== 'fan' && (
+              <div className="space-y-4 rounded-2xl border border-bg-border bg-bg-muted/40 p-4">
+                <div>
+                  <p className="text-sm font-medium text-text-secondary">Team selection</p>
+                  <p className="text-xs text-text-muted mt-1">
+                    Supporters can pick a team now. Coaches and team admins can either join an existing team or request a new one.
+                  </p>
+                </div>
+
+                {(desiredRole === 'coach' || desiredRole === 'team_admin' || desiredRole === 'supporter') && (
+                  <div className="flex flex-wrap gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setTeamRequestType('existing')}
+                      className={`px-4 py-2 rounded-xl text-sm font-medium border transition-colors ${
+                        teamRequestType === 'existing'
+                          ? 'bg-brand-primary text-white border-brand-primary'
+                          : 'bg-bg-card border-bg-border text-text-secondary'
+                      }`}
+                    >
+                      Choose existing team
+                    </button>
+                    {(desiredRole === 'coach' || desiredRole === 'team_admin') && (
+                      <button
+                        type="button"
+                        onClick={() => setTeamRequestType('new')}
+                        className={`px-4 py-2 rounded-xl text-sm font-medium border transition-colors ${
+                          teamRequestType === 'new'
+                            ? 'bg-brand-primary text-white border-brand-primary'
+                            : 'bg-bg-card border-bg-border text-text-secondary'
+                        }`}
+                      >
+                        Request a new team
+                      </button>
+                    )}
+                    {desiredRole !== 'supporter' && (
+                      <button
+                        type="button"
+                        onClick={() => setTeamRequestType('none')}
+                        className={`px-4 py-2 rounded-xl text-sm font-medium border transition-colors ${
+                          teamRequestType === 'none'
+                            ? 'bg-brand-primary text-white border-brand-primary'
+                            : 'bg-bg-card border-bg-border text-text-secondary'
+                        }`}
+                      >
+                        No team yet
+                      </button>
+                    )}
+                  </div>
+                )}
+
+                {teamRequestType === 'existing' && (
+                  <div className="space-y-1">
+                    <label className="text-sm font-medium text-text-secondary">Existing team</label>
+                    <select
+                      value={existingTeamId}
+                      onChange={e => setExistingTeamId(e.target.value)}
+                      className="input"
+                    >
+                      <option value="">Select a team</option>
+                      {teams.map(team => (
+                        <option key={team.id} value={team.id}>
+                          {team.name} ({team.short_name})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+
+                {teamRequestType === 'new' && (
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <div className="space-y-1">
+                      <label className="text-sm font-medium text-text-secondary">New team name</label>
+                      <input
+                        type="text"
+                        value={newTeamName}
+                        onChange={e => setNewTeamName(e.target.value)}
+                        placeholder="Clarendon Rangers"
+                        className="input"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-sm font-medium text-text-secondary">Short name</label>
+                      <input
+                        type="text"
+                        value={newTeamShortName}
+                        onChange={e => setNewTeamShortName(e.target.value.toUpperCase())}
+                        placeholder="CR"
+                        className="input"
+                        maxLength={12}
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
 
             <button
               type="submit"

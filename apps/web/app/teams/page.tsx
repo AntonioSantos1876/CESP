@@ -1,72 +1,174 @@
 'use client'
 
+import { useEffect, useState } from 'react'
+import Link from 'next/link'
 import { motion } from 'framer-motion'
 import { Users, Trophy, Target, TrendingUp } from 'lucide-react'
+import { createClient } from '@/lib/supabase/client'
 
-const teams = [
-  {
-    id: 1,
-    name: 'Manchester United Clarendon',
-    shortName: 'MUC',
-    color: '#E85D04',
-    manager: 'Devon Reid',
-    played: 5, won: 4, drawn: 0, lost: 1,
-    goalsFor: 12, goalsAgainst: 3,
-    topScorer: 'Marcus Thompson (5)',
-  },
-  {
-    id: 2,
-    name: 'Chapelton FC',
-    shortName: 'CFC',
-    color: '#3B82F6',
-    manager: 'Winston Clarke',
-    played: 5, won: 3, drawn: 1, lost: 1,
-    goalsFor: 9, goalsAgainst: 5,
-    topScorer: 'Delroy Brown (4)',
-  },
-  {
-    id: 3,
-    name: 'Porus United',
-    shortName: 'PU',
-    color: '#10B981',
-    manager: 'Carlton James',
-    played: 5, won: 3, drawn: 1, lost: 1,
-    goalsFor: 8, goalsAgainst: 6,
-    topScorer: 'Aston Campbell (3)',
-  },
-  {
-    id: 4,
-    name: 'Rock River Rangers',
-    shortName: 'RRR',
-    color: '#8B5CF6',
-    manager: 'Errol Smith',
-    played: 5, won: 1, drawn: 2, lost: 2,
-    goalsFor: 6, goalsAgainst: 9,
-    topScorer: 'Devon Francis (3)',
-  },
-  {
-    id: 5,
-    name: 'Spaldings All Stars',
-    shortName: 'SAS',
-    color: '#F59E0B',
-    manager: 'Garfield Morgan',
-    played: 5, won: 1, drawn: 1, lost: 3,
-    goalsFor: 5, goalsAgainst: 10,
-    topScorer: 'Junior Bailey (2)',
-  },
-  {
-    id: 6,
-    name: 'Frankfield Boys',
-    shortName: 'FB',
-    color: '#EC4899',
-    manager: 'Noel Wright',
-    played: 4, won: 0, drawn: 0, lost: 4,
-    goalsFor: 2, goalsAgainst: 9,
-    topScorer: 'Levi Grant (1)',
-  },
-]
+type TeamRow = {
+  id: string
+  name: string
+  short_name: string
+  home_colour: string
+  description: string | null
+}
+
+type ProfileRow = {
+  full_name: string | null
+  role: 'coach' | 'team_admin'
+  team_id: string | null
+}
+
+type FixtureRow = {
+  home_team_id: string
+  away_team_id: string
+  status: 'scheduled' | 'live' | 'completed' | 'postponed' | 'cancelled'
+  match_scores: { home_score: number; away_score: number }[] | { home_score: number; away_score: number } | null
+}
+
+type GoalRow = {
+  team_id: string
+  player: { full_name: string } | { full_name: string }[] | null
+}
+
+type TeamCard = {
+  id: string
+  name: string
+  shortName: string
+  color: string
+  manager: string
+  played: number
+  won: number
+  drawn: number
+  lost: number
+  goalsFor: number
+  goalsAgainst: number
+  topScorer: string
+  points: number
+  description: string | null
+}
+
+function getScore(matchScores: FixtureRow['match_scores']) {
+  if (!matchScores) return null
+  return Array.isArray(matchScores) ? matchScores[0] ?? null : matchScores
+}
+
+function getPlayerName(player: GoalRow['player']) {
+  if (!player) return 'Unknown player'
+  return Array.isArray(player) ? (player[0]?.full_name ?? 'Unknown player') : player.full_name
+}
 
 export default function TeamsPage() {
+  const [teams, setTeams] = useState<TeamCard[]>([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    async function load() {
+      const supabase = createClient()
+      const [{ data: teamsData }, { data: staffData }, { data: fixturesData }, { data: goalsData }] = await Promise.all([
+        (supabase as any)
+          .from('teams')
+          .select('id, name, short_name, home_colour, description')
+          .order('name', { ascending: true }),
+        (supabase as any)
+          .from('profiles')
+          .select('full_name, role, team_id')
+          .in('role', ['coach', 'team_admin']),
+        (supabase as any)
+          .from('fixtures')
+          .select('home_team_id, away_team_id, status, match_scores(home_score, away_score)')
+          .in('status', ['live', 'completed']),
+        (supabase as any)
+          .from('match_stats')
+          .select('team_id, player:players(full_name)')
+          .eq('event_type', 'goal'),
+      ])
+
+      const staffByTeam = new Map<string, ProfileRow[]>()
+      ;((staffData ?? []) as ProfileRow[]).forEach(member => {
+        if (!member.team_id) return
+        const list = staffByTeam.get(member.team_id) ?? []
+        list.push(member)
+        staffByTeam.set(member.team_id, list)
+      })
+
+      const goalCounts = new Map<string, Map<string, number>>()
+      ;((goalsData ?? []) as GoalRow[]).forEach(goal => {
+        const playerName = getPlayerName(goal.player)
+        const teamGoals = goalCounts.get(goal.team_id) ?? new Map<string, number>()
+        teamGoals.set(playerName, (teamGoals.get(playerName) ?? 0) + 1)
+        goalCounts.set(goal.team_id, teamGoals)
+      })
+
+      const cards = ((teamsData ?? []) as TeamRow[]).map(team => ({
+        id: team.id,
+        name: team.name,
+        shortName: team.short_name,
+        color: team.home_colour,
+        manager: 'Team staff pending',
+        played: 0,
+        won: 0,
+        drawn: 0,
+        lost: 0,
+        goalsFor: 0,
+        goalsAgainst: 0,
+        topScorer: 'No goals recorded yet',
+        points: 0,
+        description: team.description,
+      }))
+
+      const teamMap = new Map(cards.map(team => [team.id, team]))
+
+      ;((fixturesData ?? []) as FixtureRow[]).forEach(fixture => {
+        const score = getScore(fixture.match_scores)
+        if (!score) return
+
+        const homeTeam = teamMap.get(fixture.home_team_id)
+        const awayTeam = teamMap.get(fixture.away_team_id)
+        if (!homeTeam || !awayTeam) return
+
+        homeTeam.played += 1
+        awayTeam.played += 1
+        homeTeam.goalsFor += score.home_score
+        homeTeam.goalsAgainst += score.away_score
+        awayTeam.goalsFor += score.away_score
+        awayTeam.goalsAgainst += score.home_score
+
+        if (score.home_score > score.away_score) {
+          homeTeam.won += 1
+          awayTeam.lost += 1
+        } else if (score.home_score < score.away_score) {
+          awayTeam.won += 1
+          homeTeam.lost += 1
+        } else {
+          homeTeam.drawn += 1
+          awayTeam.drawn += 1
+        }
+      })
+
+      cards.forEach(team => {
+        team.points = team.won * 3 + team.drawn
+
+        const staff = staffByTeam.get(team.id) ?? []
+        const coach = staff.find(member => member.role === 'coach')
+        const teamAdmin = staff.find(member => member.role === 'team_admin')
+        team.manager = coach?.full_name ?? teamAdmin?.full_name ?? 'Team staff pending'
+
+        const scorers = goalCounts.get(team.id)
+        if (scorers && scorers.size > 0) {
+          const [name, goals] = [...scorers.entries()].sort((left, right) => right[1] - left[1])[0]
+          team.topScorer = `${name} (${goals})`
+        }
+      })
+
+      setTeams(cards.sort((left, right) => right.points - left.points || right.goalsFor - left.goalsFor || left.name.localeCompare(right.name)))
+      setLoading(false)
+    }
+
+    load()
+  }, [])
+
   return (
     <main className="min-h-screen bg-bg-base">
       <div className="container-cesp py-12">
@@ -77,70 +179,84 @@ export default function TeamsPage() {
           className="mb-10"
         >
           <h1 className="text-4xl font-bold text-text-primary mb-2">Teams</h1>
-          <p className="text-text-secondary">All six clubs competing in the 2026 Clarendon Elite Cup</p>
+          <p className="text-text-secondary">
+            {loading ? 'Loading clubs...' : `All ${teams.length} registered clubs competing in the Clarendon Elite Cup`}
+          </p>
         </motion.div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-          {teams.map((team, i) => (
-            <motion.div
-              key={team.id}
-              initial={{ opacity: 0, y: 24 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5, delay: i * 0.08, ease: [0.22, 1, 0.36, 1] }}
-              whileHover={{ y: -4 }}
-              className="card-hover overflow-hidden"
-            >
-              <div
-                className="h-1.5 w-full rounded-t-lg -mt-5 -mx-5 mb-4"
-                style={{ backgroundColor: team.color, width: 'calc(100% + 2.5rem)' }}
-              />
-
-              <div className="flex items-center gap-3 mb-4">
+        {loading ? (
+          <div className="card text-center py-16 text-text-muted">Loading teams...</div>
+        ) : teams.length === 0 ? (
+          <div className="card text-center py-16 text-text-muted">No teams have been registered yet.</div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+            {teams.map((team, index) => (
+              <motion.div
+                key={team.id}
+                initial={{ opacity: 0, y: 24 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5, delay: index * 0.08, ease: [0.22, 1, 0.36, 1] }}
+                whileHover={{ y: -4 }}
+                className="card-hover overflow-hidden"
+              >
                 <div
-                  className="w-12 h-12 rounded-2xl flex items-center justify-center text-white font-bold text-sm shrink-0"
-                  style={{ backgroundColor: team.color + '22', border: `2px solid ${team.color}44` }}
-                >
-                  <span style={{ color: team.color }}>{team.shortName}</span>
-                </div>
-                <div>
-                  <h2 className="font-bold text-text-primary leading-tight">{team.name}</h2>
-                  <p className="text-xs text-text-muted">Mgr: {team.manager}</p>
-                </div>
-              </div>
+                  className="h-1.5 w-full rounded-t-lg -mt-5 -mx-5 mb-4"
+                  style={{ backgroundColor: team.color, width: 'calc(100% + 2.5rem)' }}
+                />
 
-              <div className="grid grid-cols-4 gap-2 mb-4">
-                {[
-                  { label: 'P', value: team.played },
-                  { label: 'W', value: team.won },
-                  { label: 'D', value: team.drawn },
-                  { label: 'L', value: team.lost },
-                ].map(stat => (
-                  <div key={stat.label} className="bg-bg-muted rounded-xl p-2 text-center">
-                    <div className="text-lg font-bold text-text-primary">{stat.value}</div>
-                    <div className="text-xs text-text-muted">{stat.label}</div>
+                <div className="flex items-center gap-3 mb-4">
+                  <div
+                    className="w-12 h-12 rounded-2xl flex items-center justify-center text-white font-bold text-sm shrink-0"
+                    style={{ backgroundColor: `${team.color}22`, border: `2px solid ${team.color}44` }}
+                  >
+                    <span style={{ color: team.color }}>{team.shortName}</span>
                   </div>
-                ))}
-              </div>
+                  <div>
+                    <h2 className="font-bold text-text-primary leading-tight">{team.name}</h2>
+                    <p className="text-xs text-text-muted">Staff lead: {team.manager}</p>
+                  </div>
+                </div>
 
-              <div className="space-y-2 text-sm">
-                <div className="flex items-center gap-2 text-text-secondary">
-                  <Target size={14} className="shrink-0" />
-                  <span>{team.goalsFor} scored, {team.goalsAgainst} conceded</span>
+                <div className="grid grid-cols-4 gap-2 mb-4">
+                  {[
+                    { label: 'P', value: team.played },
+                    { label: 'W', value: team.won },
+                    { label: 'D', value: team.drawn },
+                    { label: 'L', value: team.lost },
+                  ].map(stat => (
+                    <div key={stat.label} className="bg-bg-muted rounded-xl p-2 text-center">
+                      <div className="text-lg font-bold text-text-primary">{stat.value}</div>
+                      <div className="text-xs text-text-muted">{stat.label}</div>
+                    </div>
+                  ))}
                 </div>
-                <div className="flex items-center gap-2 text-text-secondary">
-                  <TrendingUp size={14} className="shrink-0" />
-                  <span>Top scorer: {team.topScorer}</span>
+
+                <div className="space-y-2 text-sm">
+                  <div className="flex items-center gap-2 text-text-secondary">
+                    <Target size={14} className="shrink-0" />
+                    <span>{team.goalsFor} scored, {team.goalsAgainst} conceded</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-text-secondary">
+                    <TrendingUp size={14} className="shrink-0" />
+                    <span>Top scorer: {team.topScorer}</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-text-secondary">
+                    <Trophy size={14} className="shrink-0" />
+                    <span className="font-semibold" style={{ color: team.color }}>
+                      {team.points} pts
+                    </span>
+                  </div>
                 </div>
-                <div className="flex items-center gap-2 text-text-secondary">
-                  <Trophy size={14} className="shrink-0" />
-                  <span className="font-semibold" style={{ color: team.color }}>
-                    {team.won * 3 + team.drawn} pts
-                  </span>
-                </div>
-              </div>
-            </motion.div>
-          ))}
-        </div>
+
+                {team.description && (
+                  <p className="mt-4 text-sm leading-6 text-text-muted">
+                    {team.description}
+                  </p>
+                )}
+              </motion.div>
+            ))}
+          </div>
+        )}
 
         <motion.div
           initial={{ opacity: 0 }}
@@ -149,13 +265,13 @@ export default function TeamsPage() {
           className="mt-12 card bg-brand-primary/5 border-brand-primary/20 text-center"
         >
           <Users size={28} className="text-brand-primary mx-auto mb-3" />
-          <h3 className="font-bold text-text-primary mb-1">Register your team</h3>
+          <h3 className="font-bold text-text-primary mb-1">Need to join or create a team?</h3>
           <p className="text-sm text-text-secondary mb-4">
-            Entries for the 2027 season open later this year. Get your club involved.
+            Sign up, choose your preferred role, and request a team assignment or a new team for admin review.
           </p>
-          <a href="mailto:info@clarendonelite.com" className="btn-primary">
-            Get in touch
-          </a>
+          <Link href="/auth/register" className="btn-primary">
+            Start your request
+          </Link>
         </motion.div>
       </div>
     </main>

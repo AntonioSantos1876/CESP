@@ -7,6 +7,8 @@ export type UserRole =
   | 'photographer'
   | 'volunteer'
 
+export type AccessRequestStatus = 'pending' | 'approved' | 'rejected'
+
 export type ArticleStatus = 'draft' | 'published' | 'archived'
 export type ArticleCategory = 'match_report' | 'news' | 'interview' | 'feature' | 'gallery' | 'announcement'
 export type FixtureStatus = 'scheduled' | 'live' | 'completed' | 'postponed' | 'cancelled'
@@ -246,6 +248,22 @@ export interface Database {
         }
         Insert: Omit<Database['public']['Tables']['volunteers']['Row'], 'created_at' | 'updated_at'>
         Update: Partial<Database['public']['Tables']['volunteers']['Insert']>
+      }
+      access_requests: {
+        Row: {
+          id: string
+          user_id: string
+          requested_role: string
+          requested_team_id: string | null
+          requested_team_name: string | null
+          requested_team_short_name: string | null
+          status: AccessRequestStatus
+          admin_notes: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: Omit<Database['public']['Tables']['access_requests']['Row'], 'id' | 'created_at' | 'updated_at' | 'status' | 'admin_notes'>
+        Update: Partial<Omit<Database['public']['Tables']['access_requests']['Row'], 'id' | 'user_id' | 'created_at' | 'updated_at'>>
       }
     }
     Views: Record<string, never>
