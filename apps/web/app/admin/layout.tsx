@@ -119,8 +119,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
   return (
     <div className="min-h-screen bg-bg-base flex">
-      {/* Desktop sidebar */}
-      <div className="hidden lg:flex lg:flex-col lg:fixed lg:inset-y-0 lg:w-64 z-30">
+      {/* Desktop sidebar — starts below the sticky nav (h-16 = 64px) */}
+      <div className="hidden lg:flex lg:flex-col lg:fixed lg:top-16 lg:bottom-0 lg:w-64 z-30">
         {sidebar}
       </div>
 
@@ -128,7 +128,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       {sidebarOpen && (
         <div className="fixed inset-0 z-40 lg:hidden">
           <div className="absolute inset-0 bg-bg-base/80 backdrop-blur-sm" onClick={() => setSidebarOpen(false)} />
-          <div className="absolute left-0 top-0 bottom-0 w-64 z-50">{sidebar}</div>
+          <div className="absolute left-0 top-16 bottom-0 w-64 z-50">{sidebar}</div>
         </div>
       )}
 
