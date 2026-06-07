@@ -2,12 +2,11 @@
 
 import { Suspense, useState } from 'react'
 import Link from 'next/link'
-import { useRouter, useSearchParams } from 'next/navigation'
+import { useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { Eye, EyeOff, Trophy } from 'lucide-react'
 
 function LoginContent() {
-  const router = useRouter()
   const searchParams = useSearchParams()
   const redirectTo = searchParams.get('redirectTo') || '/'
 
@@ -31,8 +30,7 @@ function LoginContent() {
       return
     }
 
-    router.push(redirectTo)
-    router.refresh()
+    window.location.href = redirectTo
   }
 
   async function handleGoogleLogin() {
