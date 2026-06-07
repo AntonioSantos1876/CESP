@@ -7,7 +7,7 @@ import { createClient } from '@/lib/supabase/client'
 import {
   Trophy, Home, Calendar, Users, Newspaper, Heart,
   ShoppingBag, Radio, User, LogOut, Menu, X, ChevronDown, Bell,
-  HandHeart, Star, Building2,
+  HandHeart, Star, Camera,
 } from 'lucide-react'
 
 const navLinks = [
@@ -16,6 +16,7 @@ const navLinks = [
   { href: '/teams', label: 'Teams', icon: Users },
   { href: '/news', label: 'News', icon: Newspaper },
   { href: '/live', label: 'Live', icon: Radio },
+  { href: '/gallery', label: 'Gallery', icon: Camera },
   { href: '/donate', label: 'Donate', icon: Heart },
   { href: '/volunteer', label: 'Volunteer', icon: HandHeart },
   { href: '/sponsors', label: 'Sponsors', icon: Star },
