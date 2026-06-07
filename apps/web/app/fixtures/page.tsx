@@ -60,6 +60,8 @@ const BRACKET_CARD_HEIGHT = 104
 const BRACKET_CONNECTOR_WIDTH = 56
 const BRACKET_TOP_PADDING = 18
 const BRACKET_QUARTER_GAP = 20
+const BRACKET_RIGHT_PADDING = 40
+const BRACKET_FINAL_COLUMN_GAP = 72
 
 const quarterTop = Array.from({ length: 4 }, (_, index) => BRACKET_TOP_PADDING + index * (BRACKET_CARD_HEIGHT + BRACKET_QUARTER_GAP))
 const quarterCenters = quarterTop.map(top => top + BRACKET_CARD_HEIGHT / 2)
@@ -67,7 +69,7 @@ const semiCenters = [(quarterCenters[0] + quarterCenters[1]) / 2, (quarterCenter
 const semiTop = semiCenters.map(center => center - BRACKET_CARD_HEIGHT / 2)
 const finalCenter = (semiCenters[0] + semiCenters[1]) / 2
 const finalTop = finalCenter - BRACKET_CARD_HEIGHT / 2
-const thirdTop = finalTop + BRACKET_CARD_HEIGHT + 34
+const thirdTop = finalTop + BRACKET_CARD_HEIGHT + BRACKET_FINAL_COLUMN_GAP
 const bracketHeight = Math.max(quarterTop[3] + BRACKET_CARD_HEIGHT + BRACKET_TOP_PADDING, thirdTop + BRACKET_CARD_HEIGHT + BRACKET_TOP_PADDING)
 
 const xQuarter = 0
@@ -75,9 +77,11 @@ const xConnectorOne = BRACKET_CARD_WIDTH
 const xSemi = BRACKET_CARD_WIDTH + BRACKET_CONNECTOR_WIDTH
 const xConnectorTwo = BRACKET_CARD_WIDTH + BRACKET_CONNECTOR_WIDTH + BRACKET_CARD_WIDTH
 const xFinal = BRACKET_CARD_WIDTH + BRACKET_CONNECTOR_WIDTH + BRACKET_CARD_WIDTH + BRACKET_CONNECTOR_WIDTH
-const bracketTotalWidth = xFinal + BRACKET_CARD_WIDTH
+const bracketTotalWidth = xFinal + BRACKET_CARD_WIDTH + BRACKET_RIGHT_PADDING
 
 const connectorStroke = 'rgba(255,255,255,0.14)'
+const DEFAULT_SEMI_FINAL_DATE = '2026-08-01T00:00:00'
+const DEFAULT_FINAL_DATE = '2026-08-02T00:00:00'
 
 const TABS: { key: Tab; label: string }[] = [
   { key: 'bracket', label: 'Bracket' },
@@ -340,8 +344,16 @@ function BracketView({ fixtures }: { fixtures: DbFixture[] }) {
           <div className="mb-6 grid gap-4 md:grid-cols-3">
             {[
               { label: 'Quarter-finals', date: getRoundHeaderDate(bracket.quarterfinals), accent: 'text-brand-secondary' },
-              { label: 'Semi-finals', date: getRoundHeaderDate(bracket.semifinals), accent: 'text-brand-secondary' },
-              { label: 'Final + 3rd', date: formatRoundDate(bracket.final.date || bracket.third.date || null), accent: 'text-amber-400' },
+              {
+                label: 'Semi-finals',
+                date: formatRoundDate(bracket.semifinals.find(match => match.date)?.date ?? DEFAULT_SEMI_FINAL_DATE),
+                accent: 'text-brand-secondary',
+              },
+              {
+                label: 'Final + 3rd',
+                date: formatRoundDate(bracket.final.date || bracket.third.date || DEFAULT_FINAL_DATE),
+                accent: 'text-amber-400',
+              },
             ].map(round => (
               <div key={round.label} className="rounded-2xl border border-bg-border bg-bg-card/70 px-4 py-3 text-center">
                 <p className={`text-xs font-bold uppercase tracking-[0.24em] ${round.accent}`}>{round.label}</p>
@@ -351,7 +363,7 @@ function BracketView({ fixtures }: { fixtures: DbFixture[] }) {
           </div>
 
           <div className="w-full overflow-x-auto pb-4">
-            <div className="relative min-w-max" style={{ width: bracketTotalWidth, height: bracketHeight }}>
+            <div className="relative mx-auto min-w-max" style={{ width: bracketTotalWidth, height: bracketHeight }}>
               {bracket.quarterfinals.map((match, index) => (
                 <div key={match.id} className="absolute" style={{ left: xQuarter, top: quarterTop[index] }}>
                   <BCard match={match} />
