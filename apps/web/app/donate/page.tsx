@@ -5,10 +5,10 @@ import { useState } from 'react'
 import { Heart, CheckCircle, Shield, Users, Trophy } from 'lucide-react'
 
 const tiers = [
-  { amount: 10, label: 'Supporter', description: 'Help cover match day costs' },
-  { amount: 25, label: 'Fan', description: 'Fund player kit for one player' },
-  { amount: 50, label: 'Patron', description: 'Sponsor a full match day' },
-  { amount: 100, label: 'Champion', description: 'Keep the league running for a week' },
+  { amount: 100, label: 'Supporter', description: 'Help cover match day costs' },
+  { amount: 250, label: 'Fan', description: 'Fund player kit for one player' },
+  { amount: 500, label: 'Patron', description: 'Sponsor a full match day' },
+  { amount: 1000, label: 'Champion', description: 'Keep the league running for a month' },
 ]
 
 const impacts = [
@@ -29,7 +29,7 @@ async function readApiPayload(response: Response) {
 }
 
 export default function DonatePage() {
-  const [selected, setSelected] = useState(25)
+  const [selected, setSelected] = useState(250)
   const [custom, setCustom] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)

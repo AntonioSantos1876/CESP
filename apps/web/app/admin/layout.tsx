@@ -6,7 +6,7 @@ import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import {
   LayoutDashboard, CalendarDays, Users, Newspaper,
-  HandHeart, ShieldCheck, ChevronRight, LogOut, Menu, X, Users2,
+  HandHeart, ShieldCheck, ChevronRight, LogOut, Menu, X, Users2, ShoppingBag,
 } from 'lucide-react'
 
 const NAV = [
@@ -16,6 +16,7 @@ const NAV = [
   { href: '/admin/volunteers', label: 'Volunteers', icon: HandHeart },
   { href: '/admin/news', label: 'News', icon: Newspaper },
   { href: '/admin/users', label: 'Users', icon: Users },
+  { href: '/admin/shop', label: 'Shop Prices', icon: ShoppingBag },
 ]
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {

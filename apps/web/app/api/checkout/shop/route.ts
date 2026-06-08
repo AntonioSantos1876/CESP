@@ -1,6 +1,21 @@
 import { NextResponse } from 'next/server'
 import Stripe from 'stripe'
 import { getMerchProductById } from '@/lib/merch'
+import { createClient } from '@/lib/supabase/server'
+
+async function fetchShopPrices(): Promise<Record<string, number>> {
+  try {
+    const supabase = await createClient()
+    const { data } = await (supabase as any).from('shop_prices').select('kind, price')
+    const prices: Record<string, number> = {}
+    for (const row of data ?? []) {
+      prices[row.kind] = Number(row.price)
+    }
+    return prices
+  } catch {
+    return {}
+  }
+}
 
 type IncomingCartItem = {
   productId?: string
@@ -23,7 +38,10 @@ function createStripeClient() {
 
 export async function POST(req: Request) {
   try {
-    const stripe = createStripeClient()
+    const [stripe, shopPrices] = await Promise.all([
+      Promise.resolve(createStripeClient()),
+      fetchShopPrices(),
+    ])
 
     let body: { items?: IncomingCartItem[] }
     try {
@@ -53,11 +71,13 @@ export async function POST(req: Request) {
         ? [customName ? `Name ${customName}` : null, customNumber ? `No. ${customNumber}` : null].filter(Boolean).join(' | ')
         : ''
 
+      const livePrice = shopPrices[product.kind] ?? product.price
+
       lineItems.push({
         quantity,
         price_data: {
           currency: 'usd',
-          unit_amount: Math.round(product.price * 100),
+          unit_amount: Math.round(livePrice * 100),
           product_data: {
             name: product.name,
             description: [

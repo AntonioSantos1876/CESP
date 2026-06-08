@@ -5,7 +5,16 @@ import { ShieldCheck, ShoppingBag, Sparkles } from 'lucide-react'
 import { MerchandiseCatalog } from '@/components/merchandise'
 import { MERCH_PRODUCTS } from '@/lib/merch'
 
-export function ShopPageClient({ initialTeamSlug }: { initialTeamSlug: string | null }) {
+type Props = {
+  initialTeamSlug: string | null
+  priceOverrides?: Record<string, number>
+}
+
+export function ShopPageClient({ initialTeamSlug, priceOverrides }: Props) {
+  const products = priceOverrides && Object.keys(priceOverrides).length > 0
+    ? MERCH_PRODUCTS.map(p => ({ ...p, price: priceOverrides[p.kind] ?? p.price }))
+    : MERCH_PRODUCTS
+
   return (
     <main className="min-h-screen bg-bg-base">
       <div className="container-cesp py-12">
@@ -51,7 +60,7 @@ export function ShopPageClient({ initialTeamSlug }: { initialTeamSlug: string | 
         </motion.div>
 
         <MerchandiseCatalog
-          products={MERCH_PRODUCTS}
+          products={products}
           showFilters
           showCartSummary
           initialTeamSlug={initialTeamSlug}
