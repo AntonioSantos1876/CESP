@@ -43,7 +43,9 @@ export default function AdminUsersPage() {
   const [teams, setTeams] = useState<Team[]>([])
   const [requests, setRequests] = useState<AccessRequest[]>([])
   const [loading, setLoading] = useState(true)
+  const [currentUserRole, setCurrentUserRole] = useState<UserRole | null>(null)
   const [edited, setEdited] = useState<Record<string, UserRole>>({})
+  const [editedTeam, setEditedTeam] = useState<Record<string, string | null>>({})
   const [saving, setSaving] = useState<string | null>(null)
   const [search, setSearch] = useState('')
   const [requestMessage, setRequestMessage] = useState('')
@@ -51,6 +53,16 @@ export default function AdminUsersPage() {
   const load = useCallback(async () => {
     setLoading(true)
     const supabase = createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    if (user) {
+      const { data: self } = await (supabase as any)
+        .from('profiles')
+        .select('role')
+        .eq('id', user.id)
+        .single()
+      if (self) setCurrentUserRole(self.role as UserRole)
+    }
+
     const [{ data: profileData }, { data: requestData }, { data: teamData }] = await Promise.all([
       (supabase as any)
         .from('profiles')
@@ -70,17 +82,25 @@ export default function AdminUsersPage() {
     setRequests(requestData ?? [])
     setTeams(teamData ?? [])
     setEdited({})
+    setEditedTeam({})
     setLoading(false)
   }, [])
 
   useEffect(() => { load() }, [load])
 
-  async function saveRole(profile: Profile) {
+  async function saveUser(profile: Profile) {
     const newRole = edited[profile.id]
-    if (!newRole || newRole === profile.role) return
+    const newTeamId = editedTeam[profile.id]
+    const roleChanged = newRole && newRole !== profile.role
+    const teamChanged = newTeamId !== undefined && newTeamId !== profile.team_id
+    if (!roleChanged && !teamChanged) return
+
     setSaving(profile.id)
     const supabase = createClient()
-    await (supabase as any).from('profiles').update({ role: newRole }).eq('id', profile.id)
+    const patch: Record<string, unknown> = {}
+    if (roleChanged) patch.role = newRole
+    if (teamChanged) patch.team_id = newTeamId ?? null
+    await (supabase as any).from('profiles').update(patch).eq('id', profile.id)
     setSaving(null)
     load()
   }
@@ -321,9 +341,12 @@ export default function AdminUsersPage() {
 
               {filteredProfiles.map((profile, index) => {
                 const currentRole = edited[profile.id] ?? profile.role
-                const isDirty = edited[profile.id] && edited[profile.id] !== profile.role
+                const currentTeamId = editedTeam[profile.id] !== undefined ? editedTeam[profile.id] : profile.team_id
+                const roleChanged = edited[profile.id] && edited[profile.id] !== profile.role
+                const teamChanged = editedTeam[profile.id] !== undefined && editedTeam[profile.id] !== profile.team_id
+                const isDirty = roleChanged || teamChanged
                 const isSaving = saving === profile.id
-                const team = teams.find(item => item.id === profile.team_id)
+                const displayTeam = teams.find(item => item.id === profile.team_id)
 
                 return (
                   <motion.div
@@ -338,18 +361,33 @@ export default function AdminUsersPage() {
                         <div className="w-7 h-7 rounded-full bg-brand-primary/15 flex items-center justify-center shrink-0 text-xs font-bold text-brand-primary">
                           {(profile.full_name ?? profile.email)[0].toUpperCase()}
                         </div>
-                        <div className="min-w-0">
-                          <p className="text-sm font-medium text-text-primary truncate">
-                            {profile.full_name ?? profile.email.split('@')[0]}
-                          </p>
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-1.5">
+                            <p className="text-sm font-medium text-text-primary truncate">
+                              {profile.full_name ?? profile.email.split('@')[0]}
+                            </p>
+                            {profile.role === 'super_admin' && (
+                              <ShieldCheck size={14} className="text-brand-primary shrink-0" />
+                            )}
+                          </div>
                           <p className="text-xs text-text-muted truncate">{profile.email}</p>
-                          {team && (
-                            <p className="text-xs text-brand-secondary truncate mt-0.5">{team.name}</p>
-                          )}
+                          {currentUserRole === 'super_admin' ? (
+                            <div className="mt-1.5">
+                              <select
+                                value={currentTeamId ?? ''}
+                                onChange={e => setEditedTeam(prev => ({ ...prev, [profile.id]: e.target.value || null }))}
+                                className="text-xs bg-[#1a1a1a] border border-[#2a2a2a] text-text-secondary rounded-lg px-2 py-1 focus:outline-none focus:border-brand-primary/50 max-w-[200px]"
+                              >
+                                <option value="">No team</option>
+                                {teams.map(t => (
+                                  <option key={t.id} value={t.id}>{t.name}</option>
+                                ))}
+                              </select>
+                            </div>
+                          ) : displayTeam ? (
+                            <p className="text-xs text-brand-secondary truncate mt-0.5">{displayTeam.name}</p>
+                          ) : null}
                         </div>
-                        {profile.role === 'super_admin' && (
-                          <ShieldCheck size={14} className="text-brand-primary shrink-0" />
-                        )}
                       </div>
                     </div>
 
@@ -367,7 +405,7 @@ export default function AdminUsersPage() {
 
                     <div>
                       <button
-                        onClick={() => saveRole(profile)}
+                        onClick={() => saveUser(profile)}
                         disabled={!isDirty || isSaving}
                         className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
                           isDirty
