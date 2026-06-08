@@ -4,6 +4,7 @@ import { Inter } from 'next/font/google'
 import './globals.css'
 import { CartProvider } from '@/components/cart-provider'
 import { NavServer } from '@/components/NavServer'
+import { ScrollToTop } from '@/components/ScrollToTop'
 
 const inter = Inter({
   subsets: ['latin'],
@@ -75,6 +76,7 @@ export default function RootLayout({
     <html lang="en" className="dark" suppressHydrationWarning>
       <body className={`${inter.variable} font-sans bg-bg-base text-text-primary antialiased`}>
         <CartProvider>
+          <ScrollToTop />
           <NavServer />
           <div className="pt-16">
             {children}
