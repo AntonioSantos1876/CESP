@@ -2,8 +2,11 @@
 
 import { useEffect, useState } from 'react'
 import { Bell, X } from 'lucide-react'
+import { getToken } from 'firebase/messaging'
+import { getMessagingInstance } from '@/lib/firebase'
 
 const STORAGE_KEY = 'cesp_notif_prompted'
+const VAPID_KEY = process.env.NEXT_PUBLIC_FIREBASE_VAPID_KEY!
 
 export function NotificationPrompt() {
   const [visible, setVisible] = useState(false)
@@ -26,7 +29,23 @@ export function NotificationPrompt() {
   async function allow() {
     localStorage.setItem(STORAGE_KEY, '1')
     setVisible(false)
-    await Notification.requestPermission()
+    const permission = await Notification.requestPermission()
+    if (permission !== 'granted') return
+    try {
+      const registration = await navigator.serviceWorker.register('/firebase-messaging-sw.js')
+      const messaging = await getMessagingInstance()
+      if (!messaging) return
+      const token = await getToken(messaging, { vapidKey: VAPID_KEY, serviceWorkerRegistration: registration })
+      if (token) {
+        await fetch('/api/notifications/register', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ token }),
+        })
+      }
+    } catch (err) {
+      console.error('FCM token error:', err)
+    }
   }
 
   if (!visible) return null
