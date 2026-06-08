@@ -47,7 +47,7 @@ export default function UpdatePasswordPage() {
         <div className="text-center mb-8">
           <Link href="/" className="inline-flex items-center gap-2 text-gradient font-bold text-2xl">
             <CespLogo size={38} priority />
-            Clarendon Elite Cup
+            Clarendon Elite Sports Program
           </Link>
           <p className="text-text-secondary text-sm mt-2">Set a new password</p>
         </div>

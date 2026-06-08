@@ -5,11 +5,12 @@ import { Suspense, useState } from 'react'
 import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
+import { getSafeRedirectPath } from '@/lib/auth-routing'
 import { Eye, EyeOff } from 'lucide-react'
 
 function LoginContent() {
   const searchParams = useSearchParams()
-  const redirectTo = searchParams.get('redirectTo') || '/'
+  const redirectTo = getSafeRedirectPath(searchParams.get('redirectTo'))
 
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -48,7 +49,7 @@ function LoginContent() {
         <div className="text-center mb-8">
           <Link href="/" className="inline-flex items-center gap-2 text-gradient font-bold text-2xl">
             <CespLogo size={38} priority />
-            Clarendon Elite Cup
+            Clarendon Elite Sports Program
           </Link>
           <p className="text-text-secondary text-sm mt-2">Sign in to your account</p>
         </div>

@@ -4,28 +4,51 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { motion } from 'framer-motion'
 import { CespLogo } from '@/components/CespLogo'
+import { createClient } from '@/lib/supabase/client'
 import Link from 'next/link'
-import { Home, Calendar } from 'lucide-react'
+import { Home, Calendar, LogIn } from 'lucide-react'
 
 const REDIRECT_DELAY = 10
 
 export default function NotFound() {
   const router = useRouter()
   const [seconds, setSeconds] = useState(REDIRECT_DELAY)
+  const [destination, setDestination] = useState<'home' | 'login'>('home')
+
+  useEffect(() => {
+    let active = true
+
+    async function resolveDestination() {
+      const supabase = createClient()
+      const {
+        data: { user },
+      } = await supabase.auth.getUser()
+
+      if (active) {
+        setDestination(user ? 'home' : 'login')
+      }
+    }
+
+    resolveDestination()
+
+    return () => {
+      active = false
+    }
+  }, [])
 
   useEffect(() => {
     const interval = setInterval(() => {
       setSeconds(prev => {
         if (prev <= 1) {
           clearInterval(interval)
-          router.push('/')
+          router.push(destination === 'login' ? '/auth/login' : '/')
           return 0
         }
         return prev - 1
       })
     }, 1000)
     return () => clearInterval(interval)
-  }, [router])
+  }, [destination, router])
 
   const progress = ((REDIRECT_DELAY - seconds) / REDIRECT_DELAY) * 100
   const circumference = 2 * Math.PI * 26
@@ -49,9 +72,12 @@ export default function NotFound() {
         </p>
 
         <div className="flex flex-col sm:flex-row items-center gap-3 mb-10">
-          <Link href="/" className="btn-primary px-6 py-2.5 inline-flex items-center gap-2">
-            <Home size={16} />
-            Back to home
+          <Link
+            href={destination === 'login' ? '/auth/login' : '/'}
+            className="btn-primary px-6 py-2.5 inline-flex items-center gap-2"
+          >
+            {destination === 'login' ? <LogIn size={16} /> : <Home size={16} />}
+            {destination === 'login' ? 'Go to login' : 'Back to home'}
           </Link>
           <Link href="/fixtures" className="btn-secondary px-6 py-2.5 inline-flex items-center gap-2">
             <Calendar size={16} />
@@ -85,7 +111,9 @@ export default function NotFound() {
               {seconds}
             </span>
           </div>
-          <p className="text-xs text-text-muted">Redirecting to home in {seconds}s</p>
+          <p className="text-xs text-text-muted">
+            Redirecting to {destination === 'login' ? 'login' : 'home'} in {seconds}s
+          </p>
         </div>
       </motion.div>
     </main>

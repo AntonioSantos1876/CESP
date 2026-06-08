@@ -4,7 +4,8 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { motion } from 'framer-motion'
 import { CespLogo } from '@/components/CespLogo'
-import { RefreshCw, Home } from 'lucide-react'
+import { createClient } from '@/lib/supabase/client'
+import { RefreshCw, Home, LogIn } from 'lucide-react'
 import Link from 'next/link'
 
 const REDIRECT_DELAY = 15
@@ -12,24 +13,46 @@ const REDIRECT_DELAY = 15
 export default function Error({ error, reset }: { error: Error & { digest?: string }; reset: () => void }) {
   const router = useRouter()
   const [seconds, setSeconds] = useState(REDIRECT_DELAY)
+  const [destination, setDestination] = useState<'home' | 'login'>('home')
 
   useEffect(() => {
     console.error(error)
   }, [error])
 
   useEffect(() => {
+    let active = true
+
+    async function resolveDestination() {
+      const supabase = createClient()
+      const {
+        data: { user },
+      } = await supabase.auth.getUser()
+
+      if (active) {
+        setDestination(user ? 'home' : 'login')
+      }
+    }
+
+    resolveDestination()
+
+    return () => {
+      active = false
+    }
+  }, [])
+
+  useEffect(() => {
     const interval = setInterval(() => {
       setSeconds(prev => {
         if (prev <= 1) {
           clearInterval(interval)
-          router.push('/')
+          router.push(destination === 'login' ? '/auth/login' : '/')
           return 0
         }
         return prev - 1
       })
     }, 1000)
     return () => clearInterval(interval)
-  }, [router])
+  }, [destination, router])
 
   const progress = ((REDIRECT_DELAY - seconds) / REDIRECT_DELAY) * 100
   const circumference = 2 * Math.PI * 26
@@ -60,9 +83,12 @@ export default function Error({ error, reset }: { error: Error & { digest?: stri
             <RefreshCw size={16} />
             Try again
           </button>
-          <Link href="/" className="btn-secondary px-6 py-2.5 inline-flex items-center gap-2">
-            <Home size={16} />
-            Back to home
+          <Link
+            href={destination === 'login' ? '/auth/login' : '/'}
+            className="btn-secondary px-6 py-2.5 inline-flex items-center gap-2"
+          >
+            {destination === 'login' ? <LogIn size={16} /> : <Home size={16} />}
+            {destination === 'login' ? 'Go to login' : 'Back to home'}
           </Link>
         </div>
 
@@ -92,7 +118,9 @@ export default function Error({ error, reset }: { error: Error & { digest?: stri
               {seconds}
             </span>
           </div>
-          <p className="text-xs text-text-muted">Redirecting to home in {seconds}s</p>
+          <p className="text-xs text-text-muted">
+            Redirecting to {destination === 'login' ? 'login' : 'home'} in {seconds}s
+          </p>
         </div>
       </motion.div>
     </main>

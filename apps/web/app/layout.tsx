@@ -14,24 +14,24 @@ const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'https://clarendonelitecup.co
 
 export const metadata: Metadata = {
   title: {
-    default: 'Clarendon Elite Cup',
-    template: '%s | Clarendon Elite Cup',
+    default: 'Clarendon Elite Sports Program',
+    template: '%s | Clarendon Elite Sports Program',
   },
-  description: 'The official platform for the Clarendon Elite Cup charity football league. Live scores, fixtures, news, and more.',
-  keywords: ['Clarendon Elite Cup', 'football', 'charity', 'Jamaica', 'soccer', 'league'],
+  description: 'The official platform for the Clarendon Elite Sports Program and Clarendon Elite Cup tournament. Live scores, fixtures, news, donations, and more.',
+  keywords: ['Clarendon Elite Sports Program', 'Clarendon Elite Cup', 'football', 'charity', 'Jamaica', 'soccer', 'league'],
   metadataBase: new URL(APP_URL),
   openGraph: {
     type: 'website',
     locale: 'en_GB',
     url: APP_URL,
-    title: 'Clarendon Elite Cup',
-    description: 'The official platform for the Clarendon Elite Cup charity football league. Live scores, fixtures, news, and more.',
-    siteName: 'Clarendon Elite Cup',
+    title: 'Clarendon Elite Sports Program',
+    description: 'The official platform for the Clarendon Elite Sports Program and Clarendon Elite Cup tournament. Live scores, fixtures, news, donations, and more.',
+    siteName: 'Clarendon Elite Sports Program',
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'Clarendon Elite Cup',
-    description: 'The official platform for the Clarendon Elite Cup charity football league.',
+    title: 'Clarendon Elite Sports Program',
+    description: 'The official platform for the Clarendon Elite Sports Program and Clarendon Elite Cup tournament.',
   },
   robots: {
     index: true,
