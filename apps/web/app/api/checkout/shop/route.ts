@@ -82,9 +82,11 @@ export async function POST(req: Request) {
     })
 
     return NextResponse.json({ url: session.url })
-  } catch {
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : String(err)
+    console.error('[checkout/shop] Stripe error:', message)
     return NextResponse.json(
-      { error: 'We could not start merch checkout right now. Please check Stripe setup and try again.' },
+      { error: message || 'We could not start merch checkout right now. Please try again.' },
       { status: 500 }
     )
   }
