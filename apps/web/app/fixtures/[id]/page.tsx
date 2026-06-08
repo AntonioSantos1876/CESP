@@ -47,12 +47,6 @@ type FixtureData = {
 
 const ALL_FIXTURES: FixtureData[] = [
   {
-    id: 9, home: 'Excelsior High School', away: 'Mona High School', date: '2026-06-06', time: '15:00',
-    venue: 'Glenmuir High School', homeScore: 1, awayScore: 0, status: 'result',
-    round: 'Exhibition Match', season: '2026 Clarendon Elite Cup', referee: 'M. Thompson',
-    youtubeId: 'dQw4w9WgXcQ',
-  },
-  {
     id: 1, home: 'Vere Technical High School', away: 'Mona High School', date: '2026-07-31', time: '10:00',
     venue: 'Glenmuir High School', homeScore: null, awayScore: null, status: 'upcoming',
     round: 'Quarter-final 1', season: '2026 Clarendon Elite Cup', referee: 'J. Brown',
@@ -74,30 +68,6 @@ const ALL_FIXTURES: FixtureData[] = [
     id: 4, home: 'Glenmuir High School', away: 'Munro College', date: '2026-07-31', time: '16:00',
     venue: 'Glenmuir High School', homeScore: null, awayScore: null, status: 'upcoming',
     round: 'Quarter-final 4', season: '2026 Clarendon Elite Cup', referee: 'R. Davis',
-    youtubeId: null,
-  },
-  {
-    id: 5, home: 'Denbigh High School', away: 'Glenmuir High School', date: '2026-08-01', time: '14:00',
-    venue: 'Glenmuir High School', homeScore: 3, awayScore: 1, status: 'result',
-    round: 'Semi-final 1', season: '2026 Clarendon Elite Cup', referee: 'M. Thompson',
-    youtubeId: null,
-  },
-  {
-    id: 6, home: 'Kingston College', away: 'Munro College', date: '2026-08-01', time: '16:00',
-    venue: 'Glenmuir High School', homeScore: 2, awayScore: 2, status: 'result',
-    round: 'Semi-final 2', season: '2026 Clarendon Elite Cup', referee: 'J. Brown',
-    youtubeId: null,
-  },
-  {
-    id: 7, home: 'Excelsior High School', away: 'Munro College', date: '2026-08-02', time: '12:00',
-    venue: 'Glenmuir High School', homeScore: 1, awayScore: 3, status: 'result',
-    round: '3rd Place', season: '2026 Clarendon Elite Cup', referee: 'D. Wilson',
-    youtubeId: null,
-  },
-  {
-    id: 8, home: 'Denbigh High School', away: 'Kingston College', date: '2026-08-02', time: '15:00',
-    venue: 'Glenmuir High School', homeScore: 4, awayScore: 0, status: 'result',
-    round: 'Final', season: '2026 Clarendon Elite Cup', referee: 'A. Clarke',
     youtubeId: null,
   },
 ]

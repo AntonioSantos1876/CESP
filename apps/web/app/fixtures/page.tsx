@@ -763,7 +763,11 @@ function FixturesContent() {
               {!loading && tab !== 'bracket' && (
                 sortedDates.length === 0 ? (
                   <div className="card py-16 text-center text-text-muted">
-                    {tab === 'live' ? 'No matches are currently live.' : 'No fixtures in this category yet.'}
+                    {tab === 'live'
+                      ? 'No matches are currently live.'
+                      : tab === 'results'
+                        ? 'No results yet.'
+                        : 'No fixtures in this category yet.'}
                   </div>
                 ) : (
                   <div className="space-y-8">

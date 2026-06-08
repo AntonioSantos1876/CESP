@@ -83,7 +83,6 @@ export const DEMO_SCHOOL_FIXTURES = [
   { id: 2, home: 'Denbigh High School', away: 'Excelsior High School', date: '2026-07-31', time: '12:00', venue: 'Glenmuir High School', status: 'upcoming', homeScore: null, awayScore: null, round: 'Quarter-final 2' },
   { id: 3, home: 'Kingston College', away: 'Manchester High School', date: '2026-07-31', time: '14:00', venue: 'Glenmuir High School', status: 'upcoming', homeScore: null, awayScore: null, round: 'Quarter-final 3' },
   { id: 4, home: 'Glenmuir High School', away: 'Munro College', date: '2026-07-31', time: '16:00', venue: 'Glenmuir High School', status: 'upcoming', homeScore: null, awayScore: null, round: 'Quarter-final 4' },
-  { id: 9, home: 'Excelsior High School', away: 'Mona High School', date: '2026-06-06', time: '15:00', venue: 'Glenmuir High School', status: 'result', homeScore: 1, awayScore: 0, round: 'Exhibition Match' },
 ]
 
 export function slugifyTeamName(teamName: string) {

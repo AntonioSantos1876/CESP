@@ -288,65 +288,71 @@ export default function LivePage() {
           transition={{ duration: 0.6, delay: 0.25 }}
         >
           <h2 className="text-sm font-bold text-text-muted uppercase tracking-widest mb-4">Match Replays</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {vods.map((match, i) => (
-              <motion.div
-                key={match.id}
-                initial={{ opacity: 0, y: 16 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.4, delay: 0.3 + i * 0.06 }}
-                className="card-hover group"
-              >
-                <div className="mb-3 flex items-center gap-2">
-                  <Film size={14} className="text-text-muted" />
-                  <span className="text-xs text-text-muted">{formatDate(match.date)} replay</span>
-                </div>
+          {vods.length === 0 ? (
+            <div className="card text-center text-text-muted">
+              No match replays are available yet.
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {vods.map((match, i) => (
+                <motion.div
+                  key={match.id}
+                  initial={{ opacity: 0, y: 16 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.4, delay: 0.3 + i * 0.06 }}
+                  className="card-hover group"
+                >
+                  <div className="mb-3 flex items-center gap-2">
+                    <Film size={14} className="text-text-muted" />
+                    <span className="text-xs text-text-muted">{formatDate(match.date)} replay</span>
+                  </div>
 
-                <div className="mb-3 flex flex-col gap-1.5">
-                  <div className="flex items-center gap-2 min-w-0">
+                  <div className="mb-3 flex flex-col gap-1.5">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <TeamLink
+                        teamName={match.home}
+                        logoSize={28}
+                        truncate={false}
+                        className="flex-1 min-w-0"
+                        nameClassName="text-sm font-semibold text-text-primary leading-tight"
+                      />
+                      <div className="flex shrink-0 items-center gap-1">
+                        <span className="text-lg font-bold text-text-primary">{match.homeScore}</span>
+                        <span className="text-xs text-text-muted">-</span>
+                        <span className="text-lg font-bold text-text-primary">{match.awayScore}</span>
+                      </div>
+                    </div>
                     <TeamLink
-                      teamName={match.home}
+                      teamName={match.away}
                       logoSize={28}
                       truncate={false}
-                      className="flex-1 min-w-0"
-                      nameClassName="text-sm font-semibold text-text-primary leading-tight"
+                      className="min-w-0"
+                      nameClassName="text-sm font-medium text-text-secondary leading-tight"
                     />
-                    <div className="flex shrink-0 items-center gap-1">
-                      <span className="text-lg font-bold text-text-primary">{match.homeScore}</span>
-                      <span className="text-xs text-text-muted">-</span>
-                      <span className="text-lg font-bold text-text-primary">{match.awayScore}</span>
-                    </div>
                   </div>
-                  <TeamLink
-                    teamName={match.away}
-                    logoSize={28}
-                    truncate={false}
-                    className="min-w-0"
-                    nameClassName="text-sm font-medium text-text-secondary leading-tight"
-                  />
-                </div>
 
-                <div className="flex items-center justify-end gap-1 text-xs text-text-muted transition-colors group-hover:text-brand-secondary">
-                  {match.youtubeId ? (
-                    <a
-                      href={`https://www.youtube.com/watch?v=${match.youtubeId}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center gap-1 hover:text-brand-secondary"
-                    >
-                      <Play size={11} />
-                      Watch replay
-                    </a>
-                  ) : (
-                    <span className="inline-flex items-center gap-1 opacity-40 cursor-not-allowed">
-                      <Play size={11} />
-                      Replay coming soon
-                    </span>
-                  )}
-                </div>
-              </motion.div>
-            ))}
-          </div>
+                  <div className="flex items-center justify-end gap-1 text-xs text-text-muted transition-colors group-hover:text-brand-secondary">
+                    {match.youtubeId ? (
+                      <a
+                        href={`https://www.youtube.com/watch?v=${match.youtubeId}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1 hover:text-brand-secondary"
+                      >
+                        <Play size={11} />
+                        Watch replay
+                      </a>
+                    ) : (
+                      <span className="inline-flex items-center gap-1 opacity-40 cursor-not-allowed">
+                        <Play size={11} />
+                        Replay coming soon
+                      </span>
+                    )}
+                  </div>
+                </motion.div>
+              ))}
+            </div>
+          )}
         </motion.section>
       </div>
     </main>
