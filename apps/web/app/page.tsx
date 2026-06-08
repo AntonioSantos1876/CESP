@@ -131,7 +131,7 @@ export default function HomePage() {
       <div className="w-full">
         <Image
           src="/cesp-banner.png"
-          alt="Clarendon Elite Cup 2026 — July 31 to August 2"
+          alt="Clarendon Elite Cup 2026 - July 31 to August 2"
           width={1920}
           height={1080}
           priority

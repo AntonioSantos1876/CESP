@@ -119,7 +119,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
   return (
     <div className="min-h-screen bg-bg-base flex">
-      {/* Desktop sidebar — starts below the sticky nav (h-16 = 64px) */}
+      {/* Desktop sidebar - starts below the sticky nav (h-16 = 64px) */}
       <div className="hidden lg:flex lg:flex-col lg:fixed lg:top-16 lg:bottom-0 lg:w-64 z-30">
         {sidebar}
       </div>
