@@ -2,7 +2,7 @@
 
 import Image from 'next/image'
 import Link from 'next/link'
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { ShoppingBag, X } from 'lucide-react'
 import { useCart } from '@/components/cart-provider'
@@ -12,13 +12,14 @@ import {
   type MerchCategory,
   type MerchProduct,
 } from '@/lib/merch'
-import { getTeamHref, getTeamLogoPath, hexToRgba } from '@/lib/school-teams'
+import { getTeamBranding, getTeamHref, getTeamLogoPath, hexToRgba } from '@/lib/school-teams'
 
 type CatalogProps = {
   products: MerchProduct[]
   compact?: boolean
   showFilters?: boolean
   showCartSummary?: boolean
+  initialTeamSlug?: string | null
 }
 
 function ProductLogoPatch({ product, className = '' }: { product: MerchProduct; className?: string }) {
@@ -424,14 +425,31 @@ export function MerchandiseCatalog({
   compact,
   showFilters = false,
   showCartSummary = false,
+  initialTeamSlug = null,
 }: CatalogProps) {
   const { itemCount, subtotal } = useCart()
   const [selectedCategory, setSelectedCategory] = useState<'all' | MerchCategory>('all')
   const [selectedProduct, setSelectedProduct] = useState<MerchProduct | null>(null)
+  const [selectedTeamSlug, setSelectedTeamSlug] = useState<string | null>(initialTeamSlug)
+
+  useEffect(() => {
+    setSelectedTeamSlug(initialTeamSlug)
+  }, [initialTeamSlug])
+
+  const activeTeamName = useMemo(
+    () => (selectedTeamSlug ? products.find(product => product.teamSlug === selectedTeamSlug)?.teamName ?? null : null),
+    [products, selectedTeamSlug]
+  )
+
+  const activeTeamBranding = activeTeamName ? getTeamBranding(activeTeamName) : null
 
   const filteredProducts = useMemo(
-    () => products.filter(product => selectedCategory === 'all' || product.category === selectedCategory),
-    [products, selectedCategory]
+    () => products.filter(product => {
+      const matchesCategory = selectedCategory === 'all' || product.category === selectedCategory
+      const matchesTeam = !selectedTeamSlug || product.teamSlug === selectedTeamSlug
+      return matchesCategory && matchesTeam
+    }),
+    [products, selectedCategory, selectedTeamSlug]
   )
 
   return (
@@ -439,20 +457,44 @@ export function MerchandiseCatalog({
       {(showFilters || showCartSummary) && (
         <div className="mb-8 flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
           {showFilters ? (
-            <div className="flex flex-wrap gap-2">
-              {(Object.keys(MERCH_CATEGORY_LABELS) as Array<'all' | MerchCategory>).map(category => (
-                <button
-                  key={category}
-                  onClick={() => setSelectedCategory(category)}
-                  className={`rounded-full border px-4 py-2 text-sm font-semibold transition-colors ${
-                    selectedCategory === category
-                      ? 'border-brand-primary bg-brand-primary text-white'
-                      : 'border-white/10 bg-white/[0.03] text-text-secondary hover:text-text-primary'
-                  }`}
+            <div className="flex flex-col gap-4">
+              <div className="flex flex-wrap gap-2">
+                {(Object.keys(MERCH_CATEGORY_LABELS) as Array<'all' | MerchCategory>).map(category => (
+                  <button
+                    key={category}
+                    onClick={() => setSelectedCategory(category)}
+                    className={`rounded-full border px-4 py-2 text-sm font-semibold transition-colors ${
+                      selectedCategory === category
+                        ? 'border-brand-primary bg-brand-primary text-white'
+                        : 'border-white/10 bg-white/[0.03] text-text-secondary hover:text-text-primary'
+                    }`}
+                  >
+                    {MERCH_CATEGORY_LABELS[category]}
+                  </button>
+                ))}
+              </div>
+
+              {activeTeamBranding && activeTeamName && (
+                <div
+                  className="flex flex-col gap-3 rounded-[1.5rem] border p-4 sm:flex-row sm:items-center sm:justify-between"
+                  style={{
+                    borderColor: `${activeTeamBranding.primary}45`,
+                    backgroundColor: hexToRgba(activeTeamBranding.primary, 0.1),
+                  }}
                 >
-                  {MERCH_CATEGORY_LABELS[category]}
-                </button>
-              ))}
+                  <div>
+                    <p className="text-xs font-bold uppercase tracking-[0.3em] text-text-muted">Team filter</p>
+                    <p className="mt-2 text-base font-bold text-text-primary">{activeTeamName} merchandise</p>
+                    <p className="text-sm text-text-secondary">Showing only this school&apos;s merch right now. Clear the filter to browse every team.</p>
+                  </div>
+                  <button
+                    onClick={() => setSelectedTeamSlug(null)}
+                    className="rounded-full border border-white/10 bg-white/[0.08] px-4 py-2 text-sm font-semibold text-text-primary transition-colors hover:bg-white/[0.14]"
+                  >
+                    Show all merch
+                  </button>
+                </div>
+              )}
             </div>
           ) : <div />}
 

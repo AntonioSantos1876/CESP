@@ -4,7 +4,7 @@ import { ArrowLeft, Calendar, ChevronRight, Shield, ShoppingBag, Target, Trophy,
 import { TeamLogo } from '@/components/TeamLogo'
 import { TeamLink } from '@/components/TeamLink'
 import { createClient } from '@/lib/supabase/server'
-import { getTeamBranding, getTeamHref, getTeamNameFromSlug, hexToRgba, SCHOOL_TEAM_ORDER } from '@/lib/school-teams'
+import { DEMO_SCHOOL_FIXTURES, getTeamBranding, getTeamHref, getTeamNameFromSlug, hexToRgba, SCHOOL_TEAM_ORDER } from '@/lib/school-teams'
 
 type PageProps = {
   params: Promise<{ slug: string }>
@@ -63,6 +63,31 @@ function formatTime(matchDate: string) {
     hour: '2-digit',
     minute: '2-digit',
   })
+}
+
+function buildFallbackFixture(teamName: string): FixtureRow[] {
+  return DEMO_SCHOOL_FIXTURES
+    .filter(fixture => fixture.home === teamName || fixture.away === teamName)
+    .map(fixture => ({
+      id: String(fixture.id),
+      match_date: `${fixture.date}T${fixture.time}:00`,
+      venue: fixture.venue,
+      round: fixture.round,
+      status:
+        fixture.status === 'result'
+          ? 'completed'
+          : fixture.status === 'upcoming'
+            ? 'scheduled'
+            : 'live',
+      home_team_id: fixture.home,
+      away_team_id: fixture.away,
+      home_team: { name: fixture.home },
+      away_team: { name: fixture.away },
+      match_scores:
+        fixture.homeScore === null || fixture.awayScore === null
+          ? null
+          : { home_score: fixture.homeScore, away_score: fixture.awayScore },
+    }))
 }
 
 export function generateStaticParams() {
@@ -135,7 +160,9 @@ export default async function TeamDetailPage({ params }: PageProps) {
     if (leftNumber !== rightNumber) return leftNumber - rightNumber
     return left.full_name.localeCompare(right.full_name)
   })
-  const fixtures = (fixturesData ?? []) as FixtureRow[]
+  const fixtures = ((fixturesData ?? []) as FixtureRow[]).length > 0
+    ? (fixturesData as FixtureRow[])
+    : buildFallbackFixture(team.name)
 
   let played = 0
   let won = 0
@@ -149,7 +176,7 @@ export default async function TeamDetailPage({ params }: PageProps) {
     if (!score) return
     played += 1
 
-    const isHome = fixture.home_team_id === team.id
+    const isHome = fixture.home_team_id === team.id || fixture.home_team?.name === team.name
     const teamGoals = isHome ? score.home_score : score.away_score
     const opponentGoals = isHome ? score.away_score : score.home_score
 
@@ -200,10 +227,6 @@ export default async function TeamDetailPage({ params }: PageProps) {
               </p>
 
               <div className="mt-6 flex flex-wrap gap-3">
-                <Link href="/fixtures" className="btn-primary inline-flex items-center gap-2">
-                  <Calendar size={15} />
-                  View fixtures
-                </Link>
                 <Link href={`/shop?team=${branding.slug}`} className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.03] px-5 py-3 text-sm font-semibold text-text-primary transition-colors hover:bg-white/[0.06]">
                   <ShoppingBag size={15} />
                   Shop team merch
@@ -272,7 +295,7 @@ export default async function TeamDetailPage({ params }: PageProps) {
               ) : (
                 <div className="space-y-3">
                   {fixturePreview.map(fixture => {
-                    const isHome = fixture.home_team_id === team.id
+                    const isHome = fixture.home_team_id === team.id || fixture.home_team?.name === team.name
                     const opponent = isHome ? fixture.away_team?.name ?? 'TBD' : fixture.home_team?.name ?? 'TBD'
                     const score = getScore(fixture.match_scores)
                     const teamScore = score ? (isHome ? score.home_score : score.away_score) : null
