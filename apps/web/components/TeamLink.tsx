@@ -9,6 +9,7 @@ type TeamLinkProps = {
   logoSize?: number
   reverse?: boolean
   showLogo?: boolean
+  truncate?: boolean
 }
 
 export function TeamLink({
@@ -18,6 +19,7 @@ export function TeamLink({
   logoSize = 40,
   reverse = false,
   showLogo = true,
+  truncate = true,
 }: TeamLinkProps) {
   return (
     <Link
@@ -25,7 +27,7 @@ export function TeamLink({
       className={`inline-flex min-w-0 items-center gap-3 transition-opacity hover:opacity-100 ${reverse ? 'justify-end text-right' : ''} ${className}`.trim()}
     >
       {showLogo && <TeamLogo teamName={teamName} size={logoSize} className="shrink-0" />}
-      <span className={`min-w-0 truncate ${nameClassName}`.trim()}>{teamName}</span>
+      <span className={`min-w-0 ${truncate ? 'truncate' : 'leading-tight'} ${nameClassName}`.trim()}>{teamName}</span>
     </Link>
   )
 }

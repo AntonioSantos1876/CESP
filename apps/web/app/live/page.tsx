@@ -277,42 +277,43 @@ export default function LivePage() {
                 initial={{ opacity: 0, x: -12 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ duration: 0.4, delay: 0.2 + i * 0.07 }}
-                className="card flex items-center justify-between gap-4"
+                className="card flex flex-col gap-3"
               >
-                <div className="flex items-center gap-4 flex-1 min-w-0">
-                  <div className="flex items-center gap-1.5 text-text-muted text-xs shrink-0">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-1.5 text-text-muted text-xs">
                     <Calendar size={12} />
                     <span>{formatDate(match.date)}</span>
                     <span className="ml-1">{match.time}</span>
                   </div>
-                  <div className="flex items-center gap-2 font-medium text-sm text-text-primary min-w-0">
-                    <TeamLink
-                      teamName={match.home}
-                      logoSize={34}
-                      reverse
-                      className="min-w-0 max-w-[15rem] md:max-w-none"
-                      nameClassName="text-sm font-medium text-text-primary"
-                    />
-                    <span className="text-text-muted shrink-0">vs</span>
-                    <TeamLink
-                      teamName={match.away}
-                      logoSize={34}
-                      className="min-w-0 max-w-[15rem] md:max-w-none"
-                      nameClassName="text-sm font-medium text-text-primary"
-                    />
-                  </div>
+                  <button
+                    onClick={() => toggleReminder(match.id)}
+                    className={`shrink-0 flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border transition-all ${
+                      reminders.has(match.id)
+                        ? 'bg-brand-primary/15 border-brand-primary/30 text-brand-secondary'
+                        : 'bg-bg-muted border-bg-border text-text-muted hover:text-text-primary'
+                    }`}
+                  >
+                    <Bell size={12} />
+                    {reminders.has(match.id) ? 'Reminder set' : 'Remind me'}
+                  </button>
                 </div>
-                <button
-                  onClick={() => toggleReminder(match.id)}
-                  className={`shrink-0 flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border transition-all ${
-                    reminders.has(match.id)
-                      ? 'bg-brand-primary/15 border-brand-primary/30 text-brand-secondary'
-                      : 'bg-bg-muted border-bg-border text-text-muted hover:text-text-primary'
-                  }`}
-                >
-                  <Bell size={12} />
-                  {reminders.has(match.id) ? 'Reminder set' : 'Remind me'}
-                </button>
+                <div className="flex items-center gap-2 min-w-0">
+                  <TeamLink
+                    teamName={match.home}
+                    logoSize={28}
+                    truncate={false}
+                    className="flex-1 min-w-0"
+                    nameClassName="text-sm font-medium text-text-primary leading-tight"
+                  />
+                  <span className="text-text-muted shrink-0 text-xs">vs</span>
+                  <TeamLink
+                    teamName={match.away}
+                    logoSize={28}
+                    truncate={false}
+                    className="flex-1 min-w-0"
+                    nameClassName="text-sm font-medium text-text-primary leading-tight"
+                  />
+                </div>
               </motion.div>
             ))}
           </div>
@@ -339,29 +340,28 @@ export default function LivePage() {
                   <span className="text-xs text-text-muted">{formatDate(match.date)} replay</span>
                 </div>
 
-                <div className="mb-3 flex items-center gap-3">
-                  <div className="flex-1 min-w-0 overflow-hidden text-right">
+                <div className="mb-3 flex flex-col gap-1.5">
+                  <div className="flex items-center gap-2 min-w-0">
                     <TeamLink
                       teamName={match.home}
-                      logoSize={36}
-                      reverse
-                      className="w-full justify-end"
-                      nameClassName="text-sm font-semibold text-text-primary"
+                      logoSize={28}
+                      truncate={false}
+                      className="flex-1 min-w-0"
+                      nameClassName="text-sm font-semibold text-text-primary leading-tight"
                     />
+                    <div className="flex shrink-0 items-center gap-1">
+                      <span className="text-lg font-bold text-text-primary">{match.homeScore}</span>
+                      <span className="text-xs text-text-muted">-</span>
+                      <span className="text-lg font-bold text-text-primary">{match.awayScore}</span>
+                    </div>
                   </div>
-                  <div className="flex shrink-0 items-center gap-1.5">
-                    <span className="text-xl font-bold text-text-primary">{match.homeScore}</span>
-                    <span className="text-sm text-text-muted">-</span>
-                    <span className="text-xl font-bold text-text-primary">{match.awayScore}</span>
-                  </div>
-                  <div className="flex-1 min-w-0 overflow-hidden">
-                    <TeamLink
-                      teamName={match.away}
-                      logoSize={36}
-                      className="w-full justify-start"
-                      nameClassName="text-sm font-semibold text-text-primary"
-                    />
-                  </div>
+                  <TeamLink
+                    teamName={match.away}
+                    logoSize={28}
+                    truncate={false}
+                    className="min-w-0"
+                    nameClassName="text-sm font-medium text-text-secondary leading-tight"
+                  />
                 </div>
 
                 <div className="flex items-center justify-end gap-1 text-xs text-text-muted transition-colors group-hover:text-brand-secondary">
