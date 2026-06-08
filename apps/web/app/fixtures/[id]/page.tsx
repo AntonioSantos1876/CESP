@@ -29,6 +29,12 @@ type LineupData = {
   players: Player[]
 }
 
+type DbPlayer = {
+  full_name: string
+  position: string | null
+  jersey_number: number | null
+}
+
 type FixtureData = {
   id: number
   home: string
@@ -72,48 +78,122 @@ const ALL_FIXTURES: FixtureData[] = [
   },
 ]
 
-const HOME_LINEUP: LineupData = {
-  formation: '4-3-3',
-  players: [
-    { number: 1, name: 'D. Brown', position: 'GK', x: 150, y: 393 },
-    { number: 2, name: 'A. Smith', position: 'RB', x: 238, y: 330 },
-    { number: 5, name: 'M. Taylor', position: 'CB', x: 186, y: 315 },
-    { number: 6, name: 'R. Wilson', position: 'CB', x: 114, y: 315 },
-    { number: 3, name: 'J. Clarke', position: 'LB', x: 62, y: 330 },
-    { number: 10, name: 'T. White', position: 'RCM', x: 213, y: 237 },
-    { number: 4, name: 'O. Davis', position: 'CM', x: 150, y: 222 },
-    { number: 8, name: 'K. Johnson', position: 'LCM', x: 87, y: 237 },
-    { number: 7, name: 'E. Thompson', position: 'RW', x: 232, y: 143 },
-    { number: 9, name: 'B. Martin', position: 'ST', x: 150, y: 120 },
-    { number: 11, name: 'C. Harris', position: 'LW', x: 68, y: 143 },
-  ],
+function categorizePosition(pos: string | null): 'GK' | 'DEF' | 'MID' | 'FWD' {
+  if (!pos) return 'MID'
+  const p = pos.toLowerCase()
+  if (p.includes('gk') || p.includes('goal')) return 'GK'
+  if (p.includes('def') || p.includes('back') || p === 'cb' || p === 'rb' || p === 'lb' || p === 'rwb' || p === 'lwb') return 'DEF'
+  if (p.includes('fwd') || p.includes('forward') || p.includes('striker') || p.includes('wing') || p === 'st' || p === 'cf' || p === 'rw' || p === 'lw') return 'FWD'
+  return 'MID'
 }
 
-const AWAY_LINEUP: LineupData = {
-  formation: '4-4-2',
-  players: [
-    { number: 1, name: 'S. Green', position: 'GK', x: 150, y: 27 },
-    { number: 2, name: 'P. Lee', position: 'RB', x: 62, y: 90 },
-    { number: 5, name: 'F. Garcia', position: 'CB', x: 114, y: 105 },
-    { number: 6, name: 'H. Roberts', position: 'CB', x: 186, y: 105 },
-    { number: 3, name: 'I. Lewis', position: 'LB', x: 238, y: 90 },
-    { number: 7, name: 'L. Walker', position: 'RM', x: 68, y: 170 },
-    { number: 8, name: 'N. Hall', position: 'RCM', x: 120, y: 188 },
-    { number: 4, name: 'Y. Allen', position: 'LCM', x: 180, y: 188 },
-    { number: 11, name: 'Q. Young', position: 'LM', x: 232, y: 170 },
-    { number: 9, name: 'U. King', position: 'ST', x: 116, y: 283 },
-    { number: 10, name: 'V. Scott', position: 'ST', x: 184, y: 283 },
-  ],
+function spreadX(count: number, index: number): number {
+  const left = 35
+  const right = 265
+  if (count === 1) return 150
+  return Math.round(left + ((right - left) / (count - 1)) * index)
+}
+
+function buildLineup(dbPlayers: DbPlayer[], side: 'home' | 'away'): LineupData | null {
+  if (dbPlayers.length === 0) return null
+
+  const gks = dbPlayers.filter(p => categorizePosition(p.position) === 'GK')
+  const outfield = dbPlayers.filter(p => categorizePosition(p.position) !== 'GK')
+  const gk = gks[0]
+  const selected = outfield.slice(0, 10)
+
+  const hasMeaningful = selected.some(p => {
+    const pos = (p.position ?? '').toLowerCase()
+    return pos && !pos.includes('pending') && !pos.includes('unknown') && pos !== ''
+  })
+
+  let defs: DbPlayer[], mids: DbPlayer[], fwds: DbPlayer[]
+
+  if (hasMeaningful) {
+    defs = selected.filter(p => categorizePosition(p.position) === 'DEF')
+    mids = selected.filter(p => categorizePosition(p.position) === 'MID')
+    fwds = selected.filter(p => categorizePosition(p.position) === 'FWD')
+  } else {
+    defs = selected.slice(0, 4)
+    mids = selected.slice(4, 8)
+    fwds = selected.slice(8)
+  }
+
+  const yGK = side === 'home' ? 393 : 27
+  const yDEF = side === 'home' ? 325 : 95
+  const yMID = side === 'home' ? 237 : 178
+  const yFWD = side === 'home' ? 143 : 278
+
+  const players: Player[] = []
+
+  if (gk) {
+    players.push({ number: gk.jersey_number ?? 1, name: gk.full_name, position: 'GK', x: 150, y: yGK })
+  }
+
+  defs.forEach((p, i) => players.push({
+    number: p.jersey_number ?? (i + 2),
+    name: p.full_name,
+    position: p.position ?? 'DEF',
+    x: spreadX(defs.length, i),
+    y: yDEF,
+  }))
+
+  mids.forEach((p, i) => players.push({
+    number: p.jersey_number ?? (defs.length + i + 2),
+    name: p.full_name,
+    position: p.position ?? 'MID',
+    x: spreadX(mids.length, i),
+    y: yMID,
+  }))
+
+  fwds.forEach((p, i) => players.push({
+    number: p.jersey_number ?? (defs.length + mids.length + i + 2),
+    name: p.full_name,
+    position: p.position ?? 'FWD',
+    x: spreadX(fwds.length, i),
+    y: yFWD,
+  }))
+
+  const formationParts = [defs.length, mids.length, fwds.length].filter(n => n > 0)
+  const formation = formationParts.length ? formationParts.join('-') : '4-3-3'
+
+  return { formation, players }
+}
+
+async function fetchLineup(teamName: string, side: 'home' | 'away'): Promise<LineupData | null> {
+  const supabase = createClient()
+  const { data: teamRow } = await (supabase as any)
+    .from('teams')
+    .select('id')
+    .eq('name', teamName)
+    .single()
+
+  if (!teamRow?.id) return null
+
+  const { data: players } = await (supabase as any)
+    .from('players')
+    .select('full_name, position, jersey_number')
+    .eq('team_id', teamRow.id)
+    .eq('is_active', true)
+    .order('jersey_number', { ascending: true })
+
+  return buildLineup((players ?? []) as DbPlayer[], side)
 }
 
 function PitchViewer({
   homeTeam,
   awayTeam,
   activeTeam,
+  homeLineup,
+  awayLineup,
+  lineupsLoading,
 }: {
   homeTeam: string
   awayTeam: string
   activeTeam: LineupTeam
+  homeLineup: LineupData | null
+  awayLineup: LineupData | null
+  lineupsLoading: boolean
 }) {
   const [selectedPlayer, setSelectedPlayer] = useState<(Player & { team: LineupTeam }) | null>(null)
   const homeBranding = getTeamBranding(homeTeam)
@@ -127,7 +207,8 @@ function PitchViewer({
     }
   }
 
-  function renderPlayers(lineup: LineupData, team: LineupTeam) {
+  function renderPlayers(lineup: LineupData | null, team: LineupTeam) {
+    if (!lineup) return null
     const isActive = activeTeam === team
     const branding = team === 'home' ? homeBranding : awayBranding
     const color = branding.primary
@@ -178,7 +259,19 @@ function PitchViewer({
     })
   }
 
-  const currentLineup = activeTeam === 'home' ? HOME_LINEUP : AWAY_LINEUP
+  const currentLineup = activeTeam === 'home' ? homeLineup : awayLineup
+
+  if (lineupsLoading) {
+    return <div className="py-10 text-center text-sm text-text-muted">Loading lineups...</div>
+  }
+
+  if (!homeLineup && !awayLineup) {
+    return (
+      <div className="py-10 text-center text-sm text-text-muted">
+        Lineups will be announced closer to kickoff.
+      </div>
+    )
+  }
 
   return (
     <div>
@@ -188,44 +281,30 @@ function PitchViewer({
           className="w-full max-w-xs mx-auto block"
           style={{ maxHeight: 440 }}
         >
-          {/* Grass base */}
           <rect x="5" y="5" width="290" height="410" fill="#1a5c2a" rx="3" />
-          {/* Outer border */}
           <rect x="5" y="5" width="290" height="410" fill="none" stroke="white" strokeWidth="2" rx="3" />
-          {/* Halfway line */}
           <line x1="5" y1="210" x2="295" y2="210" stroke="white" strokeWidth="1.5" strokeOpacity="0.65" />
-          {/* Center circle */}
           <circle cx="150" cy="210" r="45" fill="none" stroke="white" strokeWidth="1.5" strokeOpacity="0.65" />
-          {/* Center spot */}
           <circle cx="150" cy="210" r="3" fill="white" fillOpacity="0.65" />
-          {/* Top penalty area */}
           <rect x="78" y="5" width="144" height="72" fill="none" stroke="white" strokeWidth="1.5" strokeOpacity="0.65" />
-          {/* Top goal area */}
           <rect x="108" y="5" width="84" height="27" fill="none" stroke="white" strokeWidth="1.5" strokeOpacity="0.65" />
-          {/* Top penalty spot */}
           <circle cx="150" cy="64" r="2.5" fill="white" fillOpacity="0.65" />
-          {/* Bottom penalty area */}
           <rect x="78" y="343" width="144" height="72" fill="none" stroke="white" strokeWidth="1.5" strokeOpacity="0.65" />
-          {/* Bottom goal area */}
           <rect x="108" y="388" width="84" height="27" fill="none" stroke="white" strokeWidth="1.5" strokeOpacity="0.65" />
-          {/* Bottom penalty spot */}
           <circle cx="150" cy="356" r="2.5" fill="white" fillOpacity="0.65" />
-          {/* Team labels */}
-          <text x="150" y="410" textAnchor="middle" fill="white" fontSize="8" opacity="0.5"
+          <text x="150" y="410" textAnchor="middle" fontSize="8" opacity="0.5"
             style={{ fontFamily: 'system-ui, sans-serif', fill: homeBranding.accent }}>
             {homeTeam.split(' ')[0]} attacking
           </text>
-          <text x="150" y="18" textAnchor="middle" fill="white" fontSize="8" opacity="0.5"
+          <text x="150" y="18" textAnchor="middle" fontSize="8" opacity="0.5"
             style={{ fontFamily: 'system-ui, sans-serif', fill: awayBranding.accent }}>
             {awayTeam.split(' ')[0]} attacking
           </text>
-          {/* Players */}
-          {renderPlayers(AWAY_LINEUP, 'away')}
-          {renderPlayers(HOME_LINEUP, 'home')}
+          {renderPlayers(awayLineup, 'away')}
+          {renderPlayers(homeLineup, 'home')}
         </svg>
       </div>
 
-      {/* Selected player popup */}
       <AnimatePresence>
         {selectedPlayer && (
           <motion.div
@@ -250,46 +329,50 @@ function PitchViewer({
         )}
       </AnimatePresence>
 
-      {/* Formation + legend */}
       <div className="mt-4 flex items-center justify-center gap-6 text-xs text-text-muted">
         <div className="flex items-center gap-1.5">
           <span className="w-3 h-3 rounded-full inline-block" style={{ backgroundColor: homeBranding.primary }} />
-          {homeTeam.split(' ')[0]} ({HOME_LINEUP.formation})
+          {homeTeam.split(' ')[0]} {homeLineup ? `(${homeLineup.formation})` : '(TBA)'}
         </div>
         <div className="flex items-center gap-1.5">
           <span className="w-3 h-3 rounded-full inline-block border" style={{ backgroundColor: awayBranding.primary, borderColor: awayBranding.secondary }} />
-          {awayTeam.split(' ')[0]} ({AWAY_LINEUP.formation})
+          {awayTeam.split(' ')[0]} {awayLineup ? `(${awayLineup.formation})` : '(TBA)'}
         </div>
       </div>
 
-      {/* Active team player list */}
-      <div className="mt-4 grid grid-cols-2 gap-1.5">
-        {currentLineup.players.map(p => (
-          <button
-            key={p.number}
-            onClick={() => handlePlayerClick(p, activeTeam)}
-            className={`flex items-center gap-2 text-left px-3 py-2 rounded-lg text-xs transition-colors ${
-              selectedPlayer?.number === p.number && selectedPlayer.team === activeTeam
-                ? ''
-                : 'hover:bg-bg-muted text-text-secondary'
-            }`}
-            style={selectedPlayer?.number === p.number && selectedPlayer.team === activeTeam
-              ? {
-                  backgroundColor: hexToRgba(activeTeam === 'home' ? homeBranding.primary : awayBranding.primary, 0.18),
-                  color: activeTeam === 'home' ? homeBranding.accent : awayBranding.accent,
-                }
-              : undefined}
-          >
-            <span
-              className="w-5 h-5 rounded-full flex items-center justify-center text-white font-bold text-[9px] shrink-0"
-              style={{ backgroundColor: activeTeam === 'home' ? homeBranding.primary : awayBranding.primary }}
+      {currentLineup ? (
+        <div className="mt-4 grid grid-cols-2 gap-1.5">
+          {currentLineup.players.map(p => (
+            <button
+              key={p.number}
+              onClick={() => handlePlayerClick(p, activeTeam)}
+              className={`flex items-center gap-2 text-left px-3 py-2 rounded-lg text-xs transition-colors ${
+                selectedPlayer?.number === p.number && selectedPlayer.team === activeTeam
+                  ? ''
+                  : 'hover:bg-bg-muted text-text-secondary'
+              }`}
+              style={selectedPlayer?.number === p.number && selectedPlayer.team === activeTeam
+                ? {
+                    backgroundColor: hexToRgba(activeTeam === 'home' ? homeBranding.primary : awayBranding.primary, 0.18),
+                    color: activeTeam === 'home' ? homeBranding.accent : awayBranding.accent,
+                  }
+                : undefined}
             >
-              {p.number}
-            </span>
-            <span className="truncate">{p.name}</span>
-          </button>
-        ))}
-      </div>
+              <span
+                className="w-5 h-5 rounded-full flex items-center justify-center text-white font-bold text-[9px] shrink-0"
+                style={{ backgroundColor: activeTeam === 'home' ? homeBranding.primary : awayBranding.primary }}
+              >
+                {p.number}
+              </span>
+              <span className="truncate">{p.name}</span>
+            </button>
+          ))}
+        </div>
+      ) : (
+        <p className="mt-4 text-center text-xs text-text-muted">
+          {activeTeam === 'home' ? homeTeam.split(' ')[0] : awayTeam.split(' ')[0]} lineup not yet announced.
+        </p>
+      )}
     </div>
   )
 }
@@ -300,6 +383,9 @@ export default function FixtureDetailPage() {
   const [tab, setTab] = useState<DetailTab>('info')
   const [lineupTeam, setLineupTeam] = useState<LineupTeam>('home')
   const [liveStatus, setLiveStatus] = useState<FixtureStatus | null>(null)
+  const [homeLineup, setHomeLineup] = useState<LineupData | null>(null)
+  const [awayLineup, setAwayLineup] = useState<LineupData | null>(null)
+  const [lineupsLoading, setLineupsLoading] = useState(true)
 
   const fixture = ALL_FIXTURES.find(f => f.id === Number(params.id))
 
@@ -329,6 +415,20 @@ export default function FixtureDetailPage() {
     return () => { supabase.removeChannel(channel) }
   }, [fixture?.id])
 
+  useEffect(() => {
+    if (!fixture) { setLineupsLoading(false); return }
+
+    setLineupsLoading(true)
+    Promise.all([
+      fetchLineup(fixture.home, 'home'),
+      fetchLineup(fixture.away, 'away'),
+    ]).then(([home, away]) => {
+      setHomeLineup(home)
+      setAwayLineup(away)
+      setLineupsLoading(false)
+    })
+  }, [fixture?.home, fixture?.away])
+
   if (!fixture) {
     return (
       <main className="min-h-screen bg-bg-base flex items-center justify-center">
@@ -342,7 +442,6 @@ export default function FixtureDetailPage() {
     )
   }
 
-  const matchDate = new Date(fixture.date + 'T' + fixture.time + ':00')
   const formattedDate = new Date(fixture.date + 'T00:00:00').toLocaleDateString('en-GB', {
     weekday: 'long', day: 'numeric', month: 'long', year: 'numeric',
   })
@@ -350,7 +449,6 @@ export default function FixtureDetailPage() {
   return (
     <main className="min-h-screen bg-bg-base">
       <div className="container-cesp py-8 max-w-3xl">
-        {/* Back button */}
         <motion.div
           initial={{ opacity: 0, x: -12 }}
           animate={{ opacity: 1, x: 0 }}
@@ -366,14 +464,12 @@ export default function FixtureDetailPage() {
           </button>
         </motion.div>
 
-        {/* Match header card */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
           className="card mb-6"
         >
-          {/* Status / date strip */}
           <div className="flex items-center justify-between mb-5">
             <div className="flex items-center gap-2 text-xs text-text-muted">
               <Calendar size={11} />
@@ -395,7 +491,6 @@ export default function FixtureDetailPage() {
             )}
           </div>
 
-          {/* Teams + score */}
           <div className="flex items-center justify-between gap-4">
             <div className="flex-1 text-center">
               <Link href={getTeamHref(fixture.home)} className="inline-flex flex-col items-center gap-2 transition-opacity hover:opacity-100">
@@ -431,14 +526,12 @@ export default function FixtureDetailPage() {
             </div>
           </div>
 
-          {/* Venue */}
           <div className="mt-4 pt-4 border-t border-bg-border flex items-center justify-center gap-2 text-xs text-text-muted">
             <MapPin size={11} />
             <span>{fixture.venue}</span>
           </div>
         </motion.div>
 
-        {/* Watch Live / Replay CTA */}
         {(isLive || (isResult && fixture.youtubeId)) && (
           <motion.div
             initial={{ opacity: 0, y: 12 }}
@@ -468,7 +561,6 @@ export default function FixtureDetailPage() {
           </motion.div>
         )}
 
-        {/* Info / Lineups tabs */}
         <motion.div
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
@@ -528,7 +620,6 @@ export default function FixtureDetailPage() {
                 transition={{ duration: 0.18 }}
                 className="card"
               >
-                {/* Home / Away toggle */}
                 <div className="flex items-center gap-2 mb-5">
                   <button
                     onClick={() => setLineupTeam('home')}
@@ -558,13 +649,15 @@ export default function FixtureDetailPage() {
                   homeTeam={fixture.home}
                   awayTeam={fixture.away}
                   activeTeam={lineupTeam}
+                  homeLineup={homeLineup}
+                  awayLineup={awayLineup}
+                  lineupsLoading={lineupsLoading}
                 />
               </motion.div>
             )}
           </AnimatePresence>
         </motion.div>
 
-        {/* Prev / Next fixture nav */}
         <div className="mt-6 flex items-center justify-between">
           {(() => {
             const currentIndex = ALL_FIXTURES.findIndex(f => f.id === fixture.id)
