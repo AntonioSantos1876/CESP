@@ -562,8 +562,8 @@ function FixtureCard({ fixture, index }: { fixture: Fixture; index: number }) {
         )}
       </div>
 
-      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-        <div className="flex-1 text-right">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] md:items-center md:gap-5">
+        <div className="min-w-0 overflow-hidden text-right">
           <TeamLink
             teamName={fixture.home}
             logoSize={42}
@@ -587,7 +587,7 @@ function FixtureCard({ fixture, index }: { fixture: Fixture; index: number }) {
           )}
         </div>
 
-        <div className="flex-1 text-left">
+        <div className="min-w-0 overflow-hidden text-left">
           <TeamLink
             teamName={fixture.away}
             logoSize={42}
@@ -597,7 +597,7 @@ function FixtureCard({ fixture, index }: { fixture: Fixture; index: number }) {
         </div>
       </div>
 
-      <div className="mt-5 flex justify-end">
+      <div className="mt-4 flex justify-end">
         <Link href={`/fixtures/${fixture.id}`} className="flex items-center gap-1 text-sm text-text-muted transition-colors hover:text-brand-secondary">
           Match details <ChevronRight size={14} />
         </Link>
@@ -768,15 +768,15 @@ function FixturesContent() {
                 ) : (
                   <div className="space-y-8">
                     {sortedDates.map(date => (
-                      <div key={date}>
-                        <div className="mb-4 flex items-center gap-3">
+                      <div key={date} className="space-y-5">
+                        <div className="flex items-center gap-3">
                           <Calendar size={16} className="shrink-0 text-brand-secondary" />
                           <span className="text-sm font-semibold uppercase tracking-wide text-brand-secondary">
                             {formatMatchDate(date)}
                           </span>
                           <div className="h-px flex-1 bg-bg-border" />
                         </div>
-                        <div className="space-y-4">
+                        <div className="space-y-5">
                           {grouped[date].map((fixture, index) => (
                             <FixtureCard key={fixture.id} fixture={fixture} index={index} />
                           ))}

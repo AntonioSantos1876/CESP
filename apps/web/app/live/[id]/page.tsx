@@ -42,7 +42,7 @@ type TeamLineup = { formation: string; players: Player[] }
 type Lineups = { home: TeamLineup; away: TeamLineup }
 
 const MATCHES: Record<string, MatchData> = {
-  '9': { id: 9, home: 'Excelsior High School', away: 'Mona High School', date: '2026-06-06', time: '15:00', venue: 'Glenmuir High School', homeScore: 1, awayScore: 0, status: 'live', youtubeId: 'live_placeholder', clock: "62'" },
+  '9': { id: 9, home: 'Excelsior High School', away: 'Mona High School', date: '2026-06-06', time: '15:00', venue: 'Glenmuir High School', homeScore: 1, awayScore: 0, status: 'vod', youtubeId: 'live_placeholder', clock: "90+4'" },
   '4': { id: 4, home: 'Munro College', away: 'Vere Technical High School', date: '2026-07-31', time: '16:00', venue: 'Glenmuir High School', homeScore: 0, awayScore: 0, status: 'vod', youtubeId: 'dQw4w9WgXcQ', clock: 'FT' },
   '5': { id: 5, home: 'Denbigh High School', away: 'Glenmuir High School', date: '2026-08-01', time: '14:00', venue: 'Glenmuir High School', homeScore: 2, awayScore: 1, status: 'vod', youtubeId: 'dQw4w9WgXcQ', clock: 'FT' },
   '6': { id: 6, home: 'Kingston College', away: 'Munro College', date: '2026-08-01', time: '16:00', venue: 'Glenmuir High School', homeScore: 1, awayScore: 3, status: 'vod', youtubeId: 'dQw4w9WgXcQ', clock: 'FT' },

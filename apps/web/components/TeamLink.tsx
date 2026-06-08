@@ -22,7 +22,7 @@ export function TeamLink({
   return (
     <Link
       href={getTeamHref(teamName)}
-      className={`inline-flex min-w-0 items-center gap-3 transition-opacity hover:opacity-100 ${reverse ? 'flex-row-reverse text-right' : ''} ${className}`.trim()}
+      className={`inline-flex min-w-0 items-center gap-3 transition-opacity hover:opacity-100 ${reverse ? 'justify-end text-right' : ''} ${className}`.trim()}
     >
       {showLogo && <TeamLogo teamName={teamName} size={logoSize} className="shrink-0" />}
       <span className={`min-w-0 truncate ${nameClassName}`.trim()}>{teamName}</span>

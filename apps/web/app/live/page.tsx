@@ -33,7 +33,7 @@ const STREAMS: Stream[] = [
     venue: 'Glenmuir High School',
     homeScore: 1,
     awayScore: 0,
-    status: 'live',
+    status: 'vod',
     youtubeId: 'live_stream_id',
     viewers: 312,
   },

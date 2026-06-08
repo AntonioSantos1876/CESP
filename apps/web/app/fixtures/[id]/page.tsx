@@ -48,7 +48,7 @@ type FixtureData = {
 const ALL_FIXTURES: FixtureData[] = [
   {
     id: 9, home: 'Excelsior High School', away: 'Mona High School', date: '2026-06-06', time: '15:00',
-    venue: 'Glenmuir High School', homeScore: 1, awayScore: 0, status: 'live',
+    venue: 'Glenmuir High School', homeScore: 1, awayScore: 0, status: 'result',
     round: 'Exhibition Match', season: '2026 Clarendon Elite Cup', referee: 'M. Thompson',
     youtubeId: 'dQw4w9WgXcQ',
   },
