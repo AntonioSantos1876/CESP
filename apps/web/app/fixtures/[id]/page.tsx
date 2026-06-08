@@ -24,9 +24,16 @@ type Player = {
   y: number
 }
 
+type BenchPlayer = {
+  number: number
+  name: string
+  position: string | null
+}
+
 type LineupData = {
   formation: string
   players: Player[]
+  bench: BenchPlayer[]
 }
 
 type DbPlayer = {
@@ -101,6 +108,13 @@ function buildLineup(dbPlayers: DbPlayer[], side: 'home' | 'away'): LineupData |
   const outfield = dbPlayers.filter(p => categorizePosition(p.position) !== 'GK')
   const gk = gks[0]
   const selected = outfield.slice(0, 10)
+  const benchGks = gks.slice(1)
+  const benchOutfield = outfield.slice(10)
+  const bench: BenchPlayer[] = [...benchGks, ...benchOutfield].map(p => ({
+    number: p.jersey_number ?? 0,
+    name: p.full_name,
+    position: p.position ?? null,
+  }))
 
   const hasMeaningful = selected.some(p => {
     const pos = (p.position ?? '').toLowerCase()
@@ -157,7 +171,7 @@ function buildLineup(dbPlayers: DbPlayer[], side: 'home' | 'away'): LineupData |
   const formationParts = [defs.length, mids.length, fwds.length].filter(n => n > 0)
   const formation = formationParts.length ? formationParts.join('-') : '4-3-3'
 
-  return { formation, players }
+  return { formation, players, bench }
 }
 
 async function fetchLineup(teamName: string, side: 'home' | 'away'): Promise<LineupData | null> {
@@ -341,32 +355,50 @@ function PitchViewer({
       </div>
 
       {currentLineup ? (
-        <div className="mt-4 grid grid-cols-2 gap-1.5">
-          {currentLineup.players.map(p => (
-            <button
-              key={p.number}
-              onClick={() => handlePlayerClick(p, activeTeam)}
-              className={`flex items-center gap-2 text-left px-3 py-2 rounded-lg text-xs transition-colors ${
-                selectedPlayer?.number === p.number && selectedPlayer.team === activeTeam
-                  ? ''
-                  : 'hover:bg-bg-muted text-text-secondary'
-              }`}
-              style={selectedPlayer?.number === p.number && selectedPlayer.team === activeTeam
-                ? {
-                    backgroundColor: hexToRgba(activeTeam === 'home' ? homeBranding.primary : awayBranding.primary, 0.18),
-                    color: activeTeam === 'home' ? homeBranding.accent : awayBranding.accent,
-                  }
-                : undefined}
-            >
-              <span
-                className="w-5 h-5 rounded-full flex items-center justify-center text-white font-bold text-[9px] shrink-0"
-                style={{ backgroundColor: activeTeam === 'home' ? homeBranding.primary : awayBranding.primary }}
+        <div className="mt-4">
+          <p className="text-[10px] font-semibold text-text-muted uppercase tracking-wider mb-2">Starting XI</p>
+          <div className="grid grid-cols-2 gap-1.5">
+            {currentLineup.players.map(p => (
+              <button
+                key={p.number}
+                onClick={() => handlePlayerClick(p, activeTeam)}
+                className={`flex items-center gap-2 text-left px-3 py-2 rounded-lg text-xs transition-colors ${
+                  selectedPlayer?.number === p.number && selectedPlayer.team === activeTeam
+                    ? ''
+                    : 'hover:bg-bg-muted text-text-secondary'
+                }`}
+                style={selectedPlayer?.number === p.number && selectedPlayer.team === activeTeam
+                  ? {
+                      backgroundColor: hexToRgba(activeTeam === 'home' ? homeBranding.primary : awayBranding.primary, 0.18),
+                      color: activeTeam === 'home' ? homeBranding.accent : awayBranding.accent,
+                    }
+                  : undefined}
               >
-                {p.number}
-              </span>
-              <span className="truncate">{p.name}</span>
-            </button>
-          ))}
+                <span
+                  className="w-5 h-5 rounded-full flex items-center justify-center text-white font-bold text-[9px] shrink-0"
+                  style={{ backgroundColor: activeTeam === 'home' ? homeBranding.primary : awayBranding.primary }}
+                >
+                  {p.number}
+                </span>
+                <span className="truncate">{p.name}</span>
+              </button>
+            ))}
+          </div>
+          {currentLineup.bench.length > 0 && (
+            <div className="mt-4 pt-4 border-t border-[#1e1e1e]">
+              <p className="text-[10px] font-semibold text-text-muted uppercase tracking-wider mb-2">Bench</p>
+              <div className="grid grid-cols-2 gap-1">
+                {currentLineup.bench.map(p => (
+                  <div key={p.number} className="flex items-center gap-2 px-3 py-1.5 text-xs text-text-muted">
+                    <span className="w-5 h-5 rounded-full flex items-center justify-center font-bold text-[9px] shrink-0 bg-[#1e1e1e] border border-[#333] text-text-muted">
+                      {p.number || '?'}
+                    </span>
+                    <span className="truncate">{p.name}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       ) : (
         <p className="mt-4 text-center text-xs text-text-muted">

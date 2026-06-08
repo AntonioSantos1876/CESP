@@ -6,12 +6,13 @@ import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import {
   LayoutDashboard, CalendarDays, Users, Newspaper,
-  HandHeart, ShieldCheck, ChevronRight, LogOut, Menu, X,
+  HandHeart, ShieldCheck, ChevronRight, LogOut, Menu, X, Users2,
 } from 'lucide-react'
 
 const NAV = [
   { href: '/admin', label: 'Dashboard', icon: LayoutDashboard, exact: true },
   { href: '/admin/matches', label: 'Matches', icon: CalendarDays },
+  { href: '/admin/teams', label: 'Teams', icon: Users2 },
   { href: '/admin/volunteers', label: 'Volunteers', icon: HandHeart },
   { href: '/admin/news', label: 'News', icon: Newspaper },
   { href: '/admin/users', label: 'Users', icon: Users },
@@ -36,7 +37,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         .eq('id', user.id)
         .single()
 
-      if (!profile || !['super_admin', 'team_admin'].includes(profile.role)) {
+      if (!profile || !['super_admin', 'team_admin', 'coach'].includes(profile.role)) {
         router.replace('/')
         return
       }
