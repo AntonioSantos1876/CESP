@@ -1,68 +1,267 @@
 'use client'
 
-import { useState } from 'react'
+import Image from 'next/image'
+import { useMemo, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Camera, X, ChevronLeft, ChevronRight } from 'lucide-react'
+import { Camera, Play, Upload, Volume2, VolumeX, X, ChevronLeft, ChevronRight } from 'lucide-react'
 
-type Category = 'all' | 'matchday' | 'teams' | 'community'
+type Category = 'all' | 'spotlight' | 'teams' | 'matchday' | 'awards'
+type MediaType = 'image' | 'video'
+type Aspect = 'square' | 'wide' | 'tall'
 
-type Photo = {
+type GalleryItem = {
   id: number
   title: string
+  description: string
   category: Exclude<Category, 'all'>
-  aspect: 'square' | 'wide' | 'tall'
-  gradient: string
+  type: MediaType
+  aspect: Aspect
+  src: string
 }
 
-const PHOTOS: Photo[] = [
-  { id: 1, title: 'Chapelton FC matchday crowd', category: 'matchday', aspect: 'wide', gradient: 'from-brand-primary/30 to-brand-secondary/20' },
-  { id: 2, title: 'MUC players training', category: 'teams', aspect: 'square', gradient: 'from-blue-500/30 to-indigo-500/20' },
-  { id: 3, title: 'Porus Oval atmosphere', category: 'matchday', aspect: 'square', gradient: 'from-green-500/30 to-teal-500/20' },
-  { id: 4, title: 'Community kids tournament', category: 'community', aspect: 'wide', gradient: 'from-purple-500/30 to-pink-500/20' },
-  { id: 5, title: 'Frankfield Boys squad photo', category: 'teams', aspect: 'tall', gradient: 'from-red-500/30 to-orange-500/20' },
-  { id: 6, title: 'Trophy presentation 2025', category: 'matchday', aspect: 'square', gradient: 'from-amber-500/30 to-yellow-500/20' },
-  { id: 7, title: 'Spaldings All Stars warming up', category: 'teams', aspect: 'wide', gradient: 'from-cyan-500/30 to-sky-500/20' },
-  { id: 8, title: 'Denbigh Field opening day', category: 'community', aspect: 'square', gradient: 'from-emerald-500/30 to-lime-500/20' },
-  { id: 9, title: 'Rock River Rangers lineup', category: 'teams', aspect: 'square', gradient: 'from-violet-500/30 to-purple-500/20' },
-  { id: 10, title: 'Half-time charity draw', category: 'matchday', aspect: 'tall', gradient: 'from-rose-500/30 to-pink-500/20' },
-  { id: 11, title: 'Youth coaching session', category: 'community', aspect: 'square', gradient: 'from-teal-500/30 to-cyan-500/20' },
-  { id: 12, title: 'Match referee briefing', category: 'matchday', aspect: 'wide', gradient: 'from-slate-500/30 to-gray-500/20' },
-]
+const GALLERY_ITEMS: GalleryItem[] = [
+  {
+    id: 1,
+    title: 'Smile Jamaica Interview',
+    description: 'Anthony Baker shares the Clarendon Elite Sports Program story on TVJ.',
+    category: 'spotlight',
+    type: 'video',
+    aspect: 'wide',
+    src: '/gallery/launch-june-2026/founder-smile-jamaica-interview.mp4',
+  },
+  {
+    id: 2,
+    title: 'Founder On Set',
+    description: 'Anthony Baker on the Smile Jamaica set with the Clarendon Elite trophy.',
+    category: 'spotlight',
+    type: 'image',
+    aspect: 'tall',
+    src: '/gallery/launch-june-2026/founder-smile-jamaica-set.jpeg',
+  },
+  {
+    id: 3,
+    title: 'Founder Trophy Portrait',
+    description: 'Studio portrait with the 2025 winner trophy after the television feature.',
+    category: 'spotlight',
+    type: 'image',
+    aspect: 'tall',
+    src: '/gallery/launch-june-2026/founder-trophy-portrait.jpeg',
+  },
+  {
+    id: 4,
+    title: 'Tournament Highlights',
+    description: 'Video recap from the tournament atmosphere and the teams on show.',
+    category: 'matchday',
+    type: 'video',
+    aspect: 'wide',
+    src: '/gallery/launch-june-2026/tournament-highlights.mp4',
+  },
+  {
+    id: 5,
+    title: 'Pre-match Lineup',
+    description: 'Both squads line up before kick-off in Clarendon.',
+    category: 'matchday',
+    type: 'image',
+    aspect: 'wide',
+    src: '/gallery/launch-june-2026/prematch-handshake-lineup.jpeg',
+  },
+  {
+    id: 6,
+    title: 'Denbigh Starting XI',
+    description: 'Denbigh High School team photo before the match.',
+    category: 'teams',
+    type: 'image',
+    aspect: 'tall',
+    src: '/gallery/launch-june-2026/team-denbigh-lineup.jpeg',
+  },
+  {
+    id: 7,
+    title: 'Manchester Starting XI',
+    description: 'Manchester High School squad lined up on matchday.',
+    category: 'teams',
+    type: 'image',
+    aspect: 'tall',
+    src: '/gallery/launch-june-2026/team-manchester-lineup.jpeg',
+  },
+  {
+    id: 8,
+    title: 'Excelsior Starting XI',
+    description: 'Excelsior High School squad photo on the pitch.',
+    category: 'teams',
+    type: 'image',
+    aspect: 'wide',
+    src: '/gallery/launch-june-2026/team-excelsior-lineup.jpeg',
+  },
+  {
+    id: 9,
+    title: 'Denbigh Matchday Photo',
+    description: 'Another Denbigh High School team photo from the tournament.',
+    category: 'teams',
+    type: 'image',
+    aspect: 'wide',
+    src: '/gallery/launch-june-2026/team-denbigh-matchday.jpeg',
+  },
+  {
+    id: 10,
+    title: 'Denbigh Celebration',
+    description: 'Denbigh High School players celebrating together after the action.',
+    category: 'matchday',
+    type: 'image',
+    aspect: 'wide',
+    src: '/gallery/launch-june-2026/team-denbigh-celebration.jpeg',
+  },
+  {
+    id: 11,
+    title: 'Vere Award Presentation',
+    description: 'Vere Technical High School collect their second-place presentation.',
+    category: 'awards',
+    type: 'image',
+    aspect: 'tall',
+    src: '/gallery/launch-june-2026/team-vere-award.jpeg',
+  },
+  {
+    id: 12,
+    title: 'Chapelton Award Presentation',
+    description: 'Chapelton High School celebrate with their award presentation.',
+    category: 'awards',
+    type: 'image',
+    aspect: 'tall',
+    src: '/gallery/launch-june-2026/team-chapelton-award.jpeg',
+  },
+  {
+    id: 13,
+    title: 'Denbigh Award Presentation',
+    description: 'Denbigh High School celebrate with their prize presentation.',
+    category: 'awards',
+    type: 'image',
+    aspect: 'tall',
+    src: '/gallery/launch-june-2026/team-denbigh-award.jpeg',
+  },
+] as const
 
 const LABELS: Record<Category, string> = {
-  all: 'All Photos',
-  matchday: 'Match Day',
+  all: 'All Media',
+  spotlight: 'Spotlight',
   teams: 'Teams',
-  community: 'Community',
+  matchday: 'Match Day',
+  awards: 'Awards',
 }
 
-function aspectClass(a: Photo['aspect']) {
-  if (a === 'wide') return 'col-span-2 row-span-1'
-  if (a === 'tall') return 'col-span-1 row-span-2'
+function aspectClass(aspect: Aspect) {
+  if (aspect === 'wide') return 'col-span-2 row-span-1'
+  if (aspect === 'tall') return 'col-span-1 row-span-2'
   return 'col-span-1 row-span-1'
 }
 
-function aspectRatio(a: Photo['aspect']) {
-  if (a === 'wide') return 'aspect-[16/9]'
-  if (a === 'tall') return 'aspect-[3/4]'
+function aspectRatio(aspect: Aspect) {
+  if (aspect === 'wide') return 'aspect-[16/9]'
+  if (aspect === 'tall') return 'aspect-[3/4]'
   return 'aspect-square'
+}
+
+function MediaCard({
+  item,
+  onOpen,
+}: {
+  item: GalleryItem
+  onOpen: (id: number) => void
+}) {
+  return (
+    <motion.button
+      layout
+      initial={{ opacity: 0, scale: 0.94 }}
+      animate={{ opacity: 1, scale: 1 }}
+      exit={{ opacity: 0, scale: 0.94 }}
+      transition={{ duration: 0.28 }}
+      onClick={() => onOpen(item.id)}
+      className={`${aspectClass(item.aspect)} group relative overflow-hidden rounded-[1.4rem] border border-white/10 bg-[#111111] text-left shadow-[0_20px_55px_rgba(0,0,0,0.28)]`}
+    >
+      <div className={`relative h-full w-full ${aspectRatio(item.aspect)}`}>
+        {item.type === 'image' ? (
+          <Image
+            src={item.src}
+            alt={item.title}
+            fill
+            sizes="(max-width: 768px) 50vw, (max-width: 1280px) 33vw, 25vw"
+            className="object-cover transition-transform duration-500 group-hover:scale-[1.03]"
+          />
+        ) : (
+          <video
+            src={item.src}
+            className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.03]"
+            autoPlay
+            muted
+            loop
+            playsInline
+            preload="metadata"
+          />
+        )}
+
+        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/15 to-transparent" />
+
+        <div className="absolute left-3 top-3 flex items-center gap-2">
+          <span className={`badge text-[10px] ${item.category === 'matchday' ? 'badge-brand' : 'bg-black/45 text-white border border-white/10'}`}>
+            {LABELS[item.category]}
+          </span>
+          {item.type === 'video' && (
+            <span className="inline-flex items-center gap-1 rounded-full border border-white/15 bg-black/45 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.25em] text-white">
+              <Play size={11} />
+              Video
+            </span>
+          )}
+        </div>
+
+        <div className="absolute inset-x-0 bottom-0 p-4">
+          <p className="text-sm font-bold text-white md:text-base">{item.title}</p>
+          <p className="mt-1 line-clamp-2 text-xs leading-5 text-white/78">{item.description}</p>
+          {item.type === 'video' && (
+            <p className="mt-2 text-[11px] font-semibold uppercase tracking-[0.22em] text-brand-secondary">
+              Opens muted. Tap video for sound.
+            </p>
+          )}
+        </div>
+      </div>
+    </motion.button>
+  )
 }
 
 export default function GalleryPage() {
   const [category, setCategory] = useState<Category>('all')
-  const [lightbox, setLightbox] = useState<number | null>(null)
+  const [lightboxId, setLightboxId] = useState<number | null>(null)
+  const [videoMuted, setVideoMuted] = useState(true)
 
-  const filtered = category === 'all' ? PHOTOS : PHOTOS.filter(p => p.category === category)
-  const lightboxPhoto = lightbox !== null ? filtered.find(p => p.id === lightbox) ?? null : null
-  const lightboxIdx = lightbox !== null ? filtered.findIndex(p => p.id === lightbox) : -1
+  const filtered = useMemo(
+    () => (category === 'all' ? GALLERY_ITEMS : GALLERY_ITEMS.filter(item => item.category === category)),
+    [category]
+  )
 
-  function prev() {
-    if (lightboxIdx <= 0) return
-    setLightbox(filtered[lightboxIdx - 1].id)
+  const lightboxIndex = lightboxId === null ? -1 : filtered.findIndex(item => item.id === lightboxId)
+  const lightboxItem = lightboxIndex >= 0 ? filtered[lightboxIndex] : null
+
+  function openLightbox(id: number) {
+    setLightboxId(id)
+    setVideoMuted(true)
   }
-  function next() {
-    if (lightboxIdx >= filtered.length - 1) return
-    setLightbox(filtered[lightboxIdx + 1].id)
+
+  function closeLightbox() {
+    setLightboxId(null)
+    setVideoMuted(true)
+  }
+
+  function showPrevious() {
+    if (lightboxIndex <= 0) return
+    setLightboxId(filtered[lightboxIndex - 1].id)
+    setVideoMuted(true)
+  }
+
+  function showNext() {
+    if (lightboxIndex < 0 || lightboxIndex >= filtered.length - 1) return
+    setLightboxId(filtered[lightboxIndex + 1].id)
+    setVideoMuted(true)
+  }
+
+  function toggleVideoAudio() {
+    setVideoMuted(current => !current)
   }
 
   return (
@@ -74,121 +273,159 @@ export default function GalleryPage() {
           transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
           className="mb-10"
         >
-          <div className="flex items-center gap-3 mb-2">
-            <Camera size={24} className="text-brand-primary" />
-            <h1 className="text-4xl font-bold text-text-primary">Gallery</h1>
+          <div className="mb-2 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+            <div>
+              <div className="flex items-center gap-3">
+                <Camera size={24} className="text-brand-primary" />
+                <h1 className="text-4xl font-bold text-text-primary">Gallery</h1>
+              </div>
+            </div>
+            <a
+              href="mailto:media@clarendonelite.com?subject=Gallery%20Media%20Upload"
+              className="btn-secondary inline-flex items-center gap-2 self-start"
+            >
+              <Upload size={16} />
+              Upload media
+            </a>
           </div>
-          <p className="text-text-secondary">Photos from matches, training, and community events</p>
+          <p className="max-w-2xl text-text-secondary">
+            Match photos, team portraits, award presentations, and Smile Jamaica media moments from the Clarendon Elite Sports Program.
+          </p>
+          <p className="mt-3 text-sm text-text-muted">
+            Have more photos or clips to add? Use the upload button to send them to the gallery desk.
+          </p>
         </motion.div>
 
-        {/* Filter tabs */}
-        <div className="flex items-center gap-2 mb-8 flex-wrap">
-          {(Object.keys(LABELS) as Category[]).map(c => (
+        <div className="mb-8 flex flex-wrap items-center gap-2">
+          {(Object.keys(LABELS) as Category[]).map(entry => (
             <button
-              key={c}
-              onClick={() => setCategory(c)}
-              className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
-                category === c
+              key={entry}
+              onClick={() => setCategory(entry)}
+              className={`rounded-xl px-4 py-2 text-sm font-medium transition-all duration-200 ${
+                category === entry
                   ? 'bg-brand-primary text-white'
-                  : 'bg-bg-muted text-text-secondary hover:text-text-primary border border-bg-border'
+                  : 'border border-bg-border bg-bg-muted text-text-secondary hover:text-text-primary'
               }`}
             >
-              {LABELS[c]}
+              {LABELS[entry]}
             </button>
           ))}
-          <span className="ml-auto text-xs text-text-muted">{filtered.length} photos</span>
+          <span className="ml-auto text-xs text-text-muted">{filtered.length} items</span>
         </div>
 
-        {/* Grid */}
-        <motion.div layout className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 auto-rows-[180px]">
+        <motion.div layout className="grid grid-cols-2 auto-rows-[180px] gap-3 md:grid-cols-3 lg:grid-cols-4">
           <AnimatePresence mode="popLayout">
-            {filtered.map((photo, i) => (
-              <motion.button
-                key={photo.id}
-                layout
-                initial={{ opacity: 0, scale: 0.9 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.9 }}
-                transition={{ duration: 0.3, delay: i * 0.03 }}
-                onClick={() => setLightbox(photo.id)}
-                className={`${aspectClass(photo.aspect)} group relative rounded-2xl overflow-hidden cursor-pointer`}
-              >
-                <div className={`w-full h-full bg-gradient-to-br ${photo.gradient} bg-bg-card flex items-center justify-center relative`}>
-                  <Camera size={32} className="text-white/20" />
-                  <div className="absolute inset-0 bg-bg-base/0 group-hover:bg-bg-base/30 transition-all duration-300" />
-                  <div className="absolute inset-0 p-3 flex items-end opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                    <p className="text-white text-xs font-medium bg-bg-base/60 backdrop-blur-sm rounded-lg px-2 py-1 line-clamp-1">
-                      {photo.title}
-                    </p>
-                  </div>
-                  <span className={`absolute top-2 right-2 badge ${photo.category === 'matchday' ? 'badge-brand' : 'bg-bg-muted/80 text-text-secondary'} text-[10px] opacity-0 group-hover:opacity-100 transition-opacity`}>
-                    {LABELS[photo.category]}
-                  </span>
-                </div>
-              </motion.button>
+            {filtered.map(item => (
+              <MediaCard key={item.id} item={item} onOpen={openLightbox} />
             ))}
           </AnimatePresence>
         </motion.div>
 
         {filtered.length === 0 && (
-          <div className="text-center py-20 text-text-muted">No photos in this category yet.</div>
+          <div className="py-20 text-center text-text-muted">No media in this section yet.</div>
         )}
       </div>
 
-      {/* Lightbox */}
       <AnimatePresence>
-        {lightboxPhoto && (
+        {lightboxItem && (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 bg-bg-base/95 backdrop-blur-md flex items-center justify-center p-4"
-            onClick={() => setLightbox(null)}
+            className="fixed inset-0 z-50 flex items-center justify-center bg-bg-base/95 p-4 backdrop-blur-md"
+            onClick={closeLightbox}
           >
             <motion.div
-              initial={{ scale: 0.9 }}
+              initial={{ scale: 0.94 }}
               animate={{ scale: 1 }}
-              exit={{ scale: 0.9 }}
-              transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
-              onClick={e => e.stopPropagation()}
-              className="relative w-full max-w-3xl"
+              exit={{ scale: 0.94 }}
+              transition={{ duration: 0.24, ease: [0.22, 1, 0.36, 1] }}
+              onClick={event => event.stopPropagation()}
+              className="relative w-full max-w-5xl"
             >
-              <div className={`w-full ${aspectRatio(lightboxPhoto.aspect)} max-h-[70vh] rounded-2xl overflow-hidden bg-gradient-to-br ${lightboxPhoto.gradient} bg-bg-card flex items-center justify-center`}>
-                <Camera size={64} className="text-white/20" />
-              </div>
+              <div className="relative overflow-hidden rounded-[1.8rem] border border-white/10 bg-[#111111] shadow-[0_30px_80px_rgba(0,0,0,0.42)]">
+                <div className="relative flex min-h-[45vh] items-center justify-center bg-black">
+                  {lightboxItem.type === 'image' ? (
+                    <div className={`relative w-full ${aspectRatio(lightboxItem.aspect)} max-h-[75vh]`}>
+                      <Image
+                        src={lightboxItem.src}
+                        alt={lightboxItem.title}
+                        fill
+                        sizes="100vw"
+                        className="object-contain"
+                      />
+                    </div>
+                  ) : (
+                    <div className="relative w-full">
+                      <video
+                        key={lightboxItem.id}
+                        src={lightboxItem.src}
+                        className="max-h-[75vh] w-full cursor-pointer bg-black object-contain"
+                        autoPlay
+                        muted={videoMuted}
+                        loop
+                        playsInline
+                        controls={false}
+                        preload="auto"
+                        onClick={toggleVideoAudio}
+                      />
+                      <button
+                        onClick={toggleVideoAudio}
+                        className="absolute bottom-4 right-4 inline-flex items-center gap-2 rounded-full border border-white/15 bg-black/60 px-4 py-2 text-sm font-semibold text-white backdrop-blur-sm transition-colors hover:bg-black/75"
+                      >
+                        {videoMuted ? <VolumeX size={16} /> : <Volume2 size={16} />}
+                        {videoMuted ? 'Tap for sound' : 'Mute audio'}
+                      </button>
+                    </div>
+                  )}
 
-              <div className="mt-4 flex items-center justify-between">
-                <div>
-                  <p className="font-semibold text-text-primary">{lightboxPhoto.title}</p>
-                  <span className="badge badge-brand mt-1 text-xs">{LABELS[lightboxPhoto.category]}</span>
+                  <button
+                    onClick={closeLightbox}
+                    className="absolute right-4 top-4 flex h-10 w-10 items-center justify-center rounded-full border border-white/10 bg-black/60 text-white transition-colors hover:border-brand-primary/40"
+                    aria-label="Close"
+                  >
+                    <X size={16} />
+                  </button>
+
+                  {lightboxIndex > 0 && (
+                    <button
+                      onClick={showPrevious}
+                      className="absolute left-4 top-1/2 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full border border-white/10 bg-black/60 text-white transition-colors hover:border-brand-primary/40"
+                      aria-label="Previous media"
+                    >
+                      <ChevronLeft size={18} />
+                    </button>
+                  )}
+
+                  {lightboxIndex < filtered.length - 1 && (
+                    <button
+                      onClick={showNext}
+                      className="absolute right-4 top-1/2 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full border border-white/10 bg-black/60 text-white transition-colors hover:border-brand-primary/40"
+                      aria-label="Next media"
+                    >
+                      <ChevronRight size={18} />
+                    </button>
+                  )}
                 </div>
-                <p className="text-text-muted text-sm">{lightboxIdx + 1} / {filtered.length}</p>
+
+                <div className="border-t border-white/10 px-5 py-4 md:px-6">
+                  <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+                    <div className="min-w-0">
+                      <p className="text-lg font-bold text-text-primary">{lightboxItem.title}</p>
+                      <p className="mt-1 max-w-3xl text-sm leading-6 text-text-secondary">{lightboxItem.description}</p>
+                      <div className="mt-3 flex flex-wrap items-center gap-2">
+                        <span className="badge badge-brand text-xs">{LABELS[lightboxItem.category]}</span>
+                        {lightboxItem.type === 'video' && (
+                          <span className="rounded-full border border-white/10 bg-white/[0.03] px-3 py-1 text-xs font-semibold text-text-secondary">
+                            Autoplay video
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    <p className="text-sm text-text-muted">{lightboxIndex + 1} / {filtered.length}</p>
+                  </div>
+                </div>
               </div>
-
-              {/* Nav arrows */}
-              {lightboxIdx > 0 && (
-                <button
-                  onClick={prev}
-                  className="absolute left-0 top-1/3 -translate-x-14 w-10 h-10 rounded-full bg-bg-card border border-bg-border flex items-center justify-center hover:border-brand-primary/40 transition-colors"
-                >
-                  <ChevronLeft size={18} className="text-text-primary" />
-                </button>
-              )}
-              {lightboxIdx < filtered.length - 1 && (
-                <button
-                  onClick={next}
-                  className="absolute right-0 top-1/3 translate-x-14 w-10 h-10 rounded-full bg-bg-card border border-bg-border flex items-center justify-center hover:border-brand-primary/40 transition-colors"
-                >
-                  <ChevronRight size={18} className="text-text-primary" />
-                </button>
-              )}
-
-              <button
-                onClick={() => setLightbox(null)}
-                className="absolute top-3 right-3 w-9 h-9 rounded-full bg-bg-base/80 backdrop-blur-sm border border-bg-border flex items-center justify-center hover:border-brand-primary/40 transition-colors"
-              >
-                <X size={16} className="text-text-primary" />
-              </button>
             </motion.div>
           </motion.div>
         )}
