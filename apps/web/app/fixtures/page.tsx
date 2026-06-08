@@ -248,33 +248,43 @@ function toFallbackDbFixture(
   }
 }
 
-function toBracketMatch(fixture: DbFixture | null, fallbackId: string, note?: string): BMatch {
+
+function getWinnerLoser(fixture: DbFixture): { winner: string | null; loser: string | null } {
+  if (fixture.status !== 'completed') return { winner: null, loser: null }
+  const score = getScore(fixture.match_scores)
+  if (score.home === null || score.away === null) return { winner: null, loser: null }
+  if (score.home > score.away) return { winner: fixture.home_team?.name ?? null, loser: fixture.away_team?.name ?? null }
+  if (score.away > score.home) return { winner: fixture.away_team?.name ?? null, loser: fixture.home_team?.name ?? null }
+  return { winner: null, loser: null }
+}
+
+function buildBracketMatch(fixture: DbFixture | null, fallbackId: string, fallbackNote: string, homeOverride: string | null = null, awayOverride: string | null = null): BMatch {
   if (!fixture) {
     return {
       id: fallbackId,
-      home: null,
-      away: null,
+      home: homeOverride ? makeSlot(homeOverride) : null,
+      away: awayOverride ? makeSlot(awayOverride) : null,
       homeScore: null,
       awayScore: null,
       date: '',
       time: '',
       venue: 'Venue TBC',
-      note,
+      note: fallbackNote,
     }
   }
-
+  const { loser } = getWinnerLoser(fixture)
   const score = getScore(fixture.match_scores)
-
+  const homeName = fixture.home_team?.name
+  const awayName = fixture.away_team?.name
   return {
     id: fixture.id,
-    home: fixture.home_team ? makeSlot(fixture.home_team.name, fixture.home_team.short_name) : null,
-    away: fixture.away_team ? makeSlot(fixture.away_team.name, fixture.away_team.short_name) : null,
+    home: homeName ? makeSlot(homeName, fixture.home_team?.short_name, loser === homeName) : (homeOverride ? makeSlot(homeOverride) : null),
+    away: awayName ? makeSlot(awayName, fixture.away_team?.short_name, loser === awayName) : (awayOverride ? makeSlot(awayOverride) : null),
     homeScore: score.home,
     awayScore: score.away,
     date: fixture.match_date,
     time: formatMatchTime(fixture.match_date),
     venue: fixture.venue ?? 'Venue TBC',
-    note,
   }
 }
 
@@ -300,16 +310,38 @@ function buildBracket(fixtures: DbFixture[]) {
     grouped.third = activeFixtures.slice(7, 8)
   }
 
-  return {
-    quarterfinals: Array.from({ length: 4 }, (_, index) =>
-      toBracketMatch(grouped.quarterfinal[index] ?? null, `qf-${index + 1}`, `${index % 2 === 0 ? 'Quarter-final pairing' : 'Knockout tie'}`)
-    ),
-    semifinals: Array.from({ length: 2 }, (_, index) =>
-      toBracketMatch(grouped.semifinal[index] ?? null, `sf-${index + 1}`, `Winner QF${index * 2 + 1} vs Winner QF${index * 2 + 2}`)
-    ),
-    final: toBracketMatch(grouped.final[0] ?? null, 'final', 'Winner SF1 vs Winner SF2'),
-    third: toBracketMatch(grouped.third[0] ?? null, 'third', 'Loser SF1 vs Loser SF2'),
-  }
+  const quarterfinals = Array.from({ length: 4 }, (_, i) =>
+    buildBracketMatch(grouped.quarterfinal[i] ?? null, `qf-${i + 1}`, i % 2 === 0 ? 'Quarter-final pairing' : 'Knockout tie')
+  )
+
+  const qfResults = Array.from({ length: 4 }, (_, i) =>
+    grouped.quarterfinal[i] ? getWinnerLoser(grouped.quarterfinal[i]) : { winner: null, loser: null }
+  )
+
+  const semifinals = Array.from({ length: 2 }, (_, i) => {
+    const fixture = grouped.semifinal[i] ?? null
+    const homeWinner = qfResults[i * 2]?.winner ?? null
+    const awayWinner = qfResults[i * 2 + 1]?.winner ?? null
+    return buildBracketMatch(fixture, `sf-${i + 1}`, `Winner QF${i * 2 + 1} vs Winner QF${i * 2 + 2}`, homeWinner, awayWinner)
+  })
+
+  const sfResults = Array.from({ length: 2 }, (_, i) =>
+    grouped.semifinal[i] ? getWinnerLoser(grouped.semifinal[i]) : { winner: null, loser: null }
+  )
+
+  const final = buildBracketMatch(
+    grouped.final[0] ?? null, 'final', 'Winner SF1 vs Winner SF2',
+    sfResults[0]?.winner ?? null,
+    sfResults[1]?.winner ?? null,
+  )
+
+  const third = buildBracketMatch(
+    grouped.third[0] ?? null, 'third', 'Loser SF1 vs Loser SF2',
+    sfResults[0]?.loser ?? null,
+    sfResults[1]?.loser ?? null,
+  )
+
+  return { quarterfinals, semifinals, final, third }
 }
 
 function getRoundHeaderDate(matches: BMatch[]) {
@@ -531,12 +563,12 @@ function FixtureCard({ fixture, index }: { fixture: Fixture; index: number }) {
       </div>
 
       <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-        <div className="flex-1 md:text-right">
+        <div className="flex-1 text-right">
           <TeamLink
             teamName={fixture.home}
             logoSize={42}
             reverse
-            className="w-full justify-start md:justify-end"
+            className="w-full justify-end"
             nameClassName="text-lg font-semibold leading-tight text-text-primary md:text-xl"
           />
         </div>
