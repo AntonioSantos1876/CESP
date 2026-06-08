@@ -451,7 +451,8 @@ function BracketView({ fixtures }: { fixtures: DbFixture[] }) {
             ))}
           </div>
 
-          <div className="w-full overflow-x-auto pb-4">
+          <div className="relative w-full">
+            <div className="w-full overflow-x-auto pb-4">
             <div className="relative mx-auto min-w-max" style={{ width: bracketTotalWidth, height: bracketHeight }}>
               {bracket.quarterfinals.map((match, index) => (
                 <div key={match.id} className="absolute" style={{ left: xQuarter, top: quarterTop[index] }}>
@@ -521,6 +522,8 @@ function BracketView({ fixtures }: { fixtures: DbFixture[] }) {
                 </p>
               </div>
             </div>
+            </div>
+            <div className="pointer-events-none absolute inset-y-0 right-0 w-16 bg-gradient-to-r from-transparent to-[#0E0E0E] xl:hidden" />
           </div>
 
         </>
