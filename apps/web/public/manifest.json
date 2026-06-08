@@ -1,0 +1,26 @@
+{
+  "name": "Clarendon Elite Sports Program",
+  "short_name": "CESP",
+  "description": "The official platform for the Clarendon Elite Sports Program and Clarendon Elite Cup tournament.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0a0a0a",
+  "theme_color": "#E85D04",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/brand/cesp-logo.jpg",
+      "sizes": "192x192",
+      "type": "image/jpeg",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/brand/cesp-logo.jpg",
+      "sizes": "512x512",
+      "type": "image/jpeg",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["sports", "entertainment"],
+  "lang": "en-GB"
+}

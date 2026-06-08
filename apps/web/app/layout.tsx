@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from 'next'
+import { NotificationPrompt } from '@/components/NotificationPrompt'
 import { Inter } from 'next/font/google'
 import './globals.css'
 import { CartProvider } from '@/components/cart-provider'
@@ -38,6 +39,13 @@ export const metadata: Metadata = {
     index: true,
     follow: true,
   },
+  manifest: '/manifest.json',
+  appleWebApp: {
+    capable: true,
+    title: 'CESP',
+    statusBarStyle: 'black-translucent',
+    startupImage: '/brand/cesp-logo.jpg',
+  },
   alternates: {
     canonical: APP_URL,
   },
@@ -71,6 +79,7 @@ export default function RootLayout({
           <div className="pt-16">
             {children}
           </div>
+          <NotificationPrompt />
         </CartProvider>
       </body>
     </html>

@@ -48,11 +48,22 @@ export function Nav({ user }: NavProps) {
         .order('sent_at', { ascending: false })
         .limit(10)
       if (data) {
-        setNotifications(data)
+        setNotifications(prev => {
+          const prevIds = new Set(prev.map((n: { id: string }) => n.id))
+          const newUnread = data.filter((n: { id: string; is_read: boolean }) => !n.is_read && !prevIds.has(n.id))
+          if (newUnread.length > 0 && typeof window !== 'undefined' && Notification.permission === 'granted') {
+            newUnread.forEach((n: { title: string; body: string }) => {
+              new Notification(n.title, { body: n.body, icon: '/brand/cesp-logo.jpg', badge: '/brand/cesp-logo.jpg' })
+            })
+          }
+          return data
+        })
         setUnreadCount(data.filter((n: { is_read: boolean }) => !n.is_read).length)
       }
     }
     fetchNotifs()
+    const interval = setInterval(fetchNotifs, 30000)
+    return () => clearInterval(interval)
   }, [user])
 
   async function markAllRead() {
