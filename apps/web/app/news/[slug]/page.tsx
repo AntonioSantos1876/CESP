@@ -19,13 +19,14 @@ const CATEGORY_COLOUR: Record<string, string> = {
   announcement: 'bg-status-error/15 text-status-error',
 }
 
-export default async function ArticlePage({ params }: { params: { slug: string } }) {
+export default async function ArticlePage({ params }: { params: Promise<{ slug: string }> }) {
+  const { slug } = await params
   const supabase = await createClient()
 
   const { data: article } = await (supabase as any)
     .from('articles')
     .select('*')
-    .eq('slug', params.slug)
+    .eq('slug', slug)
     .eq('status', 'published')
     .single()
 
