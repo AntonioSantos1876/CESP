@@ -1,9 +1,34 @@
 'use client'
 
+import { useState } from 'react'
 import { motion } from 'framer-motion'
-import { Star, Award, Shield, Mail } from 'lucide-react'
+import { Star, Award, Shield, Mail, Copy, Check } from 'lucide-react'
 import Link from 'next/link'
 import { SponsorShowcase } from '@/components/SponsorShowcase'
+
+const CONTACT_EMAIL = 'clarendonelitecup@gmail.com'
+
+function CopyEmailButton({ className }: { className?: string }) {
+  const [copied, setCopied] = useState(false)
+  function handleClick(e: React.MouseEvent) {
+    e.preventDefault()
+    navigator.clipboard.writeText(CONTACT_EMAIL).then(() => {
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2500)
+    })
+    window.location.href = `mailto:${CONTACT_EMAIL}`
+  }
+  return (
+    <a
+      href={`mailto:${CONTACT_EMAIL}`}
+      onClick={handleClick}
+      className={className}
+    >
+      {copied ? <Check size={14} className="shrink-0" /> : <Mail size={14} className="shrink-0" />}
+      {copied ? 'Email copied!' : 'Join as a sponsor'}
+    </a>
+  )
+}
 
 type Tier = {
   name: string
@@ -93,12 +118,7 @@ function TierCard({ tier, index }: { tier: Tier; index: number }) {
         ))}
       </ul>
 
-      <a
-        href="mailto:clarendonelitecup@gmail.com"
-        className="btn-secondary mt-6 inline-flex w-full items-center justify-center"
-      >
-        Join as a sponsor
-      </a>
+      <CopyEmailButton className="btn-secondary mt-6 inline-flex w-full items-center justify-center gap-2" />
     </motion.div>
   )
 }
@@ -153,10 +173,7 @@ export default function SponsorsPage() {
             Join the sponsor lineup and help grow football in Clarendon. We can match your brand with the right level of tournament exposure.
           </p>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
-            <a href="mailto:clarendonelitecup@gmail.com" className="btn-primary inline-flex items-center gap-2">
-              <Mail size={16} />
-              Get in touch
-            </a>
+            <CopyEmailButton className="btn-primary inline-flex items-center gap-2" />
             <Link href="/shop" className="btn-ghost text-brand-secondary inline-flex items-center gap-2">
               Visit the merch shop
             </Link>

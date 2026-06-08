@@ -35,8 +35,8 @@ export function ShopPageClient({ initialTeamSlug, priceOverrides }: Props) {
                 <h1 className="text-4xl font-black text-text-primary sm:text-5xl">Shop</h1>
               </div>
               <p className="max-w-3xl text-lg leading-8 text-text-secondary">
-                Every school now has a full merch line ready to order: home jerseys, branded caps, water bottles, and captain armbands.
-                Jerseys can be customised with size, name, and number before going into the cart.
+                Every school now has a full merch line ready to order: jersey shirts, branded caps, water bottles, and captain armbands.
+                Jersey shirts can be customised with size, name, and number before going into the cart.
               </p>
             </div>
 

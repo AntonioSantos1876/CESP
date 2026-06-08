@@ -12,7 +12,7 @@ type Prices = {
 }
 
 const LABELS: Record<keyof Prices, string> = {
-  jersey: 'Home Jersey',
+  jersey: 'Jersey Shirt',
   cap: 'Supporter Cap',
   bottle: 'Water Bottle',
   armband: 'Captain Armband',

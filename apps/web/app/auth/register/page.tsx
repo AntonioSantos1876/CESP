@@ -137,6 +137,12 @@ export default function RegisterPage() {
       return
     }
 
+    fetch('/api/auth/welcome', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, name: fullName }),
+    }).catch(() => {})
+
     setSuccess(true)
     setLoading(false)
   }

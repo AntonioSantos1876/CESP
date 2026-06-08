@@ -41,8 +41,8 @@ function buildTeamMerch(teamName: string): MerchProduct[] {
       teamSlug,
       kind: 'jersey',
       category: 'jerseys',
-      name: `${teamName} Home Jersey`,
-      description: 'Official home jersey in school colours with optional name and number personalisation.',
+      name: `${teamName} Jersey Shirt`,
+      description: 'Official jersey shirt in school colours with optional name and number personalisation.',
       price: 45,
       sizes: ['XS', 'S', 'M', 'L', 'XL', 'XXL'],
       customizable: true,
@@ -99,7 +99,7 @@ export const MERCH_PRODUCTS = SCHOOL_TEAM_ORDER.flatMap(buildTeamMerch)
 
 export const MERCH_CATEGORY_LABELS: Record<'all' | MerchCategory, string> = {
   all: 'All merch',
-  jerseys: 'Jerseys',
+  jerseys: 'Jersey Shirts',
   headwear: 'Caps',
   hydration: 'Bottles',
   equipment: 'Extras',

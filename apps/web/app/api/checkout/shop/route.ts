@@ -97,6 +97,7 @@ export async function POST(req: Request) {
       payment_method_types: ['card'],
       line_items: lineItems,
       billing_address_collection: 'required',
+      metadata: { type: 'shop' },
       success_url: `${appUrl}/shop/success?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${appUrl}/cart`,
     })

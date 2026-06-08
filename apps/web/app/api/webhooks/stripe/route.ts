@@ -2,6 +2,7 @@ import { headers } from 'next/headers'
 import { NextResponse } from 'next/server'
 import Stripe from 'stripe'
 import { createClient } from '@supabase/supabase-js'
+import { sendPurchaseConfirmation, sendDonationConfirmation } from '@/lib/email'
 
 export async function POST(req: Request) {
   const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
@@ -37,18 +38,41 @@ export async function POST(req: Request) {
         const session = event.data.object as Stripe.Checkout.Session
         const metadata = session.metadata ?? {}
         const userId = metadata.user_id
-        const donationAmount = session.amount_total ? session.amount_total / 100 : 0
-        if (userId) {
+        const checkoutType = metadata.type
+        const amount = session.amount_total ? session.amount_total / 100 : 0
+        const currency = session.currency?.toUpperCase() ?? 'USD'
+        const customerEmail = session.customer_details?.email ?? session.customer_email ?? null
+        const customerName = session.customer_details?.name ?? undefined
+
+        if (checkoutType === 'donation' || userId) {
           await supabase.from('donations').insert({
-            user_id: userId,
+            user_id: userId || null,
             stripe_session_id: session.id,
             stripe_payment_intent_id: session.payment_intent as string,
-            amount: donationAmount,
-            currency: session.currency?.toUpperCase() ?? 'JMD',
+            amount,
+            currency,
             status: 'completed',
             metadata,
           })
+
+          if (customerEmail) {
+            await sendDonationConfirmation({
+              to: customerEmail,
+              name: customerName,
+              amount,
+              currency,
+            })
+          }
+        } else if (checkoutType === 'shop' && customerEmail) {
+          await sendPurchaseConfirmation({
+            to: customerEmail,
+            name: customerName,
+            amount,
+            currency,
+            sessionId: session.id,
+          })
         }
+
         break
       }
 

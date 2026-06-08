@@ -46,6 +46,8 @@ export async function POST(req: Request) {
           quantity: 1,
         },
       ],
+      billing_address_collection: 'required',
+      metadata: { type: 'donation' },
       success_url: `${appUrl}/donate/success?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${appUrl}/donate`,
     })
