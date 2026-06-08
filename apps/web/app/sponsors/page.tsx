@@ -94,7 +94,7 @@ function TierCard({ tier, index }: { tier: Tier; index: number }) {
       </ul>
 
       <a
-        href="mailto:sponsors@clarendonelite.com"
+        href="mailto:clarendonelitecup@gmail.com"
         className="btn-secondary mt-6 inline-flex w-full items-center justify-center"
       >
         Join as a sponsor
@@ -153,7 +153,7 @@ export default function SponsorsPage() {
             Join the sponsor lineup and help grow football in Clarendon. We can match your brand with the right level of tournament exposure.
           </p>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
-            <a href="mailto:sponsors@clarendonelite.com" className="btn-primary inline-flex items-center gap-2">
+            <a href="mailto:clarendonelitecup@gmail.com" className="btn-primary inline-flex items-center gap-2">
               <Mail size={16} />
               Get in touch
             </a>
