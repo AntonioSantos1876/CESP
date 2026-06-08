@@ -62,14 +62,20 @@ export async function POST(req: Request) {
 
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'https://clarendon-elite-sports-program.vercel.app'
 
-  const session = await stripe.checkout.sessions.create({
-    mode: 'payment',
-    payment_method_types: ['card'],
-    line_items: lineItems,
-    billing_address_collection: 'required',
-    success_url: `${appUrl}/shop/success?session_id={CHECKOUT_SESSION_ID}`,
-    cancel_url: `${appUrl}/cart`,
-  })
+  let session: Stripe.Checkout.Session
+  try {
+    session = await stripe.checkout.sessions.create({
+      mode: 'payment',
+      payment_method_types: ['card'],
+      line_items: lineItems,
+      billing_address_collection: 'required',
+      success_url: `${appUrl}/shop/success?session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${appUrl}/cart`,
+    })
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Stripe checkout failed'
+    return NextResponse.json({ error: message }, { status: 502 })
+  }
 
   return NextResponse.json({ url: session.url })
 }
