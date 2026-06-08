@@ -85,8 +85,8 @@ const GALLERY_ITEMS: GalleryItem[] = [
   },
   {
     id: 8,
-    title: 'Excelsior Starting XI',
-    description: 'Excelsior High School squad photo on the pitch.',
+    title: 'Glenmuir & Belair High School Full Team',
+    description: 'Glenmuir and Belair High School full team photo on the pitch, last year.',
     category: 'teams',
     type: 'image',
     aspect: 'wide',
