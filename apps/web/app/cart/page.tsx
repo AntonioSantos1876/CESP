@@ -7,6 +7,17 @@ import { Minus, Plus, ShoppingCart, Trash2 } from 'lucide-react'
 import { useCart } from '@/components/cart-provider'
 import { formatCurrency } from '@/lib/merch'
 
+async function readApiPayload(response: Response) {
+  const text = await response.text()
+  if (!text) return {}
+
+  try {
+    return JSON.parse(text)
+  } catch {
+    throw new Error('The checkout service returned an invalid response. Please try again.')
+  }
+}
+
 export default function CartPage() {
   const { items, itemCount, subtotal, updateQuantity, removeItem, clearCart } = useCart()
   const [isCheckingOut, setIsCheckingOut] = useState(false)
@@ -31,7 +42,7 @@ export default function CartPage() {
         }),
       })
 
-      const payload = await response.json()
+      const payload = await readApiPayload(response) as { url?: string; error?: string }
       if (!response.ok || !payload.url) {
         throw new Error(payload.error ?? 'Unable to start checkout')
       }

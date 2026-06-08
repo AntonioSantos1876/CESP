@@ -17,24 +17,42 @@ const impacts = [
   { icon: Heart, title: '100% charity', description: 'All surplus goes back into the community' },
 ]
 
+async function readApiPayload(response: Response) {
+  const text = await response.text()
+  if (!text) return {}
+
+  try {
+    return JSON.parse(text)
+  } catch {
+    throw new Error('The donation service returned an invalid response. Please try again.')
+  }
+}
+
 export default function DonatePage() {
   const [selected, setSelected] = useState(50000)
   const [custom, setCustom] = useState('')
   const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   const finalAmount = custom ? Number(custom) : selected
 
   async function handleDonate() {
     if (!finalAmount || finalAmount < 100) return
     setLoading(true)
+    setError(null)
     try {
       const res = await fetch('/api/checkout/donate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ amount: finalAmount }),
       })
-      const data = await res.json()
-      if (data.url) window.location.href = data.url
+      const data = await readApiPayload(res) as { url?: string; error?: string }
+      if (!res.ok || !data.url) {
+        throw new Error(data.error ?? 'Unable to start donation checkout')
+      }
+      window.location.href = data.url
+    } catch (checkoutError) {
+      setError(checkoutError instanceof Error ? checkoutError.message : 'Unable to start donation checkout')
     } finally {
       setLoading(false)
     }
@@ -118,6 +136,12 @@ export default function DonatePage() {
                 </span>
               )}
             </motion.button>
+
+            {error && (
+              <p className="mt-4 rounded-2xl border border-red-400/20 bg-red-500/10 px-4 py-3 text-sm text-red-200">
+                {error}
+              </p>
+            )}
 
             <div className="flex items-center gap-2 justify-center mt-3 text-xs text-text-muted">
               <Shield size={12} />
