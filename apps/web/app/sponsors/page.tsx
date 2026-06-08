@@ -38,7 +38,7 @@ const TIERS: Tier[] = [
     border: 'border-slate-500/30',
     icon: Award,
     perks: [
-      'Logo on match day programmes',
+      'Logo on match day programs',
       'Social media feature (quarterly)',
       'Named match sponsorship for 1 fixture',
       'Complimentary tickets to home matches',

@@ -74,13 +74,13 @@ export function Nav({ user }: NavProps) {
     href === '/' ? pathname === '/' : pathname.startsWith(href)
 
   return (
-    <nav className="sticky top-0 z-50 glass border-b border-bg-border">
+    <nav className="fixed inset-x-0 top-0 z-50 border-b border-bg-border bg-bg-base/95 backdrop-blur-xl">
       <div className="container-cesp flex items-center justify-between h-16 gap-4">
         {/* Logo */}
         <Link href="/" className="flex items-center gap-2 shrink-0">
           <CespLogo size={34} priority />
-          <span className="font-bold text-gradient hidden sm:inline">Clarendon Elite Cup</span>
-          <span className="font-bold text-gradient sm:hidden">CEC</span>
+          <span className="font-bold text-gradient hidden sm:inline">Clarendon Elite Sports Program</span>
+          <span className="font-bold text-gradient sm:hidden">CESP</span>
         </Link>
 
         {/* Desktop links */}

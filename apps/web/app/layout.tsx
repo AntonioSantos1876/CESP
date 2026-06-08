@@ -67,7 +67,9 @@ export default function RootLayout({
       <body className={`${inter.variable} font-sans bg-bg-base text-text-primary antialiased`}>
         <CartProvider>
           <NavServer />
-          {children}
+          <div className="pt-16">
+            {children}
+          </div>
         </CartProvider>
       </body>
     </html>
