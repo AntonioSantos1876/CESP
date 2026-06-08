@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { motion } from 'framer-motion'
-import { Users, Trophy, Target, TrendingUp, ChevronRight } from 'lucide-react'
+import { Trophy, Target, TrendingUp, ChevronRight } from 'lucide-react'
 import { TeamLogo } from '@/components/TeamLogo'
 import { createClient } from '@/lib/supabase/client'
 import { SCHOOL_TEAM_ORDER, getTeamBranding, getTeamHref } from '@/lib/school-teams'
@@ -212,7 +212,8 @@ export default function TeamsPage() {
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.5, delay: index * 0.08, ease: [0.22, 1, 0.36, 1] }}
                   whileHover={{ y: -4 }}
-                  className="card-hover overflow-hidden"
+                  className="card overflow-hidden transition-all duration-200 hover:shadow-card-hover hover:[border-color:var(--team-color)]"
+                  style={{ ['--team-color' as string]: team.color }}
                 >
                   <div
                     className="h-1.5 w-full rounded-t-lg -mt-5 -mx-5 mb-4"
@@ -283,22 +284,6 @@ export default function TeamsPage() {
             ))}
           </div>
         )}
-
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.6, duration: 0.6 }}
-          className="mt-12 card bg-brand-primary/5 border-brand-primary/20 text-center"
-        >
-          <Users size={28} className="text-brand-primary mx-auto mb-3" />
-          <h3 className="font-bold text-text-primary mb-1">Need to join or create a team?</h3>
-          <p className="text-sm text-text-secondary mb-4">
-            Sign up, choose your preferred role, and request a team assignment or a new team for admin review.
-          </p>
-          <Link href="/auth/register" className="btn-primary">
-            Start your request
-          </Link>
-        </motion.div>
       </div>
     </main>
   )
