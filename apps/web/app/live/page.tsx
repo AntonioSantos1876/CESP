@@ -25,19 +25,6 @@ type Stream = {
 
 const STREAMS: Stream[] = [
   {
-    id: 9,
-    home: 'Excelsior High School',
-    away: 'Mona High School',
-    date: '2026-06-06',
-    time: '15:00',
-    venue: 'Glenmuir High School',
-    homeScore: 1,
-    awayScore: 0,
-    status: 'vod',
-    youtubeId: 'live_stream_id',
-    viewers: 312,
-  },
-  {
     id: 1,
     home: 'Vere Technical High School',
     away: 'Mona High School',
@@ -77,34 +64,9 @@ const STREAMS: Stream[] = [
     date: '2026-07-31',
     time: '16:00',
     venue: 'Glenmuir High School',
-    homeScore: 0,
-    awayScore: 0,
-    status: 'vod',
-    youtubeId: 'dQw4w9WgXcQ',
-  },
-  {
-    id: 5,
-    home: 'Denbigh High School',
-    away: 'Glenmuir High School',
-    date: '2026-08-01',
-    time: '14:00',
-    venue: 'Glenmuir High School',
-    homeScore: 2,
-    awayScore: 1,
-    status: 'vod',
-    youtubeId: 'dQw4w9WgXcQ',
-  },
-  {
-    id: 6,
-    home: 'Kingston College',
-    away: 'Munro College',
-    date: '2026-08-01',
-    time: '16:00',
-    venue: 'Glenmuir High School',
-    homeScore: 1,
-    awayScore: 3,
-    status: 'vod',
-    youtubeId: 'dQw4w9WgXcQ',
+    homeScore: null,
+    awayScore: null,
+    status: 'upcoming',
   },
 ]
 
@@ -365,10 +327,22 @@ export default function LivePage() {
                 </div>
 
                 <div className="flex items-center justify-end gap-1 text-xs text-text-muted transition-colors group-hover:text-brand-secondary">
-                  <Link href={`/live/${match.id}`} className="inline-flex items-center gap-1 hover:text-brand-secondary">
-                    <Play size={11} />
-                    Watch replay
-                  </Link>
+                  {match.youtubeId ? (
+                    <a
+                      href={`https://www.youtube.com/watch?v=${match.youtubeId}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1 hover:text-brand-secondary"
+                    >
+                      <Play size={11} />
+                      Watch replay
+                    </a>
+                  ) : (
+                    <span className="inline-flex items-center gap-1 opacity-40 cursor-not-allowed">
+                      <Play size={11} />
+                      Replay coming soon
+                    </span>
+                  )}
                 </div>
               </motion.div>
             ))}
