@@ -24,8 +24,8 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Invalid request body' }, { status: 400 })
     }
 
-    if (!amount || amount < 100 || !Number.isFinite(amount)) {
-      return NextResponse.json({ error: 'Amount must be at least J$100' }, { status: 400 })
+    if (!amount || amount < 1 || !Number.isFinite(amount)) {
+      return NextResponse.json({ error: 'Amount must be at least $1' }, { status: 400 })
     }
 
     const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'https://clarendon-elite-sports-program.vercel.app'
@@ -36,7 +36,7 @@ export async function POST(req: Request) {
       line_items: [
         {
           price_data: {
-            currency: 'jmd',
+            currency: 'usd',
             product_data: {
               name: 'Clarendon Elite Sports Program - Donation',
               description: 'Thank you for supporting the league. 100% of your donation goes back into the community.',

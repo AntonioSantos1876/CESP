@@ -68,7 +68,7 @@ export function ShopPageClient({ initialTeamSlug }: { initialTeamSlug: string | 
           <p className="text-sm text-text-secondary mb-4">
             Need a larger order for a school, squad, or supporters group? We can arrange coordinated sizing and batch fulfilment.
           </p>
-          <a href="mailto:shop@clarendonelite.com" className="btn-secondary">
+          <a href="mailto:clarendonelitecup@gmail.com" className="btn-secondary">
             Contact us
           </a>
         </motion.div>
