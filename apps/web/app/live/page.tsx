@@ -302,15 +302,15 @@ export default function LivePage() {
                     teamName={match.home}
                     logoSize={28}
                     truncate={false}
-                    className="flex-1 min-w-0"
+                    className="min-w-0"
                     nameClassName="text-sm font-medium text-text-primary leading-tight"
                   />
-                  <span className="text-text-muted shrink-0 text-xs">vs</span>
+                  <span className="text-text-muted shrink-0 text-xs px-1">vs</span>
                   <TeamLink
                     teamName={match.away}
                     logoSize={28}
                     truncate={false}
-                    className="flex-1 min-w-0"
+                    className="min-w-0"
                     nameClassName="text-sm font-medium text-text-primary leading-tight"
                   />
                 </div>

@@ -43,9 +43,9 @@ export const SCHOOL_TEAM_BRANDING: Record<string, TeamBranding> = {
   'Manchester High School': {
     slug: 'manchester-high-school',
     shortName: 'MHS',
-    primary: '#2f1a17',
-    secondary: '#efc22b',
-    accent: '#7f5b22',
+    primary: '#d4a017',
+    secondary: '#fff8e1',
+    accent: '#f0c830',
     logoPath: '/team-logos/manchester-high-school.jpeg',
   },
   'Mona High School': {
