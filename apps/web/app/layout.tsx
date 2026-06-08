@@ -27,6 +27,7 @@ export const metadata: Metadata = {
     title: 'Clarendon Elite Sports Program',
     description: 'The official platform for the Clarendon Elite Sports Program and Clarendon Elite Cup tournament. Live scores, fixtures, news, donations, and more.',
     siteName: 'Clarendon Elite Sports Program',
+    images: [{ url: '/brand/cesp-logo.jpg', width: 512, height: 512, alt: 'CESP Logo' }],
   },
   twitter: {
     card: 'summary_large_image',
@@ -42,11 +43,11 @@ export const metadata: Metadata = {
   },
   icons: {
     icon: [
-      { url: '/brand/cesp-logo.svg', type: 'image/svg+xml' },
+      { url: '/brand/cesp-logo.jpg', type: 'image/jpeg' },
       { url: '/favicon.ico', sizes: 'any' },
     ],
-    shortcut: '/favicon.ico',
-    apple: '/brand/cesp-logo.svg',
+    shortcut: '/brand/cesp-logo.jpg',
+    apple: '/brand/cesp-logo.jpg',
   },
 }
 

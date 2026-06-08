@@ -9,7 +9,7 @@ type CespLogoProps = {
 export function CespLogo({ size = 32, className, priority = false }: CespLogoProps) {
   return (
     <Image
-      src="/brand/cesp-logo.svg"
+      src="/brand/cesp-logo.jpg"
       alt="Clarendon Elite Sports Program logo"
       width={size}
       height={size}
