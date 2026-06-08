@@ -12,7 +12,7 @@ const inter = Inter({
   display: 'swap',
 })
 
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'https://clarendonelitecup.com'
+const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'https://www.clarendonelitesportsprogram.com'
 
 export const metadata: Metadata = {
   title: {
@@ -36,6 +36,9 @@ export const metadata: Metadata = {
     title: 'Clarendon Elite Sports Program',
     description: 'The official platform for the Clarendon Elite Sports Program and Clarendon Elite Cup tournament.',
   },
+  verification: {
+    google: 'D84jqWWOBVFiEOVJ_D7pq8QHsGpgBKWdZWHSVTO3ZG8',
+  },
   robots: {
     index: true,
     follow: true,
@@ -48,7 +51,7 @@ export const metadata: Metadata = {
     startupImage: '/brand/cesp-logo.jpg',
   },
   alternates: {
-    canonical: APP_URL,
+    canonical: 'https://www.clarendonelitesportsprogram.com',
   },
   icons: {
     icon: [

@@ -23,6 +23,7 @@ const TEAM_JERSEY_ASSETS: Record<string, string> = {
   'Denbigh High School': '/merch/teams/denbigh-high-school.jpeg',
   'Excelsior High School': '/merch/teams/excelsior-high-school.jpeg',
   'Glenmuir High School': '/merch/teams/glenmuir-high-school.jpeg',
+  'Kingston College': '/merch/teams/kingston-college.jpeg',
   'Manchester High School': '/merch/teams/manchester-high-school.jpeg',
   'Mona High School': '/merch/teams/mona-high-school.jpeg',
   'Munro College': '/merch/teams/munro-college.jpeg',

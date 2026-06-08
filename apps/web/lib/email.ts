@@ -1,7 +1,7 @@
 import { Resend } from 'resend'
 
 const FROM = 'Clarendon Elite Cup <noreply@clarendonelitecup.com>'
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'https://clarendon-elite-sports-program.vercel.app'
+const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'https://www.clarendonelitesportsprogram.com'
 
 function getResend() {
   const key = process.env.RESEND_API_KEY
@@ -25,7 +25,7 @@ function base(title: string, body: string) {
     <tr>
       <td style="border-top:1px solid #1e1e1e;padding:20px 32px;text-align:center;">
         <p style="color:#4b5563;font-size:12px;margin:0;">
-          <a href="${APP_URL}" style="color:#f59e0b;text-decoration:none;">clarendonelitecup.com</a>
+          <a href="${APP_URL}" style="color:#f59e0b;text-decoration:none;">clarendonelitesportsprogram.com</a>
           &nbsp;&middot;&nbsp;
           <a href="mailto:clarendonelitecup@gmail.com" style="color:#4b5563;text-decoration:none;">clarendonelitecup@gmail.com</a>
         </p>
