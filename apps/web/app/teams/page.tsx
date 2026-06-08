@@ -72,6 +72,93 @@ function getPlayerName(player: GoalRow['player']) {
   return Array.isArray(player) ? (player[0]?.full_name ?? 'Unknown player') : player.full_name
 }
 
+function TeamCardItem({ team, index }: { team: TeamCard; index: number }) {
+  const [hovered, setHovered] = useState(false)
+
+  return (
+    <Link href={getTeamHref(team.name)} className="block">
+      <motion.div
+        initial={{ opacity: 0, y: 24 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5, delay: index * 0.08, ease: [0.22, 1, 0.36, 1] }}
+        whileHover={{ y: -4 }}
+        onHoverStart={() => setHovered(true)}
+        onHoverEnd={() => setHovered(false)}
+        className="card overflow-hidden transition-all duration-200 hover:shadow-card-hover"
+        style={{
+          borderColor: hovered ? team.color : undefined,
+          transition: 'border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease',
+        }}
+      >
+        <div
+          className="h-1.5 w-full rounded-t-lg -mt-5 -mx-5 mb-4"
+          style={{ backgroundColor: team.color, width: 'calc(100% + 2.5rem)' }}
+        />
+
+        <div className="mb-4 flex items-center gap-3">
+          <TeamLogo teamName={team.name} size={52} />
+          <div className="min-w-0 flex-1">
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <h2 className="font-bold leading-tight text-text-primary">{team.name}</h2>
+                <p className="text-xs text-text-muted">Staff lead: {team.manager}</p>
+              </div>
+              <span
+                className="rounded-full px-3 py-1 text-[11px] font-bold uppercase tracking-[0.28em]"
+                style={{ backgroundColor: `${team.color}22`, color: team.color }}
+              >
+                {team.shortName}
+              </span>
+            </div>
+          </div>
+        </div>
+
+        <div className="mb-4 grid grid-cols-4 gap-2">
+          {[
+            { label: 'P', value: team.played },
+            { label: 'W', value: team.won },
+            { label: 'D', value: team.drawn },
+            { label: 'L', value: team.lost },
+          ].map(stat => (
+            <div key={stat.label} className="rounded-xl bg-bg-muted p-2 text-center">
+              <div className="text-lg font-bold text-text-primary">{stat.value}</div>
+              <div className="text-xs text-text-muted">{stat.label}</div>
+            </div>
+          ))}
+        </div>
+
+        <div className="space-y-2 text-sm">
+          <div className="flex items-center gap-2 text-text-secondary">
+            <Target size={14} className="shrink-0" />
+            <span>{team.goalsFor} scored, {team.goalsAgainst} conceded</span>
+          </div>
+          <div className="flex items-center gap-2 text-text-secondary">
+            <TrendingUp size={14} className="shrink-0" />
+            <span>Top scorer: {team.topScorer}</span>
+          </div>
+          <div className="flex items-center gap-2 text-text-secondary">
+            <Trophy size={14} className="shrink-0" />
+            <span className="font-semibold" style={{ color: team.color }}>
+              {team.points} pts
+            </span>
+          </div>
+        </div>
+
+        {team.description && (
+          <p className="mt-4 text-sm leading-6 text-text-muted">
+            {team.description}
+          </p>
+        )}
+
+        <div className="mt-5 flex items-center gap-2 text-sm font-semibold" style={{ color: team.color }}>
+          View team page
+          <ChevronRight size={15} />
+        </div>
+      </motion.div>
+    </Link>
+  )
+}
+
 export default function TeamsPage() {
   const [teams, setTeams] = useState<TeamCard[]>([])
   const [loading, setLoading] = useState(true)
@@ -120,7 +207,7 @@ export default function TeamsPage() {
         id: team.id,
         name: team.name,
         shortName: team.short_name,
-        color: team.home_colour,
+        color: getTeamBranding(team.name)?.primary ?? team.home_colour,
         manager: 'Team staff pending',
         played: 0,
         won: 0,
@@ -206,81 +293,7 @@ export default function TeamsPage() {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
             {teams.map((team, index) => (
-              <Link key={team.id} href={getTeamHref(team.name)} className="block">
-                <motion.div
-                  initial={{ opacity: 0, y: 24 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.5, delay: index * 0.08, ease: [0.22, 1, 0.36, 1] }}
-                  whileHover={{ y: -4 }}
-                  className="card overflow-hidden transition-all duration-200 hover:shadow-card-hover hover:[border-color:var(--team-color)]"
-                  style={{ ['--team-color' as string]: team.color }}
-                >
-                  <div
-                    className="h-1.5 w-full rounded-t-lg -mt-5 -mx-5 mb-4"
-                    style={{ backgroundColor: team.color, width: 'calc(100% + 2.5rem)' }}
-                  />
-
-                  <div className="mb-4 flex items-center gap-3">
-                    <TeamLogo teamName={team.name} size={52} />
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="min-w-0">
-                          <h2 className="font-bold leading-tight text-text-primary">{team.name}</h2>
-                          <p className="text-xs text-text-muted">Staff lead: {team.manager}</p>
-                        </div>
-                        <span
-                          className="rounded-full px-3 py-1 text-[11px] font-bold uppercase tracking-[0.28em]"
-                          style={{ backgroundColor: `${team.color}22`, color: team.color }}
-                        >
-                          {team.shortName}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="mb-4 grid grid-cols-4 gap-2">
-                    {[
-                      { label: 'P', value: team.played },
-                      { label: 'W', value: team.won },
-                      { label: 'D', value: team.drawn },
-                      { label: 'L', value: team.lost },
-                    ].map(stat => (
-                      <div key={stat.label} className="rounded-xl bg-bg-muted p-2 text-center">
-                        <div className="text-lg font-bold text-text-primary">{stat.value}</div>
-                        <div className="text-xs text-text-muted">{stat.label}</div>
-                      </div>
-                    ))}
-                  </div>
-
-                  <div className="space-y-2 text-sm">
-                    <div className="flex items-center gap-2 text-text-secondary">
-                      <Target size={14} className="shrink-0" />
-                      <span>{team.goalsFor} scored, {team.goalsAgainst} conceded</span>
-                    </div>
-                    <div className="flex items-center gap-2 text-text-secondary">
-                      <TrendingUp size={14} className="shrink-0" />
-                      <span>Top scorer: {team.topScorer}</span>
-                    </div>
-                    <div className="flex items-center gap-2 text-text-secondary">
-                      <Trophy size={14} className="shrink-0" />
-                      <span className="font-semibold" style={{ color: team.color }}>
-                        {team.points} pts
-                      </span>
-                    </div>
-                  </div>
-
-                  {team.description && (
-                    <p className="mt-4 text-sm leading-6 text-text-muted">
-                      {team.description}
-                    </p>
-                  )}
-
-                  <div className="mt-5 flex items-center gap-2 text-sm font-semibold" style={{ color: team.color }}>
-                    View team page
-                    <ChevronRight size={15} />
-                  </div>
-                </motion.div>
-              </Link>
+              <TeamCardItem key={team.id} team={team} index={index} />
             ))}
           </div>
         )}
