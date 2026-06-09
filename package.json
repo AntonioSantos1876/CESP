@@ -12,10 +12,7 @@
     "typescript": "^5.4.5"
   },
   "pnpm": {
-    "onlyBuiltDependencies": ["sharp"],
-    "overrides": {
-      "postcss": ">=8.5.10"
-    }
+    "onlyBuiltDependencies": ["sharp"]
   },
   "engines": {
     "node": ">=18.0.0",
