@@ -9,6 +9,12 @@ const AUTHOR_ROUTES = ['/news/create']
 const ADMIN_ROLES = ['super_admin', 'team_admin']
 const AUTHOR_ROLES = ['super_admin', 'team_admin', 'photographer']
 
+function copyCookies(from: NextResponse, to: NextResponse) {
+  from.cookies.getAll().forEach((cookie) => {
+    to.cookies.set(cookie)
+  })
+}
+
 export async function proxy(request: NextRequest) {
   const pathname = request.nextUrl.pathname
   const search = request.nextUrl.search
@@ -53,7 +59,9 @@ export async function proxy(request: NextRequest) {
     cleanUrl.searchParams.delete('redirect_to')
     cleanUrl.searchParams.delete('redirectTo')
 
-    return NextResponse.redirect(cleanUrl)
+    const redirectResponse = NextResponse.redirect(cleanUrl)
+    copyCookies(supabaseResponse, redirectResponse)
+    return redirectResponse
   }
 
   const {
