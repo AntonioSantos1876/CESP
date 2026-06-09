@@ -4,6 +4,7 @@ import { CespLogo } from '@/components/CespLogo'
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
+import { getAuthOrigin } from '@/lib/auth-routing'
 import { Eye, EyeOff } from 'lucide-react'
 
 type RequestedRole = 'fan' | 'supporter' | 'volunteer' | 'photographer' | 'coach' | 'livestream_operator' | 'team_admin'
@@ -115,6 +116,7 @@ export default function RegisterPage() {
     setError('')
 
     const supabase = createClient()
+    const origin = getAuthOrigin()
     const { error: authError } = await supabase.auth.signUp({
       email,
       password,
@@ -127,7 +129,7 @@ export default function RegisterPage() {
           requested_team_name: teamRequestType === 'new' ? newTeamName.trim() : '',
           requested_team_short_name: teamRequestType === 'new' ? newTeamShortName.trim() : '',
         },
-        emailRedirectTo: `${process.env.NEXT_PUBLIC_APP_URL}/auth/callback`,
+        emailRedirectTo: `${origin}/auth/callback`,
       },
     })
 
@@ -149,9 +151,10 @@ export default function RegisterPage() {
 
   async function handleGoogleLogin() {
     const supabase = createClient()
+    const origin = getAuthOrigin()
     await supabase.auth.signInWithOAuth({
       provider: 'google',
-      options: { redirectTo: `${process.env.NEXT_PUBLIC_APP_URL}/auth/callback` },
+      options: { redirectTo: `${origin}/auth/callback` },
     })
   }
 

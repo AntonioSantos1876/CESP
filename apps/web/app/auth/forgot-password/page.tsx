@@ -4,6 +4,7 @@ import { CespLogo } from '@/components/CespLogo'
 import { useState } from 'react'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
+import { getAuthOrigin } from '@/lib/auth-routing'
 import { ArrowLeft } from 'lucide-react'
 
 export default function ForgotPasswordPage() {
@@ -18,8 +19,9 @@ export default function ForgotPasswordPage() {
     setError('')
 
     const supabase = createClient()
+    const origin = getAuthOrigin()
     const { error: authError } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${process.env.NEXT_PUBLIC_APP_URL}/auth/update-password`,
+      redirectTo: `${origin}/auth/update-password`,
     })
 
     if (authError) {

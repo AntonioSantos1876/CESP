@@ -5,7 +5,7 @@ import { Suspense, useState } from 'react'
 import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
-import { getSafeRedirectPath } from '@/lib/auth-routing'
+import { getAuthOrigin, getSafeRedirectPath } from '@/lib/auth-routing'
 import { Eye, EyeOff } from 'lucide-react'
 
 function LoginContent() {
@@ -39,9 +39,10 @@ function LoginContent() {
 
   async function handleGoogleLogin() {
     const supabase = createClient()
+    const origin = getAuthOrigin()
     await supabase.auth.signInWithOAuth({
       provider: 'google',
-      options: { redirectTo: `${process.env.NEXT_PUBLIC_APP_URL ?? window.location.origin}/auth/callback?redirectTo=${redirectTo}` },
+      options: { redirectTo: `${origin}/auth/callback?redirectTo=${redirectTo}` },
     })
   }
 
