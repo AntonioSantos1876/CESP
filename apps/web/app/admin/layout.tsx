@@ -9,7 +9,9 @@ import {
   HandHeart, ShieldCheck, ChevronRight, LogOut, Menu, X, Users2, ShoppingBag,
 } from 'lucide-react'
 
-const NAV = [
+type UserRole = 'super_admin' | 'team_admin' | 'coach'
+
+const SUPER_ADMIN_NAV = [
   { href: '/admin', label: 'Dashboard', icon: LayoutDashboard, exact: true },
   { href: '/admin/matches', label: 'Matches', icon: CalendarDays },
   { href: '/admin/teams', label: 'Teams', icon: Users2 },
@@ -19,11 +21,24 @@ const NAV = [
   { href: '/admin/shop', label: 'Shop Prices', icon: ShoppingBag },
 ]
 
+const TEAM_STAFF_NAV = [
+  { href: '/admin', label: 'Dashboard', icon: LayoutDashboard, exact: true },
+  { href: '/admin/matches', label: 'Matches', icon: CalendarDays },
+  { href: '/admin/teams', label: 'Teams', icon: Users2 },
+]
+
+function isAllowedPath(pathname: string, role: UserRole) {
+  if (role === 'super_admin') return true
+  return pathname === '/admin' || pathname.startsWith('/admin/matches') || pathname.startsWith('/admin/teams')
+}
+
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter()
   const pathname = usePathname()
   const [loading, setLoading] = useState(true)
   const [userName, setUserName] = useState('')
+  const [userRole, setUserRole] = useState<UserRole | null>(null)
+  const [assignedTeam, setAssignedTeam] = useState('')
   const [sidebarOpen, setSidebarOpen] = useState(false)
 
   useEffect(() => {
@@ -34,7 +49,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
       const { data: profile } = await (supabase as any)
         .from('profiles')
-        .select('full_name, role')
+        .select('full_name, role, team_id')
         .eq('id', user.id)
         .single()
 
@@ -42,11 +57,31 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         router.replace('/')
         return
       }
+
+      const role = profile.role as UserRole
+      if (!isAllowedPath(pathname, role)) {
+        router.replace('/admin')
+        return
+      }
+
+      if (profile.team_id) {
+        const { data: teamRow } = await (supabase as any)
+          .from('teams')
+          .select('name')
+          .eq('id', profile.team_id)
+          .single()
+
+        setAssignedTeam(teamRow?.name ?? '')
+      } else {
+        setAssignedTeam('')
+      }
+
       setUserName(profile.full_name || user.email || 'Admin')
+      setUserRole(role)
       setLoading(false)
     }
     check()
-  }, [router])
+  }, [pathname, router])
 
   async function signOut() {
     const supabase = createClient()
@@ -54,7 +89,9 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     router.push('/')
   }
 
-  function isActive(item: typeof NAV[0]) {
+  const navItems = userRole === 'super_admin' ? SUPER_ADMIN_NAV : TEAM_STAFF_NAV
+
+  function isActive(item: typeof SUPER_ADMIN_NAV[0]) {
     if (item.exact) return pathname === item.href
     return pathname.startsWith(item.href)
   }
@@ -82,7 +119,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       </div>
 
       <nav className="flex-1 px-3 py-4 space-y-0.5">
-        {NAV.map(item => {
+        {navItems.map(item => {
           const Icon = item.icon
           const active = isActive(item)
           return (
@@ -107,6 +144,13 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       <div className="px-3 py-4 border-t border-[#1e1e1e]">
         <div className="px-3 py-2 mb-1">
           <p className="text-xs text-text-muted truncate">{userName}</p>
+          <p className="text-[10px] text-text-muted/80 mt-1 truncate">
+            {userRole === 'super_admin'
+              ? 'Full platform access'
+              : assignedTeam
+                ? `Assigned team: ${assignedTeam}`
+                : 'Team-scoped access'}
+          </p>
         </div>
         <button
           onClick={signOut}

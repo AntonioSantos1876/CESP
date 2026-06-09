@@ -44,10 +44,32 @@ type DbPlayer = {
   is_starter: boolean
 }
 
+type LineupEntry = {
+  full_name: string
+  position: string | null
+  jersey_number: number | null
+  is_starter: boolean
+  sort_order: number
+}
+
+type DbFormation = {
+  formation: string
+  lineup: Array<{
+    player_id?: string
+    full_name?: string
+    position?: string | null
+    jersey_number?: number | null
+    lineup_status?: 'starter' | 'bench' | 'out'
+    sort_order?: number
+  }> | null
+}
+
 type FixtureData = {
   id: string
   home: string
   away: string
+  homeTeamId: string | null
+  awayTeamId: string | null
   date: string
   time: string
   venue: string
@@ -63,6 +85,8 @@ type FixtureData = {
 
 type DbFixture = {
   id: string
+  home_team_id: string
+  away_team_id: string
   match_date: string
   venue: string | null
   round: string | null
@@ -74,25 +98,25 @@ type DbFixture = {
 
 const ALL_FIXTURES: FixtureData[] = [
   {
-    id: '1', home: 'Vere Technical High School', away: 'Mona High School', date: '2026-07-31', time: '10:00',
+    id: '1', home: 'Vere Technical High School', away: 'Mona High School', homeTeamId: null, awayTeamId: null, date: '2026-07-31', time: '10:00',
     venue: 'Glenmuir High School', homeScore: null, awayScore: null, status: 'upcoming',
     round: 'Quarter-final 1', season: '2026 Clarendon Elite Cup', referee: 'J. Brown',
     youtubeId: null, matchDate: '2026-07-31T10:00:00',
   },
   {
-    id: '2', home: 'Denbigh High School', away: 'Excelsior High School', date: '2026-07-31', time: '12:00',
+    id: '2', home: 'Denbigh High School', away: 'Excelsior High School', homeTeamId: null, awayTeamId: null, date: '2026-07-31', time: '12:00',
     venue: 'Glenmuir High School', homeScore: null, awayScore: null, status: 'upcoming',
     round: 'Quarter-final 2', season: '2026 Clarendon Elite Cup', referee: 'D. Wilson',
     youtubeId: null, matchDate: '2026-07-31T12:00:00',
   },
   {
-    id: '3', home: 'Kingston College', away: 'Manchester High School', date: '2026-07-31', time: '14:00',
+    id: '3', home: 'Kingston College', away: 'Manchester High School', homeTeamId: null, awayTeamId: null, date: '2026-07-31', time: '14:00',
     venue: 'Glenmuir High School', homeScore: null, awayScore: null, status: 'upcoming',
     round: 'Quarter-final 3', season: '2026 Clarendon Elite Cup', referee: 'A. Clarke',
     youtubeId: null, matchDate: '2026-07-31T14:00:00',
   },
   {
-    id: '4', home: 'Glenmuir High School', away: 'Munro College', date: '2026-07-31', time: '16:00',
+    id: '4', home: 'Glenmuir High School', away: 'Munro College', homeTeamId: null, awayTeamId: null, date: '2026-07-31', time: '16:00',
     venue: 'Glenmuir High School', homeScore: null, awayScore: null, status: 'upcoming',
     round: 'Quarter-final 4', season: '2026 Clarendon Elite Cup', referee: 'R. Davis',
     youtubeId: null, matchDate: '2026-07-31T16:00:00',
@@ -140,6 +164,8 @@ function toFixtureData(row: DbFixture): FixtureData {
     id: row.id,
     home,
     away,
+    homeTeamId: row.home_team_id,
+    awayTeamId: row.away_team_id,
     date,
     time: formatMatchTime(row.match_date),
     venue: row.venue ?? fallback?.venue ?? 'Venue TBC',
@@ -170,16 +196,16 @@ function spreadX(count: number, index: number): number {
   return Math.round(left + ((right - left) / (count - 1)) * index)
 }
 
-function buildLineup(dbPlayers: DbPlayer[], side: 'home' | 'away'): LineupData | null {
-  if (dbPlayers.length === 0) return null
+function buildLineup(entries: LineupEntry[], side: 'home' | 'away', formationOverride?: string | null): LineupData | null {
+  if (entries.length === 0) return null
 
-  const starters = dbPlayers.filter(player => player.is_starter)
+  const starters = entries.filter(player => player.is_starter)
   const orderedPlayers = starters.length > 0
     ? [
         ...starters,
-        ...dbPlayers.filter(player => !player.is_starter),
+        ...entries.filter(player => !player.is_starter),
       ]
-    : dbPlayers
+    : entries
 
   const gks = orderedPlayers.filter(p => categorizePosition(p.position) === 'GK')
   const outfield = orderedPlayers.filter(p => categorizePosition(p.position) !== 'GK')
@@ -198,7 +224,7 @@ function buildLineup(dbPlayers: DbPlayer[], side: 'home' | 'away'): LineupData |
     return pos && !pos.includes('pending') && !pos.includes('unknown') && pos !== ''
   })
 
-  let defs: DbPlayer[], mids: DbPlayer[], fwds: DbPlayer[]
+  let defs: LineupEntry[], mids: LineupEntry[], fwds: LineupEntry[]
 
   if (hasMeaningful) {
     defs = selected.filter(p => categorizePosition(p.position) === 'DEF')
@@ -246,30 +272,58 @@ function buildLineup(dbPlayers: DbPlayer[], side: 'home' | 'away'): LineupData |
   }))
 
   const formationParts = [defs.length, mids.length, fwds.length].filter(n => n > 0)
-  const formation = formationParts.length ? formationParts.join('-') : '4-3-3'
+  const formation = formationOverride || (formationParts.length ? formationParts.join('-') : '4-3-3')
 
   return { formation, players, bench }
 }
 
-async function fetchLineup(teamName: string, side: 'home' | 'away'): Promise<LineupData | null> {
-  const supabase = createClient()
-  const { data: teamRow } = await (supabase as any)
-    .from('teams')
-    .select('id')
-    .eq('name', teamName)
-    .single()
+function normalizeFormationLineup(lineup: DbFormation['lineup']): LineupEntry[] {
+  if (!Array.isArray(lineup)) return []
 
-  if (!teamRow?.id) return null
+  return lineup.flatMap((player, index) => {
+    if (!player?.full_name) return []
+
+    return [{
+      full_name: player.full_name,
+      position: typeof player.position === 'string' ? player.position : null,
+      jersey_number: typeof player.jersey_number === 'number' ? player.jersey_number : null,
+      is_starter: player.lineup_status === 'starter',
+      sort_order: typeof player.sort_order === 'number' ? player.sort_order : index,
+    }]
+  }).sort((left, right) => left.sort_order - right.sort_order)
+}
+
+async function fetchLineup(teamId: string, fixtureId: string, side: 'home' | 'away'): Promise<LineupData | null> {
+  const supabase = createClient()
+  const { data: formationRow } = await (supabase as any)
+    .from('formations')
+    .select('formation, lineup')
+    .eq('fixture_id', fixtureId)
+    .eq('team_id', teamId)
+    .maybeSingle()
+
+  const savedEntries = normalizeFormationLineup((formationRow as DbFormation | null)?.lineup ?? null)
+  if (savedEntries.length > 0) {
+    return buildLineup(savedEntries, side, (formationRow as DbFormation | null)?.formation ?? null)
+  }
 
   const { data: players } = await (supabase as any)
     .from('players')
     .select('id, full_name, position, jersey_number, is_starter')
-    .eq('team_id', teamRow.id)
+    .eq('team_id', teamId)
     .eq('is_active', true)
     .order('is_starter', { ascending: false })
     .order('jersey_number', { ascending: true })
 
-  return buildLineup((players ?? []) as DbPlayer[], side)
+  const fallbackEntries = ((players ?? []) as DbPlayer[]).map((player, index) => ({
+    full_name: player.full_name,
+    position: player.position,
+    jersey_number: player.jersey_number,
+    is_starter: player.is_starter,
+    sort_order: index,
+  }))
+
+  return buildLineup(fallbackEntries, side)
 }
 
 function PitchViewer({
@@ -517,6 +571,8 @@ export default function FixtureDetailPage() {
         .from('fixtures')
         .select(`
           id,
+          home_team_id,
+          away_team_id,
           match_date,
           venue,
           round,
@@ -564,18 +620,18 @@ export default function FixtureDetailPage() {
   }, [fixture?.id])
 
   useEffect(() => {
-    if (!fixture) { setLineupsLoading(false); return }
+    if (!fixture || !fixture.homeTeamId || !fixture.awayTeamId) { setLineupsLoading(false); return }
 
     setLineupsLoading(true)
     Promise.all([
-      fetchLineup(fixture.home, 'home'),
-      fetchLineup(fixture.away, 'away'),
+      fetchLineup(fixture.homeTeamId, fixture.id, 'home'),
+      fetchLineup(fixture.awayTeamId, fixture.id, 'away'),
     ]).then(([home, away]) => {
       setHomeLineup(home)
       setAwayLineup(away)
       setLineupsLoading(false)
     })
-  }, [fixture?.home, fixture?.away])
+  }, [fixture?.awayTeamId, fixture?.homeTeamId, fixture?.id])
 
   if (fixtureLoading) {
     return (
