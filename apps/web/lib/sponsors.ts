@@ -9,6 +9,10 @@ export const MAIN_SPONSORS: MainSponsor[] = [
     imagePath: '/sponsors/simjos.jpeg',
   },
   {
+    name: 'Sports With Abbi',
+    imagePath: '/sponsors/sports-with-abbi.jpeg',
+  },
+  {
     name: 'The Shai Touch by Shai',
     imagePath: '/sponsors/the-shai-touch-by-shai.jpeg',
   },

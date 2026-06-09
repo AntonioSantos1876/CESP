@@ -8,6 +8,7 @@ import {
   Camera,
   ChevronLeft,
   ChevronRight,
+  Trash2,
   Play,
   Upload,
   Volume2,
@@ -29,6 +30,7 @@ type GalleryItem = {
   type: MediaType
   aspect: Aspect
   src: string
+  storagePath?: string
 }
 
 type GalleryPhotoRow = {
@@ -41,7 +43,7 @@ type GalleryPhotoRow = {
   url: string
 }
 
-const UPLOAD_ROLES: UserRole[] = ['super_admin', 'team_admin', 'photographer', 'coach']
+const UPLOAD_ROLES: UserRole[] = ['super_admin', 'photographer']
 const GALLERY_UPLOAD_ALBUM_TITLE = 'Gallery Uploads'
 
 const STATIC_GALLERY_ITEMS: GalleryItem[] = [
@@ -203,6 +205,16 @@ function slugify(value: string) {
     .replace(/^-|-$/g, '')
 }
 
+function getStoragePathFromPublicUrl(url: string) {
+  const marker = '/storage/v1/object/public/gallery-media/'
+  const markerIndex = url.indexOf(marker)
+
+  if (markerIndex === -1) return null
+
+  const path = url.slice(markerIndex + marker.length).split('?')[0]
+  return path || null
+}
+
 async function inferAspect(file: File): Promise<Aspect> {
   if (typeof window === 'undefined') return 'square'
 
@@ -334,6 +346,7 @@ export default function GalleryPage() {
         type: normaliseMediaType(item.media_type),
         aspect: normaliseAspect(item.aspect),
         src: item.url,
+        storagePath: getStoragePathFromPublicUrl(item.url) ?? undefined,
       }))
 
       setGalleryItems([...uploadedItems, ...STATIC_GALLERY_ITEMS])
@@ -363,6 +376,7 @@ export default function GalleryPage() {
   }, [])
 
   const canUploadMedia = !!userId && !!userRole && UPLOAD_ROLES.includes(userRole)
+  const canDeleteMedia = userRole === 'super_admin'
 
   const filtered = useMemo(
     () => (category === 'all' ? galleryItems : galleryItems.filter((item) => item.category === category)),
@@ -413,7 +427,7 @@ export default function GalleryPage() {
 
   async function handleUpload() {
     if (!userId || !canUploadMedia) {
-      setUploadError('You need an approved coach, team admin, photographer, or super admin account to upload.')
+      setUploadError('You need an approved photographer or super admin account to upload.')
       return
     }
 
@@ -525,12 +539,47 @@ export default function GalleryPage() {
       type: normaliseMediaType(insertedPhoto.media_type),
       aspect: normaliseAspect(insertedPhoto.aspect),
       src: insertedPhoto.url,
+      storagePath: filePath,
     }
 
     setGalleryItems((current) => [newItem, ...current])
     setUploadSuccess('Media uploaded to the gallery.')
     resetUploadForm()
     setUploadOpen(false)
+  }
+
+  async function handleDeleteMedia() {
+    if (!lightboxItem?.storagePath || !canDeleteMedia) return
+
+    const confirmed = window.confirm(`Delete "${lightboxItem.title}" from the gallery?`)
+    if (!confirmed) return
+
+    const supabase = createClient()
+    setUploadError('')
+    setUploadSuccess('')
+
+    const { error: storageDeleteError } = await supabase.storage
+      .from('gallery-media')
+      .remove([lightboxItem.storagePath])
+
+    if (storageDeleteError) {
+      setUploadError(storageDeleteError.message)
+      return
+    }
+
+    const { error: photoDeleteError } = await (supabase as any)
+      .from('gallery_photos')
+      .delete()
+      .eq('id', lightboxItem.id)
+
+    if (photoDeleteError) {
+      setUploadError(photoDeleteError.message)
+      return
+    }
+
+    setGalleryItems((current) => current.filter((item) => item.id !== lightboxItem.id))
+    setUploadSuccess('Media deleted from the gallery.')
+    closeLightbox()
   }
 
   return (
@@ -562,7 +611,7 @@ export default function GalleryPage() {
                 Upload media
               </button>
               <a
-                href="mailto:media@clarendonelite.com?subject=Gallery%20Media%20Submission"
+                href="mailto:clarendonelitecup@gmail.com?subject=Gallery%20Media%20For%20Review&body=Please%20attach%20your%20photos%20or%20videos%20for%20gallery%20review.%0A%0AInclude%20the%20match%2C%20team%2C%20or%20moment%20in%20your%20message."
                 className="inline-flex items-center gap-2 rounded-xl border border-bg-border px-4 py-2.5 text-sm text-text-secondary transition-colors hover:bg-bg-hover hover:text-text-primary"
               >
                 Email gallery desk
@@ -573,7 +622,7 @@ export default function GalleryPage() {
             Match photos, team portraits, award presentations, and Smile Jamaica media moments from the Clarendon Elite Sports Program.
           </p>
           <p className="mt-3 text-sm text-text-muted">
-            Approved coaches, team admins, photographers, and super admins can upload directly. Everyone else can still email the gallery desk.
+            Super admins can upload and remove gallery media. Photographers can upload for review. Everyone else can email the gallery desk with photos or videos to be checked before posting.
           </p>
           {uploadSuccess && <p className="mt-3 text-sm text-emerald-400">{uploadSuccess}</p>}
         </motion.div>
@@ -632,7 +681,7 @@ export default function GalleryPage() {
                 <div>
                   <h2 className="text-xl font-bold text-text-primary">Upload gallery media</h2>
                   <p className="mt-1 text-sm text-text-muted">
-                    Add match photos or videos straight to the public gallery.
+                    Super admins and photographers can add match photos or videos here.
                   </p>
                 </div>
                 <button
@@ -658,7 +707,7 @@ export default function GalleryPage() {
               ) : !canUploadMedia ? (
                 <div className="space-y-4">
                   <p className="text-sm text-text-secondary">
-                    Your account can view the gallery, but uploads are limited to approved coaches, team admins, photographers, and super admins.
+                    Your account can view the gallery, but direct uploads are limited to photographers and super admins.
                   </p>
                   <Link href="/profile" className="btn-secondary inline-flex">
                     Open profile
@@ -710,7 +759,7 @@ export default function GalleryPage() {
                       className="block w-full rounded-xl border border-bg-border bg-bg-muted px-4 py-3 text-sm text-text-secondary file:mr-3 file:rounded-lg file:border-0 file:bg-brand-primary file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-white"
                     />
                     <p className="mt-2 text-xs text-text-muted">
-                      Images and videos are supported. Uploaded files go live in the gallery immediately.
+                      Images and videos are supported. If you do not have upload access, send them to the gallery desk for review by email.
                     </p>
                   </div>
 
@@ -825,6 +874,15 @@ export default function GalleryPage() {
                   </div>
 
                   <div className="flex items-center gap-2 self-start md:self-auto">
+                    {canDeleteMedia && lightboxItem.storagePath ? (
+                      <button
+                        onClick={handleDeleteMedia}
+                        className="inline-flex items-center gap-2 rounded-full border border-red-500/30 bg-red-500/10 px-4 py-2 text-sm font-semibold text-red-200 transition-colors hover:bg-red-500/20"
+                      >
+                        <Trash2 size={16} />
+                        Delete media
+                      </button>
+                    ) : null}
                     <button
                       onClick={showPrevious}
                       disabled={lightboxIndex <= 0}
