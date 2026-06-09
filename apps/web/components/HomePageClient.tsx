@@ -433,6 +433,30 @@ export function HomePageClient({ isSignedIn }: { isSignedIn: boolean }) {
             <Trophy size={18} className="text-brand-primary" />
             <span className="font-semibold text-gradient">Clarendon Elite Cup</span>
           </div>
+          <a
+            href="https://www.instagram.com/clarendonelite_/"
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label="Follow us on Instagram"
+            className="text-text-muted hover:text-brand-primary transition-colors"
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="22"
+              height="22"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.75"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden="true"
+            >
+              <rect width="20" height="20" x="2" y="2" rx="5" ry="5" />
+              <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z" />
+              <line x1="17.5" x2="17.51" y1="6.5" y2="6.5" />
+            </svg>
+          </a>
           <p className="text-sm text-text-muted">
             &copy; {new Date().getFullYear()} Clarendon Elite Sports Program. All rights reserved.
           </p>

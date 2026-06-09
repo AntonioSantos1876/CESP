@@ -55,8 +55,8 @@ export const metadata: Metadata = {
   },
   icons: {
     icon: [
-      { url: '/brand/cesp-logo.jpg', type: 'image/jpeg' },
-      { url: '/favicon.ico', sizes: 'any' },
+      { url: '/brand/cesp-logo.svg', type: 'image/svg+xml' },
+      { url: '/brand/cesp-logo.jpg', type: 'image/jpeg', sizes: '320x320' },
     ],
     shortcut: '/brand/cesp-logo.jpg',
     apple: '/brand/cesp-logo.jpg',
