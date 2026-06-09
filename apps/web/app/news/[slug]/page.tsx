@@ -89,7 +89,7 @@ export default async function ArticlePage({ params }: { params: Promise<{ slug: 
           ))}
         </div>
 
-        {article.source_url && (
+        {article.source_url && /^https?:\/\//i.test(article.source_url) && (
           <div className="mt-10 pt-8 border-t border-bg-border">
             <a
               href={article.source_url}
