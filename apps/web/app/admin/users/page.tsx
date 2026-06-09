@@ -333,7 +333,7 @@ export default function AdminUsersPage() {
             <div className="text-center py-20 text-text-muted text-sm">No users found.</div>
           ) : (
             <div className="bg-[#111111] border border-[#1e1e1e] rounded-2xl overflow-hidden">
-              <div className="grid grid-cols-[1fr_auto_auto] gap-4 px-5 py-3 border-b border-[#1a1a1a]">
+              <div className="hidden sm:grid sm:grid-cols-[1fr_auto_auto] gap-4 px-5 py-3 border-b border-[#1a1a1a]">
                 <p className="text-xs font-medium text-text-muted uppercase tracking-widest">User</p>
                 <p className="text-xs font-medium text-text-muted uppercase tracking-widest">Role</p>
                 <p className="text-xs font-medium text-text-muted uppercase tracking-widest">Action</p>
@@ -354,7 +354,7 @@ export default function AdminUsersPage() {
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     transition={{ duration: 0.2, delay: index * 0.02 }}
-                    className={`grid grid-cols-[1fr_auto_auto] gap-4 items-center px-5 py-3.5 ${index < filteredProfiles.length - 1 ? 'border-b border-[#1a1a1a]' : ''}`}
+                    className={`flex flex-col gap-3 sm:grid sm:grid-cols-[1fr_auto_auto] sm:gap-4 sm:items-center px-5 py-3.5 ${index < filteredProfiles.length - 1 ? 'border-b border-[#1a1a1a]' : ''}`}
                   >
                     <div className="min-w-0">
                       <div className="flex items-center gap-2">
@@ -391,35 +391,37 @@ export default function AdminUsersPage() {
                       </div>
                     </div>
 
-                    <div>
-                      <select
-                        value={currentRole}
-                        onChange={e => setEdited({ ...edited, [profile.id]: e.target.value as UserRole })}
-                        className="input text-xs py-1.5 px-2.5 pr-7"
-                      >
-                        {ROLES.map(role => (
-                          <option key={role} value={role}>{role.replace('_', ' ')}</option>
-                        ))}
-                      </select>
-                    </div>
+                    <div className="flex items-center gap-2 sm:contents">
+                      <div className="flex-1 sm:flex-none">
+                        <select
+                          value={currentRole}
+                          onChange={e => setEdited({ ...edited, [profile.id]: e.target.value as UserRole })}
+                          className="input text-xs py-1.5 px-2.5 pr-7 w-full sm:w-auto"
+                        >
+                          {ROLES.map(role => (
+                            <option key={role} value={role}>{role.replace('_', ' ')}</option>
+                          ))}
+                        </select>
+                      </div>
 
-                    <div>
-                      <button
-                        onClick={() => saveUser(profile)}
-                        disabled={!isDirty || isSaving}
-                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
-                          isDirty
-                            ? 'bg-brand-primary text-white hover:bg-brand-primary/90'
-                            : 'bg-bg-muted text-text-muted cursor-not-allowed opacity-40 border border-bg-border'
-                        }`}
-                      >
-                        {isSaving ? (
-                          <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                        ) : (
-                          <Save size={12} />
-                        )}
-                        Save
-                      </button>
+                      <div className="shrink-0">
+                        <button
+                          onClick={() => saveUser(profile)}
+                          disabled={!isDirty || isSaving}
+                          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+                            isDirty
+                              ? 'bg-brand-primary text-white hover:bg-brand-primary/90'
+                              : 'bg-bg-muted text-text-muted cursor-not-allowed opacity-40 border border-bg-border'
+                          }`}
+                        >
+                          {isSaving ? (
+                            <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                          ) : (
+                            <Save size={12} />
+                          )}
+                          Save
+                        </button>
+                      </div>
                     </div>
                   </motion.div>
                 )
