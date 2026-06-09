@@ -142,6 +142,11 @@ export interface Database {
           album_id: string
           url: string
           thumbnail_url: string | null
+          title: string
+          description: string | null
+          media_type: string
+          category: string
+          aspect: string
           caption: string | null
           sort_order: number
           created_at: string

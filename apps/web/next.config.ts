@@ -18,7 +18,7 @@ const securityHeaders = [
       "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
       "font-src 'self' https://fonts.gstatic.com",
       "img-src 'self' data: blob: https:",
-      "media-src 'self' blob:",
+      "media-src 'self' blob: https://*.supabase.co https://*.supabase.in",
       "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://api.stripe.com https://fcm.googleapis.com https://*.firebaseio.com wss://*.firebaseio.com https://identitytoolkit.googleapis.com",
       "frame-src https://js.stripe.com https://hooks.stripe.com",
       "object-src 'none'",

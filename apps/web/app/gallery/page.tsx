@@ -1,16 +1,28 @@
 'use client'
 
 import Image from 'next/image'
-import { useMemo, useState } from 'react'
+import Link from 'next/link'
+import { ChangeEvent, useEffect, useMemo, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Camera, Play, Upload, Volume2, VolumeX, X, ChevronLeft, ChevronRight } from 'lucide-react'
+import {
+  Camera,
+  ChevronLeft,
+  ChevronRight,
+  Play,
+  Upload,
+  Volume2,
+  VolumeX,
+  X,
+} from 'lucide-react'
+import { createClient } from '@/lib/supabase/client'
 
 type Category = 'all' | 'spotlight' | 'teams' | 'matchday' | 'awards'
 type MediaType = 'image' | 'video'
 type Aspect = 'square' | 'wide' | 'tall'
+type UserRole = 'fan' | 'super_admin' | 'team_admin' | 'coach' | 'livestream_operator' | 'photographer' | 'volunteer'
 
 type GalleryItem = {
-  id: number
+  id: string
   title: string
   description: string
   category: Exclude<Category, 'all'>
@@ -19,9 +31,22 @@ type GalleryItem = {
   src: string
 }
 
-const GALLERY_ITEMS: GalleryItem[] = [
+type GalleryPhotoRow = {
+  id: string
+  title: string
+  description: string | null
+  category: string
+  media_type: string
+  aspect: string
+  url: string
+}
+
+const UPLOAD_ROLES: UserRole[] = ['super_admin', 'team_admin', 'photographer', 'coach']
+const GALLERY_UPLOAD_ALBUM_TITLE = 'Gallery Uploads'
+
+const STATIC_GALLERY_ITEMS: GalleryItem[] = [
   {
-    id: 1,
+    id: 'seed-1',
     title: 'Glenmuir High School 2025 Champions Standing Ovation',
     description: 'Standing ovation on the pitch for Glenmuir High School, winners of the 2025 season.',
     category: 'awards',
@@ -30,7 +55,7 @@ const GALLERY_ITEMS: GalleryItem[] = [
     src: '/gallery/launch-june-2026/founder-smile-jamaica-interview.mp4',
   },
   {
-    id: 2,
+    id: 'seed-2',
     title: 'Denbigh High School Third Place',
     description: 'Denbigh High School celebrate finishing third in the 2025 Clarendon Elite Sports Program season.',
     category: 'awards',
@@ -39,7 +64,7 @@ const GALLERY_ITEMS: GalleryItem[] = [
     src: '/gallery/launch-june-2026/founder-smile-jamaica-set.jpeg',
   },
   {
-    id: 3,
+    id: 'seed-3',
     title: 'Founder Trophy Portrait',
     description: 'Studio portrait with the 2025 winner trophy after the television feature.',
     category: 'spotlight',
@@ -48,7 +73,7 @@ const GALLERY_ITEMS: GalleryItem[] = [
     src: '/gallery/launch-june-2026/founder-trophy-portrait.jpeg',
   },
   {
-    id: 4,
+    id: 'seed-4',
     title: 'Smile Jamaica Interview',
     description: 'Anthony Baker shares the Clarendon Elite Sports Program story on TVJ.',
     category: 'spotlight',
@@ -57,7 +82,7 @@ const GALLERY_ITEMS: GalleryItem[] = [
     src: '/gallery/launch-june-2026/tournament-highlights.mp4',
   },
   {
-    id: 5,
+    id: 'seed-5',
     title: 'Pre-match Lineup',
     description: 'Both squads line up before kick-off in Clarendon.',
     category: 'matchday',
@@ -66,7 +91,7 @@ const GALLERY_ITEMS: GalleryItem[] = [
     src: '/gallery/launch-june-2026/prematch-handshake-lineup.jpeg',
   },
   {
-    id: 6,
+    id: 'seed-6',
     title: 'Denbigh Starting XI',
     description: 'Denbigh High School team photo before the match.',
     category: 'teams',
@@ -75,7 +100,7 @@ const GALLERY_ITEMS: GalleryItem[] = [
     src: '/gallery/launch-june-2026/team-denbigh-lineup.jpeg',
   },
   {
-    id: 7,
+    id: 'seed-7',
     title: 'Manchester Starting XI',
     description: 'Manchester High School squad lined up on matchday.',
     category: 'teams',
@@ -84,7 +109,7 @@ const GALLERY_ITEMS: GalleryItem[] = [
     src: '/gallery/launch-june-2026/team-manchester-lineup.jpeg',
   },
   {
-    id: 8,
+    id: 'seed-8',
     title: 'Glenmuir & Belair High School Full Team',
     description: 'Glenmuir and Belair High School full team photo on the pitch, last year.',
     category: 'teams',
@@ -93,7 +118,7 @@ const GALLERY_ITEMS: GalleryItem[] = [
     src: '/gallery/launch-june-2026/team-excelsior-lineup.jpeg',
   },
   {
-    id: 9,
+    id: 'seed-9',
     title: 'Vere Technical High School 2025',
     description: 'Vere Technical High School squad photo from last year’s tournament.',
     category: 'teams',
@@ -102,7 +127,7 @@ const GALLERY_ITEMS: GalleryItem[] = [
     src: '/gallery/launch-june-2026/team-vere-last-year.jpeg',
   },
   {
-    id: 10,
+    id: 'seed-10',
     title: 'Glenmuir High School Starting XI',
     description: 'Glenmuir High School starting eleven lined up on the pitch, last year.',
     category: 'teams',
@@ -111,7 +136,7 @@ const GALLERY_ITEMS: GalleryItem[] = [
     src: '/gallery/launch-june-2026/team-denbigh-celebration.jpeg',
   },
   {
-    id: 11,
+    id: 'seed-11',
     title: 'Vere Award Presentation',
     description: 'Vere Technical High School collect their second-place presentation.',
     category: 'awards',
@@ -120,7 +145,7 @@ const GALLERY_ITEMS: GalleryItem[] = [
     src: '/gallery/launch-june-2026/team-vere-award.jpeg',
   },
   {
-    id: 12,
+    id: 'seed-12',
     title: 'Denbigh High School Starting XI',
     description: 'Denbigh High School starting eleven lined up on the pitch, last year.',
     category: 'teams',
@@ -129,7 +154,7 @@ const GALLERY_ITEMS: GalleryItem[] = [
     src: '/gallery/launch-june-2026/team-chapelton-award.jpeg',
   },
   {
-    id: 13,
+    id: 'seed-13',
     title: 'Vere Technical High School Starting XI',
     description: 'Vere Technical High School starting eleven lined up on the pitch, last year.',
     category: 'teams',
@@ -137,7 +162,7 @@ const GALLERY_ITEMS: GalleryItem[] = [
     aspect: 'tall',
     src: '/gallery/launch-june-2026/team-denbigh-award.jpeg',
   },
-] as const
+]
 
 const LABELS: Record<Category, string> = {
   all: 'All Media',
@@ -159,12 +184,64 @@ function aspectRatio(aspect: Aspect) {
   return 'aspect-square'
 }
 
+function normaliseAspect(value: string | null | undefined): Aspect {
+  return value === 'wide' || value === 'tall' ? value : 'square'
+}
+
+function normaliseCategory(value: string | null | undefined): Exclude<Category, 'all'> {
+  return value === 'spotlight' || value === 'teams' || value === 'awards' ? value : 'matchday'
+}
+
+function normaliseMediaType(value: string | null | undefined): MediaType {
+  return value === 'video' ? 'video' : 'image'
+}
+
+function slugify(value: string) {
+  return value
+    .toLowerCase()
+    .replace(/[^a-z0-9.]+/g, '-')
+    .replace(/^-|-$/g, '')
+}
+
+async function inferAspect(file: File): Promise<Aspect> {
+  if (typeof window === 'undefined') return 'square'
+
+  const objectUrl = URL.createObjectURL(file)
+
+  try {
+    const dimensions = await new Promise<{ width: number; height: number }>((resolve, reject) => {
+      if (file.type.startsWith('video/')) {
+        const video = document.createElement('video')
+        video.preload = 'metadata'
+        video.onloadedmetadata = () => resolve({ width: video.videoWidth, height: video.videoHeight })
+        video.onerror = () => reject(new Error('Unable to read video dimensions.'))
+        video.src = objectUrl
+        return
+      }
+
+      const image = new window.Image()
+      image.onload = () => resolve({ width: image.width, height: image.height })
+      image.onerror = () => reject(new Error('Unable to read image dimensions.'))
+      image.src = objectUrl
+    })
+
+    const ratio = dimensions.width / Math.max(dimensions.height, 1)
+    if (ratio >= 1.35) return 'wide'
+    if (ratio <= 0.8) return 'tall'
+    return 'square'
+  } catch {
+    return 'square'
+  } finally {
+    URL.revokeObjectURL(objectUrl)
+  }
+}
+
 function MediaCard({
   item,
   onOpen,
 }: {
   item: GalleryItem
-  onOpen: (id: number) => void
+  onOpen: (id: string) => void
 }) {
   return (
     <motion.button
@@ -227,18 +304,75 @@ function MediaCard({
 
 export default function GalleryPage() {
   const [category, setCategory] = useState<Category>('all')
-  const [lightboxId, setLightboxId] = useState<number | null>(null)
+  const [galleryItems, setGalleryItems] = useState<GalleryItem[]>(STATIC_GALLERY_ITEMS)
+  const [lightboxId, setLightboxId] = useState<string | null>(null)
   const [videoMuted, setVideoMuted] = useState(true)
+  const [uploadOpen, setUploadOpen] = useState(false)
+  const [userId, setUserId] = useState<string | null>(null)
+  const [userRole, setUserRole] = useState<UserRole | null>(null)
+  const [title, setTitle] = useState('')
+  const [description, setDescription] = useState('')
+  const [uploadCategory, setUploadCategory] = useState<Exclude<Category, 'all'>>('matchday')
+  const [uploadFile, setUploadFile] = useState<File | null>(null)
+  const [uploading, setUploading] = useState(false)
+  const [uploadError, setUploadError] = useState('')
+  const [uploadSuccess, setUploadSuccess] = useState('')
+
+  useEffect(() => {
+    async function loadGallery() {
+      const supabase = createClient()
+      const { data: photos } = await (supabase as any)
+        .from('gallery_photos')
+        .select('id, title, description, category, media_type, aspect, url')
+        .order('created_at', { ascending: false })
+
+      const uploadedItems = ((photos ?? []) as GalleryPhotoRow[]).map((item) => ({
+        id: item.id,
+        title: item.title,
+        description: item.description ?? 'New upload to the Clarendon Elite gallery.',
+        category: normaliseCategory(item.category),
+        type: normaliseMediaType(item.media_type),
+        aspect: normaliseAspect(item.aspect),
+        src: item.url,
+      }))
+
+      setGalleryItems([...uploadedItems, ...STATIC_GALLERY_ITEMS])
+    }
+
+    async function loadUser() {
+      const supabase = createClient()
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) {
+        setUserId(null)
+        setUserRole(null)
+        return
+      }
+
+      const { data: profile } = await (supabase as any)
+        .from('profiles')
+        .select('role')
+        .eq('id', user.id)
+        .maybeSingle()
+
+      setUserId(user.id)
+      setUserRole((profile?.role as UserRole | undefined) ?? null)
+    }
+
+    loadGallery()
+    loadUser()
+  }, [])
+
+  const canUploadMedia = !!userId && !!userRole && UPLOAD_ROLES.includes(userRole)
 
   const filtered = useMemo(
-    () => (category === 'all' ? GALLERY_ITEMS : GALLERY_ITEMS.filter(item => item.category === category)),
-    [category]
+    () => (category === 'all' ? galleryItems : galleryItems.filter((item) => item.category === category)),
+    [category, galleryItems]
   )
 
-  const lightboxIndex = lightboxId === null ? -1 : filtered.findIndex(item => item.id === lightboxId)
+  const lightboxIndex = lightboxId === null ? -1 : filtered.findIndex((item) => item.id === lightboxId)
   const lightboxItem = lightboxIndex >= 0 ? filtered[lightboxIndex] : null
 
-  function openLightbox(id: number) {
+  function openLightbox(id: string) {
     setLightboxId(id)
     setVideoMuted(true)
   }
@@ -261,7 +395,142 @@ export default function GalleryPage() {
   }
 
   function toggleVideoAudio() {
-    setVideoMuted(current => !current)
+    setVideoMuted((current) => !current)
+  }
+
+  function resetUploadForm() {
+    setTitle('')
+    setDescription('')
+    setUploadCategory('matchday')
+    setUploadFile(null)
+    setUploadError('')
+  }
+
+  function handleFileChange(event: ChangeEvent<HTMLInputElement>) {
+    setUploadFile(event.target.files?.[0] ?? null)
+    setUploadError('')
+  }
+
+  async function handleUpload() {
+    if (!userId || !canUploadMedia) {
+      setUploadError('You need an approved coach, team admin, photographer, or super admin account to upload.')
+      return
+    }
+
+    if (!title.trim()) {
+      setUploadError('Title is required.')
+      return
+    }
+
+    if (!uploadFile) {
+      setUploadError('Choose a file to upload.')
+      return
+    }
+
+    setUploading(true)
+    setUploadError('')
+    setUploadSuccess('')
+
+    const supabase = createClient()
+
+    let albumId: string | null = null
+    const { data: existingAlbum, error: albumLookupError } = await (supabase as any)
+      .from('gallery_albums')
+      .select('id')
+      .eq('author_id', userId)
+      .eq('title', GALLERY_UPLOAD_ALBUM_TITLE)
+      .maybeSingle()
+
+    if (albumLookupError) {
+      setUploadError(albumLookupError.message)
+      setUploading(false)
+      return
+    }
+
+    albumId = existingAlbum?.id ?? null
+
+    if (!albumId) {
+      const { data: newAlbum, error: albumCreateError } = await (supabase as any)
+        .from('gallery_albums')
+        .insert({
+          title: GALLERY_UPLOAD_ALBUM_TITLE,
+          description: 'Uploads submitted from the public gallery page.',
+          author_id: userId,
+          is_published: true,
+        })
+        .select('id')
+        .single()
+
+      if (albumCreateError) {
+        setUploadError(albumCreateError.message)
+        setUploading(false)
+        return
+      }
+
+      albumId = newAlbum?.id ?? null
+    }
+
+    const filePath = `${userId}/${Date.now()}-${slugify(uploadFile.name)}`
+    const { error: uploadStorageError } = await supabase.storage
+      .from('gallery-media')
+      .upload(filePath, uploadFile, {
+        cacheControl: '3600',
+        upsert: false,
+        contentType: uploadFile.type,
+      })
+
+    if (uploadStorageError) {
+      setUploadError(uploadStorageError.message)
+      setUploading(false)
+      return
+    }
+
+    const { data: publicData } = supabase.storage
+      .from('gallery-media')
+      .getPublicUrl(filePath)
+
+    const mediaType: MediaType = uploadFile.type.startsWith('video/') ? 'video' : 'image'
+    const aspect = await inferAspect(uploadFile)
+
+    const { data: insertedPhoto, error: insertError } = await (supabase as any)
+      .from('gallery_photos')
+      .insert({
+        album_id: albumId,
+        url: publicData.publicUrl,
+        thumbnail_url: mediaType === 'image' ? publicData.publicUrl : null,
+        caption: description.trim() || title.trim(),
+        title: title.trim(),
+        description: description.trim() || null,
+        media_type: mediaType,
+        category: uploadCategory,
+        aspect,
+        sort_order: 0,
+      })
+      .select('id, title, description, category, media_type, aspect, url')
+      .single()
+
+    setUploading(false)
+
+    if (insertError) {
+      await supabase.storage.from('gallery-media').remove([filePath])
+      setUploadError(insertError.message)
+      return
+    }
+
+    const newItem: GalleryItem = {
+      id: insertedPhoto.id,
+      title: insertedPhoto.title,
+      description: insertedPhoto.description ?? 'New upload to the Clarendon Elite gallery.',
+      category: normaliseCategory(insertedPhoto.category),
+      type: normaliseMediaType(insertedPhoto.media_type),
+      aspect: normaliseAspect(insertedPhoto.aspect),
+      src: insertedPhoto.url,
+    }
+
+    setGalleryItems((current) => [newItem, ...current])
+    setUploadSuccess('Media uploaded to the gallery.')
+    resetUploadForm()
+    setUploadOpen(false)
   }
 
   return (
@@ -280,24 +549,37 @@ export default function GalleryPage() {
                 <h1 className="text-4xl font-bold text-text-primary">Gallery</h1>
               </div>
             </div>
-            <a
-              href="mailto:media@clarendonelite.com?subject=Gallery%20Media%20Upload"
-              className="btn-secondary inline-flex items-center gap-2 self-start"
-            >
-              <Upload size={16} />
-              Upload media
-            </a>
+            <div className="flex flex-wrap gap-3 self-start">
+              <button
+                onClick={() => {
+                  setUploadError('')
+                  setUploadSuccess('')
+                  setUploadOpen(true)
+                }}
+                className="btn-secondary inline-flex items-center gap-2"
+              >
+                <Upload size={16} />
+                Upload media
+              </button>
+              <a
+                href="mailto:media@clarendonelite.com?subject=Gallery%20Media%20Submission"
+                className="inline-flex items-center gap-2 rounded-xl border border-bg-border px-4 py-2.5 text-sm text-text-secondary transition-colors hover:bg-bg-hover hover:text-text-primary"
+              >
+                Email gallery desk
+              </a>
+            </div>
           </div>
           <p className="max-w-2xl text-text-secondary">
             Match photos, team portraits, award presentations, and Smile Jamaica media moments from the Clarendon Elite Sports Program.
           </p>
           <p className="mt-3 text-sm text-text-muted">
-            Have more photos or clips to add? Use the upload button to send them to the gallery desk.
+            Approved coaches, team admins, photographers, and super admins can upload directly. Everyone else can still email the gallery desk.
           </p>
+          {uploadSuccess && <p className="mt-3 text-sm text-emerald-400">{uploadSuccess}</p>}
         </motion.div>
 
         <div className="mb-8 flex flex-wrap items-center gap-2">
-          {(Object.keys(LABELS) as Category[]).map(entry => (
+          {(Object.keys(LABELS) as Category[]).map((entry) => (
             <button
               key={entry}
               onClick={() => setCategory(entry)}
@@ -315,7 +597,7 @@ export default function GalleryPage() {
 
         <motion.div layout className="grid grid-cols-2 auto-rows-[180px] gap-3 md:grid-cols-3 lg:grid-cols-4">
           <AnimatePresence mode="popLayout">
-            {filtered.map(item => (
+            {filtered.map((item) => (
               <MediaCard key={item.id} item={item} onOpen={openLightbox} />
             ))}
           </AnimatePresence>
@@ -325,6 +607,144 @@ export default function GalleryPage() {
           <div className="py-20 text-center text-text-muted">No media in this section yet.</div>
         )}
       </div>
+
+      <AnimatePresence>
+        {uploadOpen && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center bg-bg-base/90 p-4 backdrop-blur-md"
+            onClick={() => {
+              setUploadOpen(false)
+              setUploadError('')
+            }}
+          >
+            <motion.div
+              initial={{ scale: 0.96, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.96, opacity: 0 }}
+              transition={{ duration: 0.2 }}
+              onClick={(event) => event.stopPropagation()}
+              className="w-full max-w-lg rounded-[1.6rem] border border-white/10 bg-[#111111] p-6 shadow-[0_24px_80px_rgba(0,0,0,0.42)]"
+            >
+              <div className="mb-5 flex items-start justify-between gap-3">
+                <div>
+                  <h2 className="text-xl font-bold text-text-primary">Upload gallery media</h2>
+                  <p className="mt-1 text-sm text-text-muted">
+                    Add match photos or videos straight to the public gallery.
+                  </p>
+                </div>
+                <button
+                  onClick={() => {
+                    setUploadOpen(false)
+                    setUploadError('')
+                  }}
+                  className="rounded-full p-2 text-text-muted transition-colors hover:bg-bg-hover hover:text-text-primary"
+                >
+                  <X size={16} />
+                </button>
+              </div>
+
+              {!userId ? (
+                <div className="space-y-4">
+                  <p className="text-sm text-text-secondary">
+                    Sign in first to upload gallery media.
+                  </p>
+                  <Link href="/auth/login?redirectTo=/gallery" className="btn-primary inline-flex">
+                    Sign in to continue
+                  </Link>
+                </div>
+              ) : !canUploadMedia ? (
+                <div className="space-y-4">
+                  <p className="text-sm text-text-secondary">
+                    Your account can view the gallery, but uploads are limited to approved coaches, team admins, photographers, and super admins.
+                  </p>
+                  <Link href="/profile" className="btn-secondary inline-flex">
+                    Open profile
+                  </Link>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  <div>
+                    <label className="mb-1.5 block text-sm text-text-muted">Title</label>
+                    <input
+                      value={title}
+                      onChange={(event) => setTitle(event.target.value)}
+                      placeholder="e.g. Semi-final tunnel walk"
+                      className="input w-full"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="mb-1.5 block text-sm text-text-muted">Description</label>
+                    <textarea
+                      value={description}
+                      onChange={(event) => setDescription(event.target.value)}
+                      placeholder="Add a short caption for the gallery."
+                      rows={4}
+                      className="input w-full resize-none"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="mb-1.5 block text-sm text-text-muted">Category</label>
+                    <select
+                      value={uploadCategory}
+                      onChange={(event) => setUploadCategory(event.target.value as Exclude<Category, 'all'>)}
+                      className="input w-full"
+                    >
+                      <option value="matchday">Match Day</option>
+                      <option value="teams">Teams</option>
+                      <option value="awards">Awards</option>
+                      <option value="spotlight">Spotlight</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="mb-1.5 block text-sm text-text-muted">File</label>
+                    <input
+                      type="file"
+                      accept="image/*,video/*"
+                      onChange={handleFileChange}
+                      className="block w-full rounded-xl border border-bg-border bg-bg-muted px-4 py-3 text-sm text-text-secondary file:mr-3 file:rounded-lg file:border-0 file:bg-brand-primary file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-white"
+                    />
+                    <p className="mt-2 text-xs text-text-muted">
+                      Images and videos are supported. Uploaded files go live in the gallery immediately.
+                    </p>
+                  </div>
+
+                  {uploadError && <p className="text-sm text-red-400">{uploadError}</p>}
+
+                  <div className="flex items-center gap-3 pt-2">
+                    <button
+                      onClick={() => {
+                        setUploadOpen(false)
+                        setUploadError('')
+                      }}
+                      className="rounded-xl border border-bg-border px-4 py-2.5 text-sm text-text-secondary transition-colors hover:bg-bg-hover hover:text-text-primary"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={handleUpload}
+                      disabled={uploading}
+                      className="btn-primary inline-flex items-center gap-2 disabled:opacity-50"
+                    >
+                      {uploading ? (
+                        <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                      ) : (
+                        <Upload size={15} />
+                      )}
+                      Upload now
+                    </button>
+                  </div>
+                </div>
+              )}
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       <AnimatePresence>
         {lightboxItem && (
@@ -340,7 +760,7 @@ export default function GalleryPage() {
               animate={{ scale: 1 }}
               exit={{ scale: 0.94 }}
               transition={{ duration: 0.24, ease: [0.22, 1, 0.36, 1] }}
-              onClick={event => event.stopPropagation()}
+              onClick={(event) => event.stopPropagation()}
               className="relative w-full max-w-5xl"
             >
               <div className="relative overflow-hidden rounded-[1.8rem] border border-white/10 bg-[#111111] shadow-[0_30px_80px_rgba(0,0,0,0.42)]">
@@ -381,48 +801,44 @@ export default function GalleryPage() {
 
                   <button
                     onClick={closeLightbox}
-                    className="absolute right-4 top-4 flex h-10 w-10 items-center justify-center rounded-full border border-white/10 bg-black/60 text-white transition-colors hover:border-brand-primary/40"
-                    aria-label="Close"
+                    className="absolute right-4 top-4 rounded-full border border-white/15 bg-black/45 p-2 text-white transition-colors hover:bg-black/65"
                   >
-                    <X size={16} />
+                    <X size={18} />
                   </button>
+                </div>
 
-                  {lightboxIndex > 0 && (
+                <div className="flex flex-col gap-5 px-6 py-5 md:flex-row md:items-end md:justify-between">
+                  <div className="max-w-3xl">
+                    <div className="mb-2 flex items-center gap-2">
+                      <span className={`badge ${lightboxItem.category === 'matchday' ? 'badge-brand' : 'bg-white/5 text-text-secondary border border-white/10'}`}>
+                        {LABELS[lightboxItem.category]}
+                      </span>
+                      {lightboxItem.type === 'video' && (
+                        <span className="inline-flex items-center gap-1 rounded-full border border-white/10 bg-white/5 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.24em] text-white">
+                          <Play size={11} />
+                          Highlight clip
+                        </span>
+                      )}
+                    </div>
+                    <h2 className="text-2xl font-bold text-white">{lightboxItem.title}</h2>
+                    <p className="mt-2 max-w-2xl text-sm leading-6 text-white/75">{lightboxItem.description}</p>
+                  </div>
+
+                  <div className="flex items-center gap-2 self-start md:self-auto">
                     <button
                       onClick={showPrevious}
-                      className="absolute left-4 top-1/2 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full border border-white/10 bg-black/60 text-white transition-colors hover:border-brand-primary/40"
-                      aria-label="Previous media"
+                      disabled={lightboxIndex <= 0}
+                      className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-white/12 bg-white/5 text-white transition-colors hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-35"
                     >
                       <ChevronLeft size={18} />
                     </button>
-                  )}
-
-                  {lightboxIndex < filtered.length - 1 && (
                     <button
                       onClick={showNext}
-                      className="absolute right-4 top-1/2 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full border border-white/10 bg-black/60 text-white transition-colors hover:border-brand-primary/40"
-                      aria-label="Next media"
+                      disabled={lightboxIndex < 0 || lightboxIndex >= filtered.length - 1}
+                      className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-white/12 bg-white/5 text-white transition-colors hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-35"
                     >
                       <ChevronRight size={18} />
                     </button>
-                  )}
-                </div>
-
-                <div className="border-t border-white/10 px-5 py-4 md:px-6">
-                  <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
-                    <div className="min-w-0">
-                      <p className="text-lg font-bold text-text-primary">{lightboxItem.title}</p>
-                      <p className="mt-1 max-w-3xl text-sm leading-6 text-text-secondary">{lightboxItem.description}</p>
-                      <div className="mt-3 flex flex-wrap items-center gap-2">
-                        <span className="badge badge-brand text-xs">{LABELS[lightboxItem.category]}</span>
-                        {lightboxItem.type === 'video' && (
-                          <span className="rounded-full border border-white/10 bg-white/[0.03] px-3 py-1 text-xs font-semibold text-text-secondary">
-                            Autoplay video
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                    <p className="text-sm text-text-muted">{lightboxIndex + 1} / {filtered.length}</p>
                   </div>
                 </div>
               </div>
