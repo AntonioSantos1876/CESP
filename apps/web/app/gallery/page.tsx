@@ -30,21 +30,9 @@ type GalleryItem = {
   type: MediaType
   aspect: Aspect
   src: string
-  storagePath?: string
-}
-
-type GalleryPhotoRow = {
-  id: string
-  title: string
-  description: string | null
-  category: string
-  media_type: string
-  aspect: string
-  url: string
 }
 
 const UPLOAD_ROLES: UserRole[] = ['super_admin', 'photographer']
-const GALLERY_UPLOAD_ALBUM_TITLE = 'Gallery Uploads'
 
 const STATIC_GALLERY_ITEMS: GalleryItem[] = [
   {
@@ -198,23 +186,6 @@ function normaliseMediaType(value: string | null | undefined): MediaType {
   return value === 'video' ? 'video' : 'image'
 }
 
-function slugify(value: string) {
-  return value
-    .toLowerCase()
-    .replace(/[^a-z0-9.]+/g, '-')
-    .replace(/^-|-$/g, '')
-}
-
-function getStoragePathFromPublicUrl(url: string) {
-  const marker = '/storage/v1/object/public/gallery-media/'
-  const markerIndex = url.indexOf(marker)
-
-  if (markerIndex === -1) return null
-
-  const path = url.slice(markerIndex + marker.length).split('?')[0]
-  return path || null
-}
-
 async function inferAspect(file: File): Promise<Aspect> {
   if (typeof window === 'undefined') return 'square'
 
@@ -332,24 +303,29 @@ export default function GalleryPage() {
 
   useEffect(() => {
     async function loadGallery() {
-      const supabase = createClient()
-      const { data: photos } = await (supabase as any)
-        .from('gallery_photos')
-        .select('id, title, description, category, media_type, aspect, url')
-        .order('created_at', { ascending: false })
+      try {
+        const response = await fetch('/api/gallery/media', { cache: 'no-store' })
+        const payload = await response.json()
 
-      const uploadedItems = ((photos ?? []) as GalleryPhotoRow[]).map((item) => ({
-        id: item.id,
-        title: item.title,
-        description: item.description ?? 'New upload to the Clarendon Elite gallery.',
-        category: normaliseCategory(item.category),
-        type: normaliseMediaType(item.media_type),
-        aspect: normaliseAspect(item.aspect),
-        src: item.url,
-        storagePath: getStoragePathFromPublicUrl(item.url) ?? undefined,
-      }))
+        if (!response.ok || !Array.isArray(payload.items)) {
+          setGalleryItems(STATIC_GALLERY_ITEMS)
+          return
+        }
 
-      setGalleryItems([...uploadedItems, ...STATIC_GALLERY_ITEMS])
+        const uploadedItems = payload.items.map((item: GalleryItem) => ({
+          id: item.id,
+          title: item.title,
+          description: item.description,
+          category: normaliseCategory(item.category),
+          type: normaliseMediaType(item.type),
+          aspect: normaliseAspect(item.aspect),
+          src: item.src,
+        }))
+
+        setGalleryItems([...uploadedItems, ...STATIC_GALLERY_ITEMS])
+      } catch {
+        setGalleryItems(STATIC_GALLERY_ITEMS)
+      }
     }
 
     async function loadUser() {
@@ -445,101 +421,36 @@ export default function GalleryPage() {
     setUploadError('')
     setUploadSuccess('')
 
-    const supabase = createClient()
-
-    let albumId: string | null = null
-    const { data: existingAlbum, error: albumLookupError } = await (supabase as any)
-      .from('gallery_albums')
-      .select('id')
-      .eq('author_id', userId)
-      .eq('title', GALLERY_UPLOAD_ALBUM_TITLE)
-      .maybeSingle()
-
-    if (albumLookupError) {
-      setUploadError(albumLookupError.message)
-      setUploading(false)
-      return
-    }
-
-    albumId = existingAlbum?.id ?? null
-
-    if (!albumId) {
-      const { data: newAlbum, error: albumCreateError } = await (supabase as any)
-        .from('gallery_albums')
-        .insert({
-          title: GALLERY_UPLOAD_ALBUM_TITLE,
-          description: 'Uploads submitted from the public gallery page.',
-          author_id: userId,
-          is_published: true,
-        })
-        .select('id')
-        .single()
-
-      if (albumCreateError) {
-        setUploadError(albumCreateError.message)
-        setUploading(false)
-        return
-      }
-
-      albumId = newAlbum?.id ?? null
-    }
-
-    const filePath = `${userId}/${Date.now()}-${slugify(uploadFile.name)}`
-    const { error: uploadStorageError } = await supabase.storage
-      .from('gallery-media')
-      .upload(filePath, uploadFile, {
-        cacheControl: '3600',
-        upsert: false,
-        contentType: uploadFile.type,
-      })
-
-    if (uploadStorageError) {
-      setUploadError(uploadStorageError.message)
-      setUploading(false)
-      return
-    }
-
-    const { data: publicData } = supabase.storage
-      .from('gallery-media')
-      .getPublicUrl(filePath)
-
-    const mediaType: MediaType = uploadFile.type.startsWith('video/') ? 'video' : 'image'
     const aspect = await inferAspect(uploadFile)
+    const formData = new FormData()
+    formData.append('title', title.trim())
+    formData.append('description', description.trim())
+    formData.append('category', uploadCategory)
+    formData.append('aspect', aspect)
+    formData.append('file', uploadFile)
 
-    const { data: insertedPhoto, error: insertError } = await (supabase as any)
-      .from('gallery_photos')
-      .insert({
-        album_id: albumId,
-        url: publicData.publicUrl,
-        thumbnail_url: mediaType === 'image' ? publicData.publicUrl : null,
-        caption: description.trim() || title.trim(),
-        title: title.trim(),
-        description: description.trim() || null,
-        media_type: mediaType,
-        category: uploadCategory,
-        aspect,
-        sort_order: 0,
-      })
-      .select('id, title, description, category, media_type, aspect, url')
-      .single()
+    const response = await fetch('/api/gallery/media', {
+      method: 'POST',
+      body: formData,
+    })
+
+    const payload = await response.json()
 
     setUploading(false)
 
-    if (insertError) {
-      await supabase.storage.from('gallery-media').remove([filePath])
-      setUploadError(insertError.message)
+    if (!response.ok || !payload.item) {
+      setUploadError(payload.error ?? 'Upload failed.')
       return
     }
 
     const newItem: GalleryItem = {
-      id: insertedPhoto.id,
-      title: insertedPhoto.title,
-      description: insertedPhoto.description ?? 'New upload to the Clarendon Elite gallery.',
-      category: normaliseCategory(insertedPhoto.category),
-      type: normaliseMediaType(insertedPhoto.media_type),
-      aspect: normaliseAspect(insertedPhoto.aspect),
-      src: insertedPhoto.url,
-      storagePath: filePath,
+      id: payload.item.id,
+      title: payload.item.title,
+      description: payload.item.description,
+      category: normaliseCategory(payload.item.category),
+      type: normaliseMediaType(payload.item.type),
+      aspect: normaliseAspect(payload.item.aspect),
+      src: payload.item.src,
     }
 
     setGalleryItems((current) => [newItem, ...current])
@@ -549,31 +460,24 @@ export default function GalleryPage() {
   }
 
   async function handleDeleteMedia() {
-    if (!lightboxItem?.storagePath || !canDeleteMedia) return
+    if (!lightboxItem || !canDeleteMedia) return
 
     const confirmed = window.confirm(`Delete "${lightboxItem.title}" from the gallery?`)
     if (!confirmed) return
 
-    const supabase = createClient()
     setUploadError('')
     setUploadSuccess('')
 
-    const { error: storageDeleteError } = await supabase.storage
-      .from('gallery-media')
-      .remove([lightboxItem.storagePath])
+    const response = await fetch('/api/gallery/media', {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id: lightboxItem.id }),
+    })
 
-    if (storageDeleteError) {
-      setUploadError(storageDeleteError.message)
-      return
-    }
+    const payload = await response.json()
 
-    const { error: photoDeleteError } = await (supabase as any)
-      .from('gallery_photos')
-      .delete()
-      .eq('id', lightboxItem.id)
-
-    if (photoDeleteError) {
-      setUploadError(photoDeleteError.message)
+    if (!response.ok) {
+      setUploadError(payload.error ?? 'Delete failed.')
       return
     }
 
@@ -874,7 +778,7 @@ export default function GalleryPage() {
                   </div>
 
                   <div className="flex items-center gap-2 self-start md:self-auto">
-                    {canDeleteMedia && lightboxItem.storagePath ? (
+                    {canDeleteMedia ? (
                       <button
                         onClick={handleDeleteMedia}
                         className="inline-flex items-center gap-2 rounded-full border border-red-500/30 bg-red-500/10 px-4 py-2 text-sm font-semibold text-red-200 transition-colors hover:bg-red-500/20"
