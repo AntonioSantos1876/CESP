@@ -45,7 +45,7 @@ type DbPlayer = {
 }
 
 type FixtureData = {
-  id: number
+  id: string
   home: string
   away: string
   date: string
@@ -58,34 +58,101 @@ type FixtureData = {
   season: string
   referee: string
   youtubeId: string | null
+  matchDate: string
+}
+
+type DbFixture = {
+  id: string
+  match_date: string
+  venue: string | null
+  round: string | null
+  status: 'scheduled' | 'live' | 'completed' | 'postponed' | 'cancelled'
+  home_team: { name: string } | null
+  away_team: { name: string } | null
+  match_scores: { home_score: number; away_score: number }[] | { home_score: number; away_score: number } | null
 }
 
 const ALL_FIXTURES: FixtureData[] = [
   {
-    id: 1, home: 'Vere Technical High School', away: 'Mona High School', date: '2026-07-31', time: '10:00',
+    id: '1', home: 'Vere Technical High School', away: 'Mona High School', date: '2026-07-31', time: '10:00',
     venue: 'Glenmuir High School', homeScore: null, awayScore: null, status: 'upcoming',
     round: 'Quarter-final 1', season: '2026 Clarendon Elite Cup', referee: 'J. Brown',
-    youtubeId: null,
+    youtubeId: null, matchDate: '2026-07-31T10:00:00',
   },
   {
-    id: 2, home: 'Denbigh High School', away: 'Excelsior High School', date: '2026-07-31', time: '12:00',
+    id: '2', home: 'Denbigh High School', away: 'Excelsior High School', date: '2026-07-31', time: '12:00',
     venue: 'Glenmuir High School', homeScore: null, awayScore: null, status: 'upcoming',
     round: 'Quarter-final 2', season: '2026 Clarendon Elite Cup', referee: 'D. Wilson',
-    youtubeId: null,
+    youtubeId: null, matchDate: '2026-07-31T12:00:00',
   },
   {
-    id: 3, home: 'Kingston College', away: 'Manchester High School', date: '2026-07-31', time: '14:00',
+    id: '3', home: 'Kingston College', away: 'Manchester High School', date: '2026-07-31', time: '14:00',
     venue: 'Glenmuir High School', homeScore: null, awayScore: null, status: 'upcoming',
     round: 'Quarter-final 3', season: '2026 Clarendon Elite Cup', referee: 'A. Clarke',
-    youtubeId: null,
+    youtubeId: null, matchDate: '2026-07-31T14:00:00',
   },
   {
-    id: 4, home: 'Glenmuir High School', away: 'Munro College', date: '2026-07-31', time: '16:00',
+    id: '4', home: 'Glenmuir High School', away: 'Munro College', date: '2026-07-31', time: '16:00',
     venue: 'Glenmuir High School', homeScore: null, awayScore: null, status: 'upcoming',
     round: 'Quarter-final 4', season: '2026 Clarendon Elite Cup', referee: 'R. Davis',
-    youtubeId: null,
+    youtubeId: null, matchDate: '2026-07-31T16:00:00',
   },
 ]
+
+function getDateKey(matchDate: string) {
+  const date = new Date(matchDate)
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
+function formatMatchTime(matchDate: string) {
+  return new Date(matchDate).toLocaleTimeString('en-GB', {
+    hour: '2-digit',
+    minute: '2-digit',
+  })
+}
+
+function mapDbStatus(status: DbFixture['status']): FixtureStatus {
+  if (status === 'live') return 'live'
+  if (status === 'completed') return 'result'
+  return 'upcoming'
+}
+
+function getScore(matchScores: DbFixture['match_scores']) {
+  if (!matchScores) return { home: null, away: null }
+  const score = Array.isArray(matchScores) ? (matchScores[0] ?? null) : matchScores
+  if (!score) return { home: null, away: null }
+  return { home: score.home_score, away: score.away_score }
+}
+
+function toFixtureData(row: DbFixture): FixtureData {
+  const home = row.home_team?.name ?? 'TBD'
+  const away = row.away_team?.name ?? 'TBD'
+  const date = getDateKey(row.match_date)
+  const fallback = ALL_FIXTURES.find(
+    fixture => fixture.home === home && fixture.away === away && fixture.date === date
+  )
+  const score = getScore(row.match_scores)
+
+  return {
+    id: row.id,
+    home,
+    away,
+    date,
+    time: formatMatchTime(row.match_date),
+    venue: row.venue ?? fallback?.venue ?? 'Venue TBC',
+    homeScore: score.home,
+    awayScore: score.away,
+    status: mapDbStatus(row.status),
+    round: row.round ?? fallback?.round ?? 'Fixture',
+    season: fallback?.season ?? '2026 Clarendon Elite Cup',
+    referee: fallback?.referee ?? 'TBC',
+    youtubeId: fallback?.youtubeId ?? null,
+    matchDate: row.match_date,
+  }
+}
 
 function categorizePosition(pos: string | null): 'GK' | 'DEF' | 'MID' | 'FWD' {
   if (!pos) return 'MID'
@@ -425,12 +492,13 @@ export default function FixtureDetailPage() {
   const router = useRouter()
   const [tab, setTab] = useState<DetailTab>('info')
   const [lineupTeam, setLineupTeam] = useState<LineupTeam>('home')
+  const [fixture, setFixture] = useState<FixtureData | null>(null)
+  const [fixtureList, setFixtureList] = useState<FixtureData[]>([])
+  const [fixtureLoading, setFixtureLoading] = useState(true)
   const [liveStatus, setLiveStatus] = useState<FixtureStatus | null>(null)
   const [homeLineup, setHomeLineup] = useState<LineupData | null>(null)
   const [awayLineup, setAwayLineup] = useState<LineupData | null>(null)
   const [lineupsLoading, setLineupsLoading] = useState(true)
-
-  const fixture = ALL_FIXTURES.find(f => f.id === Number(params.id))
 
   const currentStatus = liveStatus ?? fixture?.status ?? 'upcoming'
   const isLive = currentStatus === 'live'
@@ -438,6 +506,43 @@ export default function FixtureDetailPage() {
   const hasScore = isLive || isResult
   const homeBranding = getTeamBranding(fixture?.home ?? '')
   const awayBranding = getTeamBranding(fixture?.away ?? '')
+
+  useEffect(() => {
+    let active = true
+
+    async function loadFixture() {
+      setFixtureLoading(true)
+      const supabase = createClient()
+      const { data: fixturesData } = await (supabase as any)
+        .from('fixtures')
+        .select(`
+          id,
+          match_date,
+          venue,
+          round,
+          status,
+          match_scores(home_score, away_score),
+          home_team:teams!fixtures_home_team_id_fkey(name),
+          away_team:teams!fixtures_away_team_id_fkey(name)
+        `)
+        .order('match_date', { ascending: true })
+
+      if (!active) return
+
+      const dbFixtures = ((fixturesData ?? []) as DbFixture[]).map(toFixtureData)
+      const sourceFixtures = dbFixtures.length > 0 ? dbFixtures : ALL_FIXTURES
+      const match = sourceFixtures.find(item => item.id === params.id) ?? null
+
+      setFixtureList(sourceFixtures)
+      setFixture(match)
+      setLiveStatus(null)
+      setFixtureLoading(false)
+    }
+
+    loadFixture()
+
+    return () => { active = false }
+  }, [params.id])
 
   useEffect(() => {
     if (!fixture) return
@@ -449,8 +554,8 @@ export default function FixtureDetailPage() {
         'postgres_changes',
         { event: 'UPDATE', schema: 'public', table: 'fixtures', filter: `id=eq.${fixture.id}` },
         (payload) => {
-          const updated = payload.new as { status: FixtureStatus }
-          setLiveStatus(updated.status)
+          const updated = payload.new as { status: DbFixture['status'] }
+          setLiveStatus(mapDbStatus(updated.status))
         }
       )
       .subscribe()
@@ -471,6 +576,14 @@ export default function FixtureDetailPage() {
       setLineupsLoading(false)
     })
   }, [fixture?.home, fixture?.away])
+
+  if (fixtureLoading) {
+    return (
+      <main className="min-h-screen bg-bg-base flex items-center justify-center">
+        <div className="w-6 h-6 border-2 border-brand-primary border-t-transparent rounded-full animate-spin" />
+      </main>
+    )
+  }
 
   if (!fixture) {
     return (
@@ -703,9 +816,9 @@ export default function FixtureDetailPage() {
 
         <div className="mt-6 flex items-center justify-between">
           {(() => {
-            const currentIndex = ALL_FIXTURES.findIndex(f => f.id === fixture.id)
-            const prev = ALL_FIXTURES[currentIndex - 1]
-            const next = ALL_FIXTURES[currentIndex + 1]
+            const currentIndex = fixtureList.findIndex(f => f.id === fixture.id)
+            const prev = currentIndex > 0 ? fixtureList[currentIndex - 1] : null
+            const next = currentIndex >= 0 ? fixtureList[currentIndex + 1] ?? null : null
             return (
               <>
                 {prev ? (
