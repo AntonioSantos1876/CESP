@@ -1,11 +1,13 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Plus, Pencil, Trash2, Check, X, ChevronDown } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { TeamLogo } from '@/components/TeamLogo'
 
 type UserRole = 'super_admin' | 'coach' | 'team_admin'
+type LeadershipRole = 'captain' | 'vice_captain' | null
+type LeadershipValue = '' | 'captain' | 'vice_captain'
 
 type Team = {
   id: string
@@ -20,6 +22,8 @@ type Player = {
   position: string | null
   jersey_number: number | null
   is_active: boolean
+  leadership_role: LeadershipRole
+  is_starter: boolean
 }
 
 type EditState = {
@@ -27,17 +31,71 @@ type EditState = {
   position: string
   jersey_number: string
   is_active: boolean
+  leadership_role: LeadershipValue
+  is_starter: boolean
 }
 
-const POSITIONS = [
-  { value: '', label: 'Position pending' },
-  { value: 'GK', label: 'GK - Goalkeeper' },
-  { value: 'DEF', label: 'DEF - Defender' },
-  { value: 'MID', label: 'MID - Midfielder' },
-  { value: 'FWD', label: 'FWD - Forward' },
+const POSITION_SUGGESTIONS = [
+  'GK',
+  'CB',
+  'RB',
+  'LB',
+  'RWB',
+  'LWB',
+  'CDM',
+  'CM',
+  'CAM',
+  'RM',
+  'LM',
+  'RW',
+  'LW',
+  'CF',
+  'ST',
+  'CB / CDM',
+  'RB / RWB',
+  'LB / LWB',
+  'RWB / CB',
+  'LWB / LW',
+  'LW / LWB / ST',
+  'CDM / CM',
+  'CAM / RW',
+  'CM / CAM',
+  'CM / RWB',
+  'RWB / RW',
+  'LW / LWB',
+  'CDM / CB',
 ]
 
-const BLANK_EDIT: EditState = { full_name: '', position: '', jersey_number: '', is_active: true }
+const LEADERSHIP_OPTIONS = [
+  { value: '', label: 'No leadership role' },
+  { value: 'captain', label: 'Captain' },
+  { value: 'vice_captain', label: 'Vice captain' },
+] as const
+
+const BLANK_EDIT: EditState = {
+  full_name: '',
+  position: '',
+  jersey_number: '',
+  is_active: true,
+  leadership_role: '',
+  is_starter: false,
+}
+
+function sortPlayers(list: Player[]) {
+  return [...list].sort((left, right) => {
+    if (left.is_starter !== right.is_starter) return left.is_starter ? -1 : 1
+    const leftNumber = left.jersey_number ?? 999
+    const rightNumber = right.jersey_number ?? 999
+    if (leftNumber !== rightNumber) return leftNumber - rightNumber
+    return left.full_name.localeCompare(right.full_name)
+  })
+}
+
+function formatLeadership(role: LeadershipRole) {
+  if (role === 'captain') return 'Captain'
+  if (role === 'vice_captain') return 'Vice captain'
+  return 'None'
+}
 
 export default function AdminTeamsPage() {
   const [userRole, setUserRole] = useState<UserRole | null>(null)
@@ -52,6 +110,11 @@ export default function AdminTeamsPage() {
   const [newPlayer, setNewPlayer] = useState<EditState>(BLANK_EDIT)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
+
+  const selectedTeam = teams.find(team => team.id === selectedTeamId) ?? null
+  const starterCount = players.filter(player => player.is_starter).length
+  const viceCaptainCount = players.filter(player => player.leadership_role === 'vice_captain').length
+  const captain = players.find(player => player.leadership_role === 'captain') ?? null
 
   useEffect(() => {
     async function load() {
@@ -82,6 +145,7 @@ export default function AdminTeamsPage() {
           .select('id, name, short_name')
           .eq('id', profile.team_id)
           .single()
+
         if (teamRow) {
           setTeams([teamRow as Team])
           setSelectedTeamId(teamRow.id)
@@ -90,11 +154,16 @@ export default function AdminTeamsPage() {
 
       setLoading(false)
     }
+
     load()
   }, [])
 
   useEffect(() => {
-    if (!selectedTeamId) { setPlayers([]); return }
+    if (!selectedTeamId) {
+      setPlayers([])
+      return
+    }
+
     loadPlayers(selectedTeamId)
   }, [selectedTeamId])
 
@@ -103,10 +172,12 @@ export default function AdminTeamsPage() {
     const supabase = createClient()
     const { data } = await (supabase as any)
       .from('players')
-      .select('id, team_id, full_name, position, jersey_number, is_active')
+      .select('id, team_id, full_name, position, jersey_number, is_active, leadership_role, is_starter')
       .eq('team_id', teamId)
       .order('jersey_number', { ascending: true, nullsFirst: false })
-    setPlayers((data ?? []) as Player[])
+      .order('full_name', { ascending: true })
+
+    setPlayers(sortPlayers((data ?? []) as Player[]))
     setPlayersLoading(false)
   }
 
@@ -117,172 +188,407 @@ export default function AdminTeamsPage() {
       position: player.position ?? '',
       jersey_number: player.jersey_number?.toString() ?? '',
       is_active: player.is_active,
+      leadership_role: player.leadership_role ?? '',
+      is_starter: player.is_starter,
     })
     setError('')
     setAdding(false)
   }
 
+  function validateLeadership(role: LeadershipValue, playerId?: string) {
+    if (role === 'vice_captain') {
+      const viceCaptains = players.filter(player => player.leadership_role === 'vice_captain' && player.id !== playerId)
+      if (viceCaptains.length >= 3) {
+        return 'This team already has three vice captains.'
+      }
+    }
+
+    return ''
+  }
+
+  async function clearExistingCaptain(playerId?: string) {
+    const currentCaptain = players.find(player => player.leadership_role === 'captain' && player.id !== playerId)
+    if (!currentCaptain) return ''
+
+    const supabase = createClient()
+    const { error: clearError } = await (supabase as any)
+      .from('players')
+      .update({ leadership_role: null })
+      .eq('id', currentCaptain.id)
+
+    return clearError?.message ?? ''
+  }
+
+  function validateStarter(nextIsStarter: boolean, playerId?: string, nextIsActive = true) {
+    if (!nextIsStarter) return ''
+    if (!nextIsActive) return 'Only active players can be selected in the starting lineup.'
+
+    const otherStarters = players.filter(player => player.is_starter && player.id !== playerId)
+    if (otherStarters.length >= 11) {
+      return 'The starting lineup already has 11 players.'
+    }
+
+    return ''
+  }
+
   async function saveEdit(playerId: string) {
-    if (!editState.full_name.trim()) { setError('Name is required'); return }
+    if (!editState.full_name.trim()) {
+      setError('Name is required')
+      return
+    }
+
+    const leadershipError = validateLeadership(editState.leadership_role, playerId)
+    if (leadershipError) {
+      setError(leadershipError)
+      return
+    }
+
+    const starterError = validateStarter(editState.is_starter, playerId, editState.is_active)
+    if (starterError) {
+      setError(starterError)
+      return
+    }
+
     setSaving(true)
     const supabase = createClient()
+
+    if (editState.leadership_role === 'captain') {
+      const clearCaptainError = await clearExistingCaptain(playerId)
+      if (clearCaptainError) {
+        setError(clearCaptainError)
+        setSaving(false)
+        return
+      }
+    }
+
     const { error: err } = await (supabase as any)
       .from('players')
       .update({
         full_name: editState.full_name.trim(),
-        position: editState.position || null,
+        position: editState.position.trim() || null,
         jersey_number: editState.jersey_number ? parseInt(editState.jersey_number, 10) : null,
         is_active: editState.is_active,
+        leadership_role: editState.leadership_role || null,
+        is_starter: editState.is_active ? editState.is_starter : false,
       })
       .eq('id', playerId)
 
-    if (err) { setError(err.message); setSaving(false); return }
+    if (err) {
+      setError(err.message)
+      setSaving(false)
+      return
+    }
+
     setEditingId(null)
     setSaving(false)
-    if (selectedTeamId) loadPlayers(selectedTeamId)
+    if (selectedTeamId) await loadPlayers(selectedTeamId)
   }
 
   async function deletePlayer(playerId: string) {
     if (!confirm('Remove this player from the squad?')) return
+
     const supabase = createClient()
     await (supabase as any).from('players').delete().eq('id', playerId)
-    if (selectedTeamId) loadPlayers(selectedTeamId)
+
+    if (selectedTeamId) await loadPlayers(selectedTeamId)
   }
 
   async function addPlayer() {
-    if (!newPlayer.full_name.trim()) { setError('Name is required'); return }
+    if (!newPlayer.full_name.trim()) {
+      setError('Name is required')
+      return
+    }
+
     if (!selectedTeamId) return
+
+    const leadershipError = validateLeadership(newPlayer.leadership_role)
+    if (leadershipError) {
+      setError(leadershipError)
+      return
+    }
+
+    const starterError = validateStarter(newPlayer.is_starter, undefined, newPlayer.is_active)
+    if (starterError) {
+      setError(starterError)
+      return
+    }
+
     setSaving(true)
     const supabase = createClient()
+
+    if (newPlayer.leadership_role === 'captain') {
+      const clearCaptainError = await clearExistingCaptain()
+      if (clearCaptainError) {
+        setError(clearCaptainError)
+        setSaving(false)
+        return
+      }
+    }
+
     const { error: err } = await (supabase as any)
       .from('players')
       .insert({
         team_id: selectedTeamId,
         full_name: newPlayer.full_name.trim(),
-        position: newPlayer.position || null,
+        position: newPlayer.position.trim() || null,
         jersey_number: newPlayer.jersey_number ? parseInt(newPlayer.jersey_number, 10) : null,
         is_active: newPlayer.is_active,
+        leadership_role: newPlayer.leadership_role || null,
+        is_starter: newPlayer.is_active ? newPlayer.is_starter : false,
       })
 
-    if (err) { setError(err.message); setSaving(false); return }
+    if (err) {
+      setError(err.message)
+      setSaving(false)
+      return
+    }
+
     setAdding(false)
     setNewPlayer(BLANK_EDIT)
     setSaving(false)
-    loadPlayers(selectedTeamId)
+    await loadPlayers(selectedTeamId)
   }
 
-  const selectedTeam = teams.find(t => t.id === selectedTeamId) ?? null
+  async function updateLeadershipRole(player: Player, nextRole: LeadershipValue) {
+    setError('')
+
+    if (nextRole === 'vice_captain') {
+      const leadershipError = validateLeadership(nextRole, player.id)
+      if (leadershipError) {
+        setError(leadershipError)
+        return
+      }
+    }
+
+    setSaving(true)
+
+    if (nextRole === 'captain') {
+      const clearCaptainError = await clearExistingCaptain(player.id)
+      if (clearCaptainError) {
+        setError(clearCaptainError)
+        setSaving(false)
+        return
+      }
+    }
+
+    const supabase = createClient()
+    const { error: err } = await (supabase as any)
+      .from('players')
+      .update({ leadership_role: nextRole || null })
+      .eq('id', player.id)
+
+    if (err) {
+      setError(err.message)
+      setSaving(false)
+      return
+    }
+
+    setSaving(false)
+    if (selectedTeamId) await loadPlayers(selectedTeamId)
+  }
+
+  async function toggleStarter(player: Player) {
+    setError('')
+
+    const nextStarter = !player.is_starter
+    const starterError = validateStarter(nextStarter, player.id, player.is_active)
+    if (starterError) {
+      setError(starterError)
+      return
+    }
+
+    setSaving(true)
+    const supabase = createClient()
+    const { error: err } = await (supabase as any)
+      .from('players')
+      .update({ is_starter: nextStarter })
+      .eq('id', player.id)
+
+    if (err) {
+      setError(err.message)
+      setSaving(false)
+      return
+    }
+
+    setSaving(false)
+    if (selectedTeamId) await loadPlayers(selectedTeamId)
+  }
+
+  const starterNames = useMemo(
+    () => players.filter(player => player.is_starter).map(player => player.full_name),
+    [players]
+  )
 
   if (loading) {
     return (
       <div className="flex items-center justify-center py-20">
-        <div className="w-6 h-6 border-2 border-brand-primary border-t-transparent rounded-full animate-spin" />
+        <div className="h-6 w-6 animate-spin rounded-full border-2 border-brand-primary border-t-transparent" />
       </div>
     )
   }
 
   return (
-    <div className="max-w-4xl">
+    <div className="max-w-6xl">
       <div className="mb-8">
-        <h1 className="text-2xl font-bold text-text-primary mb-1">Squad Management</h1>
-        <p className="text-text-muted text-sm">Edit player names, positions, and jersey numbers.</p>
+        <h1 className="mb-1 text-2xl font-bold text-text-primary">Team Sheet Management</h1>
+        <p className="text-sm text-text-muted">
+          Build the team list first, then choose the captain, up to three vice captains, and the starting XI from that roster.
+        </p>
       </div>
 
       {userRole === 'super_admin' && (
         <div className="mb-6">
-          <label className="block text-xs font-semibold text-text-muted uppercase tracking-wider mb-2">Select Team</label>
+          <label className="mb-2 block text-xs font-semibold uppercase tracking-wider text-text-muted">Select Team</label>
           <div className="relative w-72">
             <select
               value={selectedTeamId ?? ''}
-              onChange={e => { setSelectedTeamId(e.target.value || null); setEditingId(null); setAdding(false); setError('') }}
-              className="w-full appearance-none bg-[#111] border border-[#333] text-text-primary rounded-xl px-4 py-2.5 pr-10 text-sm focus:outline-none focus:border-brand-primary"
+              onChange={event => {
+                setSelectedTeamId(event.target.value || null)
+                setEditingId(null)
+                setAdding(false)
+                setError('')
+              }}
+              className="w-full appearance-none rounded-xl border border-[#333] bg-[#111] px-4 py-2.5 pr-10 text-sm text-text-primary focus:border-brand-primary focus:outline-none"
             >
               <option value="">Choose a team...</option>
-              {teams.map(t => (
-                <option key={t.id} value={t.id}>{t.name}</option>
+              {teams.map(team => (
+                <option key={team.id} value={team.id}>{team.name}</option>
               ))}
             </select>
-            <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-text-muted pointer-events-none" />
+            <ChevronDown size={14} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-text-muted" />
           </div>
         </div>
       )}
 
       {!selectedTeamId ? (
-        <div className="card py-16 text-center text-text-muted text-sm">
+        <div className="card py-16 text-center text-sm text-text-muted">
           {userRole === 'super_admin'
-            ? 'Select a team above to manage its squad.'
+            ? 'Select a team above to manage its roster and team sheet.'
             : 'You are not assigned to a team yet. Ask a super admin to assign you.'}
         </div>
       ) : (
         <div className="card">
-          <div className="flex items-center justify-between mb-6">
+          <div className="mb-6 flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
             <div className="flex items-center gap-3">
               {selectedTeam && <TeamLogo teamName={selectedTeam.name} size={36} />}
               <div>
                 <h2 className="font-bold text-text-primary">{selectedTeam?.name ?? 'Your Team'}</h2>
-                <p className="text-xs text-text-muted">{players.length} player{players.length !== 1 ? 's' : ''} in squad</p>
+                <p className="text-xs text-text-muted">
+                  {players.length} player{players.length !== 1 ? 's' : ''} in roster
+                </p>
               </div>
             </div>
-            <button
-              onClick={() => { setAdding(true); setEditingId(null); setError('') }}
-              disabled={adding}
-              className="flex items-center gap-2 px-4 py-2 rounded-xl bg-brand-primary/10 text-brand-secondary hover:bg-brand-primary/20 transition-colors text-sm font-medium disabled:opacity-50"
-            >
-              <Plus size={15} />
-              Add player
-            </button>
+
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="rounded-full border border-white/10 bg-white/[0.03] px-3 py-1 text-xs font-semibold text-text-secondary">
+                Starters: {starterCount}/11
+              </span>
+              <span className="rounded-full border border-white/10 bg-white/[0.03] px-3 py-1 text-xs font-semibold text-text-secondary">
+                Captain: {captain?.full_name ?? 'Not set'}
+              </span>
+              <span className="rounded-full border border-white/10 bg-white/[0.03] px-3 py-1 text-xs font-semibold text-text-secondary">
+                Vice captains: {viceCaptainCount}/3
+              </span>
+              <button
+                onClick={() => {
+                  setAdding(true)
+                  setEditingId(null)
+                  setError('')
+                }}
+                disabled={adding}
+                className="flex items-center gap-2 rounded-xl bg-brand-primary/10 px-4 py-2 text-sm font-medium text-brand-secondary transition-colors hover:bg-brand-primary/20 disabled:opacity-50"
+              >
+                <Plus size={15} />
+                Add player
+              </button>
+            </div>
           </div>
+
+          {starterNames.length > 0 && (
+            <div className="mb-5 rounded-xl border border-white/10 bg-white/[0.02] p-4">
+              <p className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-text-muted">Starting XI</p>
+              <p className="text-sm leading-6 text-text-secondary">{starterNames.join(', ')}</p>
+            </div>
+          )}
 
           {error && <p className="mb-4 text-sm text-red-400">{error}</p>}
 
           {adding && (
-            <div className="mb-5 p-4 rounded-xl bg-[#1a1a1a] border border-[#2a2a2a]">
-              <p className="text-[10px] font-semibold text-text-muted uppercase tracking-wider mb-3">New player</p>
-              <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
+            <div className="mb-5 rounded-xl border border-[#2a2a2a] bg-[#1a1a1a] p-4">
+              <p className="mb-3 text-[10px] font-semibold uppercase tracking-wider text-text-muted">New player</p>
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-6">
                 <input
-                  className="sm:col-span-2 bg-bg-base border border-[#333] text-text-primary rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-brand-primary placeholder:text-[#555]"
+                  className="sm:col-span-2 rounded-lg border border-[#333] bg-bg-base px-3 py-2 text-sm text-text-primary placeholder:text-[#555] focus:border-brand-primary focus:outline-none"
                   placeholder="Full name *"
                   value={newPlayer.full_name}
-                  onChange={e => setNewPlayer(s => ({ ...s, full_name: e.target.value }))}
-                  onKeyDown={e => e.key === 'Enter' && addPlayer()}
+                  onChange={event => setNewPlayer(state => ({ ...state, full_name: event.target.value }))}
+                  onKeyDown={event => event.key === 'Enter' && addPlayer()}
                 />
                 <input
-                  className="bg-bg-base border border-[#333] text-text-primary rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-brand-primary placeholder:text-[#555]"
+                  className="rounded-lg border border-[#333] bg-bg-base px-3 py-2 text-sm text-text-primary placeholder:text-[#555] focus:border-brand-primary focus:outline-none"
                   placeholder="# Jersey"
                   type="number"
                   min={1}
                   max={99}
                   value={newPlayer.jersey_number}
-                  onChange={e => setNewPlayer(s => ({ ...s, jersey_number: e.target.value }))}
+                  onChange={event => setNewPlayer(state => ({ ...state, jersey_number: event.target.value }))}
+                />
+                <input
+                  className="sm:col-span-2 rounded-lg border border-[#333] bg-bg-base px-3 py-2 text-sm text-text-primary placeholder:text-[#555] focus:border-brand-primary focus:outline-none"
+                  placeholder="Position"
+                  list="team-position-suggestions"
+                  value={newPlayer.position}
+                  onChange={event => setNewPlayer(state => ({ ...state, position: event.target.value }))}
                 />
                 <select
-                  className="bg-bg-base border border-[#333] text-text-primary rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-brand-primary"
-                  value={newPlayer.position}
-                  onChange={e => setNewPlayer(s => ({ ...s, position: e.target.value }))}
+                  className="rounded-lg border border-[#333] bg-bg-base px-3 py-2 text-sm text-text-primary focus:border-brand-primary focus:outline-none"
+                  value={newPlayer.leadership_role}
+                  onChange={event => setNewPlayer(state => ({ ...state, leadership_role: event.target.value as LeadershipValue }))}
                 >
-                  {POSITIONS.map(p => <option key={p.value} value={p.value}>{p.label}</option>)}
+                  {LEADERSHIP_OPTIONS.map(option => (
+                    <option key={option.value} value={option.value}>{option.label}</option>
+                  ))}
                 </select>
               </div>
-              <div className="flex items-center gap-3 mt-3">
-                <label className="flex items-center gap-2 text-sm text-text-secondary cursor-pointer select-none">
+              <div className="mt-3 flex flex-wrap items-center gap-4">
+                <label className="flex cursor-pointer select-none items-center gap-2 text-sm text-text-secondary">
                   <input
                     type="checkbox"
                     checked={newPlayer.is_active}
-                    onChange={e => setNewPlayer(s => ({ ...s, is_active: e.target.checked }))}
+                    onChange={event =>
+                      setNewPlayer(state => ({
+                        ...state,
+                        is_active: event.target.checked,
+                        is_starter: event.target.checked ? state.is_starter : false,
+                      }))
+                    }
                   />
                   Active in squad
                 </label>
+                <label className="flex cursor-pointer select-none items-center gap-2 text-sm text-text-secondary">
+                  <input
+                    type="checkbox"
+                    checked={newPlayer.is_starter}
+                    onChange={event => setNewPlayer(state => ({ ...state, is_starter: event.target.checked }))}
+                    disabled={!newPlayer.is_active}
+                  />
+                  Include in starting XI
+                </label>
                 <div className="flex-1" />
                 <button
-                  onClick={() => { setAdding(false); setNewPlayer(BLANK_EDIT); setError('') }}
-                  className="px-3 py-1.5 text-sm text-text-muted hover:text-text-primary transition-colors"
+                  onClick={() => {
+                    setAdding(false)
+                    setNewPlayer(BLANK_EDIT)
+                    setError('')
+                  }}
+                  className="px-3 py-1.5 text-sm text-text-muted transition-colors hover:text-text-primary"
                 >
                   Cancel
                 </button>
                 <button
                   onClick={addPlayer}
                   disabled={saving}
-                  className="px-4 py-1.5 rounded-lg bg-brand-primary text-white text-sm font-medium hover:bg-brand-primary/90 disabled:opacity-50 transition-colors"
+                  className="rounded-lg bg-brand-primary px-4 py-1.5 text-sm font-medium text-white transition-colors hover:bg-brand-primary/90 disabled:opacity-50"
                 >
                   {saving ? 'Saving...' : 'Add'}
                 </button>
@@ -291,18 +597,20 @@ export default function AdminTeamsPage() {
           )}
 
           {playersLoading ? (
-            <div className="py-10 text-center text-text-muted text-sm">Loading squad...</div>
+            <div className="py-10 text-center text-sm text-text-muted">Loading roster...</div>
           ) : players.length === 0 ? (
-            <div className="py-10 text-center text-text-muted text-sm">No players in this squad yet. Add the first one above.</div>
+            <div className="py-10 text-center text-sm text-text-muted">No players in this squad yet. Add the team list first, then pick the lineup from it.</div>
           ) : (
-            <div className="overflow-x-auto -mx-5">
+            <div className="-mx-5 overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-[#1e1e1e]">
-                    <th className="text-left py-2 px-5 text-[10px] font-semibold text-text-muted uppercase tracking-wider w-16">#</th>
-                    <th className="text-left py-2 px-3 text-[10px] font-semibold text-text-muted uppercase tracking-wider">Name</th>
-                    <th className="text-left py-2 px-3 text-[10px] font-semibold text-text-muted uppercase tracking-wider w-44">Position</th>
-                    <th className="text-left py-2 px-3 text-[10px] font-semibold text-text-muted uppercase tracking-wider w-20">Status</th>
+                    <th className="w-16 px-5 py-2 text-left text-[10px] font-semibold uppercase tracking-wider text-text-muted">#</th>
+                    <th className="px-3 py-2 text-left text-[10px] font-semibold uppercase tracking-wider text-text-muted">Name</th>
+                    <th className="w-44 px-3 py-2 text-left text-[10px] font-semibold uppercase tracking-wider text-text-muted">Position</th>
+                    <th className="w-40 px-3 py-2 text-left text-[10px] font-semibold uppercase tracking-wider text-text-muted">Leadership</th>
+                    <th className="w-28 px-3 py-2 text-left text-[10px] font-semibold uppercase tracking-wider text-text-muted">Lineup</th>
+                    <th className="w-20 px-3 py-2 text-left text-[10px] font-semibold uppercase tracking-wider text-text-muted">Status</th>
                     <th className="w-20" />
                   </tr>
                 </thead>
@@ -310,57 +618,87 @@ export default function AdminTeamsPage() {
                   {players.map(player => (
                     editingId === player.id ? (
                       <tr key={player.id} className="border-b border-[#1e1e1e] bg-[#141414]">
-                        <td className="py-2 px-5">
+                        <td className="px-5 py-2">
                           <input
-                            className="w-14 bg-bg-base border border-[#444] text-text-primary rounded px-2 py-1 text-sm focus:outline-none focus:border-brand-primary"
+                            className="w-14 rounded border border-[#444] bg-bg-base px-2 py-1 text-sm text-text-primary focus:border-brand-primary focus:outline-none"
                             type="number"
                             min={1}
                             max={99}
                             placeholder="#"
                             value={editState.jersey_number}
-                            onChange={e => setEditState(s => ({ ...s, jersey_number: e.target.value }))}
+                            onChange={event => setEditState(state => ({ ...state, jersey_number: event.target.value }))}
                           />
                         </td>
-                        <td className="py-2 px-3">
+                        <td className="px-3 py-2">
                           <input
-                            className="w-full bg-bg-base border border-[#444] text-text-primary rounded px-2 py-1 text-sm focus:outline-none focus:border-brand-primary"
+                            className="w-full rounded border border-[#444] bg-bg-base px-2 py-1 text-sm text-text-primary focus:border-brand-primary focus:outline-none"
                             value={editState.full_name}
-                            onChange={e => setEditState(s => ({ ...s, full_name: e.target.value }))}
-                            onKeyDown={e => e.key === 'Enter' && saveEdit(player.id)}
+                            onChange={event => setEditState(state => ({ ...state, full_name: event.target.value }))}
+                            onKeyDown={event => event.key === 'Enter' && saveEdit(player.id)}
                           />
                         </td>
-                        <td className="py-2 px-3">
-                          <select
-                            className="w-full bg-bg-base border border-[#444] text-text-primary rounded px-2 py-1 text-sm focus:outline-none focus:border-brand-primary"
+                        <td className="px-3 py-2">
+                          <input
+                            className="w-full rounded border border-[#444] bg-bg-base px-2 py-1 text-sm text-text-primary focus:border-brand-primary focus:outline-none"
+                            list="team-position-suggestions"
                             value={editState.position}
-                            onChange={e => setEditState(s => ({ ...s, position: e.target.value }))}
+                            onChange={event => setEditState(state => ({ ...state, position: event.target.value }))}
+                          />
+                        </td>
+                        <td className="px-3 py-2">
+                          <select
+                            className="w-full rounded border border-[#444] bg-bg-base px-2 py-1 text-sm text-text-primary focus:border-brand-primary focus:outline-none"
+                            value={editState.leadership_role}
+                            onChange={event => setEditState(state => ({ ...state, leadership_role: event.target.value as LeadershipValue }))}
                           >
-                            {POSITIONS.map(p => <option key={p.value} value={p.value}>{p.label}</option>)}
+                            {LEADERSHIP_OPTIONS.map(option => (
+                              <option key={option.value} value={option.value}>{option.label}</option>
+                            ))}
                           </select>
                         </td>
-                        <td className="py-2 px-3">
-                          <label className="flex items-center gap-1.5 cursor-pointer select-none">
+                        <td className="px-3 py-2">
+                          <label className="flex cursor-pointer select-none items-center gap-2">
+                            <input
+                              type="checkbox"
+                              checked={editState.is_starter}
+                              disabled={!editState.is_active}
+                              onChange={event => setEditState(state => ({ ...state, is_starter: event.target.checked }))}
+                            />
+                            <span className="text-xs text-text-muted">Starter</span>
+                          </label>
+                        </td>
+                        <td className="px-3 py-2">
+                          <label className="flex cursor-pointer select-none items-center gap-1.5">
                             <input
                               type="checkbox"
                               checked={editState.is_active}
-                              onChange={e => setEditState(s => ({ ...s, is_active: e.target.checked }))}
+                              onChange={event =>
+                                setEditState(state => ({
+                                  ...state,
+                                  is_active: event.target.checked,
+                                  is_starter: event.target.checked ? state.is_starter : false,
+                                }))
+                              }
                             />
                             <span className="text-xs text-text-muted">Active</span>
                           </label>
                         </td>
-                        <td className="py-2 px-5">
-                          <div className="flex items-center gap-1 justify-end">
+                        <td className="px-5 py-2">
+                          <div className="flex items-center justify-end gap-1">
                             <button
                               onClick={() => saveEdit(player.id)}
                               disabled={saving}
-                              className="p-1.5 rounded-lg text-green-400 hover:bg-green-400/10 disabled:opacity-50 transition-colors"
+                              className="rounded-lg p-1.5 text-green-400 transition-colors hover:bg-green-400/10 disabled:opacity-50"
                               title="Save"
                             >
                               <Check size={14} />
                             </button>
                             <button
-                              onClick={() => { setEditingId(null); setError('') }}
-                              className="p-1.5 rounded-lg text-text-muted hover:bg-bg-muted transition-colors"
+                              onClick={() => {
+                                setEditingId(null)
+                                setError('')
+                              }}
+                              className="rounded-lg p-1.5 text-text-muted transition-colors hover:bg-bg-muted"
                               title="Cancel"
                             >
                               <X size={14} />
@@ -369,35 +707,78 @@ export default function AdminTeamsPage() {
                         </td>
                       </tr>
                     ) : (
-                      <tr key={player.id} className="border-b border-[#1e1e1e] group hover:bg-[#141414] transition-colors">
-                        <td className="py-3 px-5 text-text-muted font-mono text-sm">
+                      <tr key={player.id} className="group border-b border-[#1e1e1e] transition-colors hover:bg-[#141414]">
+                        <td className="px-5 py-3 font-mono text-sm text-text-muted">
                           {player.jersey_number ?? <span className="text-[#444]">--</span>}
                         </td>
-                        <td className="py-3 px-3 text-text-primary font-medium">{player.full_name}</td>
-                        <td className="py-3 px-3">
+                        <td className="px-3 py-3">
+                          <div className="min-w-0">
+                            <p className="font-medium text-text-primary">{player.full_name}</p>
+                            {(player.leadership_role || player.is_starter) && (
+                              <div className="mt-1 flex flex-wrap gap-1.5">
+                                {player.leadership_role && (
+                                  <span className="rounded-full border border-white/10 bg-white/[0.04] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-brand-secondary">
+                                    {formatLeadership(player.leadership_role)}
+                                  </span>
+                                )}
+                                {player.is_starter && (
+                                  <span className="rounded-full border border-emerald-500/20 bg-emerald-500/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-emerald-300">
+                                    Starting XI
+                                  </span>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        </td>
+                        <td className="px-3 py-3">
                           {player.position ? (
                             <span className="text-text-secondary">{player.position}</span>
                           ) : (
-                            <span className="text-[#555] italic text-xs">Position pending</span>
+                            <span className="text-xs italic text-[#555]">Position pending</span>
                           )}
                         </td>
-                        <td className="py-3 px-3">
+                        <td className="px-3 py-3">
+                          <select
+                            className="w-full rounded-lg border border-[#333] bg-bg-base px-2 py-1.5 text-sm text-text-primary focus:border-brand-primary focus:outline-none"
+                            value={player.leadership_role ?? ''}
+                            onChange={event => updateLeadershipRole(player, event.target.value as LeadershipValue)}
+                            disabled={saving}
+                          >
+                            {LEADERSHIP_OPTIONS.map(option => (
+                              <option key={option.value} value={option.value}>{option.label}</option>
+                            ))}
+                          </select>
+                        </td>
+                        <td className="px-3 py-3">
+                          <button
+                            onClick={() => toggleStarter(player)}
+                            disabled={saving || !player.is_active}
+                            className={`rounded-full px-3 py-1 text-xs font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${
+                              player.is_starter
+                                ? 'bg-emerald-500/12 text-emerald-300 hover:bg-emerald-500/18'
+                                : 'bg-white/[0.04] text-text-muted hover:bg-white/[0.08] hover:text-text-primary'
+                            }`}
+                          >
+                            {player.is_starter ? 'Starting XI' : 'Bench'}
+                          </button>
+                        </td>
+                        <td className="px-3 py-3">
                           <span className={`text-xs font-medium ${player.is_active ? 'text-green-400' : 'text-[#555]'}`}>
                             {player.is_active ? 'Active' : 'Inactive'}
                           </span>
                         </td>
-                        <td className="py-3 px-5">
-                          <div className="flex items-center gap-1 justify-end opacity-0 group-hover:opacity-100 transition-opacity">
+                        <td className="px-5 py-3">
+                          <div className="flex items-center justify-end gap-1 opacity-0 transition-opacity group-hover:opacity-100">
                             <button
                               onClick={() => startEdit(player)}
-                              className="p-1.5 rounded-lg text-text-muted hover:text-text-primary hover:bg-bg-muted transition-colors"
+                              className="rounded-lg p-1.5 text-text-muted transition-colors hover:bg-bg-muted hover:text-text-primary"
                               title="Edit"
                             >
                               <Pencil size={14} />
                             </button>
                             <button
                               onClick={() => deletePlayer(player.id)}
-                              className="p-1.5 rounded-lg text-text-muted hover:text-red-400 hover:bg-red-400/10 transition-colors"
+                              className="rounded-lg p-1.5 text-text-muted transition-colors hover:bg-red-400/10 hover:text-red-400"
                               title="Remove"
                             >
                               <Trash2 size={14} />
@@ -413,6 +794,12 @@ export default function AdminTeamsPage() {
           )}
         </div>
       )}
+
+      <datalist id="team-position-suggestions">
+        {POSITION_SUGGESTIONS.map(position => (
+          <option key={position} value={position} />
+        ))}
+      </datalist>
     </div>
   )
 }

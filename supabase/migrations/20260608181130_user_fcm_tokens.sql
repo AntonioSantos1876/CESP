@@ -13,4 +13,4 @@ create policy "Users can manage own tokens"
   using (auth.uid() = user_id)
   with check (auth.uid() = user_id);
 
-create index if not exists user_fcm_tokens_user_id_idx on public.user_fcm_tokens (user_id);
+create index if not exists user_fcm_tokens_user_id_idx on public.user_fcm_tokens (user_id);;

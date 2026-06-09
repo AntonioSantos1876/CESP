@@ -101,4 +101,4 @@ CREATE POLICY "players_team_staff_write" ON players FOR ALL USING (
 )
 WITH CHECK (
   is_team_staff(team_id)
-);
+);;

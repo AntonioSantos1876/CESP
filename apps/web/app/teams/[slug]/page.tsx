@@ -29,6 +29,8 @@ type PlayerRow = {
   position: string | null
   jersey_number: number | null
   is_active: boolean
+  leadership_role: 'captain' | 'vice_captain' | null
+  is_starter: boolean
 }
 
 type FixtureRow = {
@@ -62,6 +64,16 @@ function formatTime(matchDate: string) {
   return new Date(matchDate).toLocaleTimeString('en-GB', {
     hour: '2-digit',
     minute: '2-digit',
+  })
+}
+
+function sortPlayers(players: PlayerRow[]) {
+  return [...players].sort((left, right) => {
+    if (left.is_starter !== right.is_starter) return left.is_starter ? -1 : 1
+    const leftNumber = left.jersey_number ?? 999
+    const rightNumber = right.jersey_number ?? 999
+    if (leftNumber !== rightNumber) return leftNumber - rightNumber
+    return left.full_name.localeCompare(right.full_name)
   })
 }
 
@@ -130,7 +142,7 @@ export default async function TeamDetailPage({ params }: PageProps) {
           .order('full_name', { ascending: true }),
         (supabase as any)
           .from('players')
-          .select('id, full_name, position, jersey_number, is_active')
+          .select('id, full_name, position, jersey_number, is_active, leadership_role, is_starter')
           .eq('team_id', team.id)
           .order('jersey_number', { ascending: true })
           .order('full_name', { ascending: true }),
@@ -154,12 +166,7 @@ export default async function TeamDetailPage({ params }: PageProps) {
     : [{ data: [] }, { data: [] }, { data: [] }]
 
   const staff = (staffData ?? []) as StaffRow[]
-  const players = ((playersData ?? []) as PlayerRow[]).sort((left, right) => {
-    const leftNumber = left.jersey_number ?? 999
-    const rightNumber = right.jersey_number ?? 999
-    if (leftNumber !== rightNumber) return leftNumber - rightNumber
-    return left.full_name.localeCompare(right.full_name)
-  })
+  const players = sortPlayers((playersData ?? []) as PlayerRow[])
   const fixtures = ((fixturesData ?? []) as FixtureRow[]).length > 0
     ? (fixturesData as FixtureRow[])
     : buildFallbackFixture(team.name)
@@ -192,6 +199,7 @@ export default async function TeamDetailPage({ params }: PageProps) {
   const coach = staff.find(member => member.role === 'coach')?.full_name ?? 'Pending assignment'
   const teamAdmin = staff.find(member => member.role === 'team_admin')?.full_name ?? 'Pending assignment'
   const activePlayers = players.filter(player => player.is_active)
+  const startingPlayers = players.filter(player => player.is_active && player.is_starter)
   const upcomingFixtures = fixtures.filter(fixture => fixture.status === 'scheduled' || fixture.status === 'live').slice(0, 4)
   const recentFixtures = fixtures.filter(fixture => fixture.status === 'completed').slice(-4).reverse()
   const fixturePreview = upcomingFixtures.length > 0 ? upcomingFixtures : recentFixtures
@@ -253,6 +261,49 @@ export default async function TeamDetailPage({ params }: PageProps) {
         <section className="mt-8 grid gap-6 xl:grid-cols-[minmax(0,1.2fr),minmax(21rem,0.8fr)]">
           <div className="space-y-6">
             <div className="card">
+              {startingPlayers.length > 0 && (
+                <div className="mb-6">
+                  <div className="mb-4 flex items-center gap-2">
+                    <Target size={18} className="text-brand-primary" />
+                    <h2 className="text-xl font-bold text-text-primary">Starting XI</h2>
+                  </div>
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    {startingPlayers.map(player => (
+                      <div key={`starter-${player.id}`} className="rounded-[1.25rem] border border-white/10 bg-white/[0.02] px-4 py-3">
+                        <div className="flex items-center gap-3">
+                          <div
+                            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-sm font-black"
+                            style={{
+                              backgroundColor: hexToRgba(branding.primary, 0.18),
+                              color: branding.secondary,
+                              border: `1px solid ${hexToRgba(branding.primary, 0.35)}`,
+                            }}
+                          >
+                            {player.jersey_number ?? '--'}
+                          </div>
+                          <div className="min-w-0">
+                            <div className="flex flex-wrap items-center gap-2">
+                              <p className="truncate font-semibold text-text-primary">{player.full_name}</p>
+                              {player.leadership_role === 'captain' && (
+                                <span className="rounded-full border border-white/10 bg-white/[0.04] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-brand-secondary">
+                                  Captain
+                                </span>
+                              )}
+                              {player.leadership_role === 'vice_captain' && (
+                                <span className="rounded-full border border-white/10 bg-white/[0.04] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-brand-secondary">
+                                  Vice captain
+                                </span>
+                              )}
+                            </div>
+                            <p className="text-xs text-text-muted">{player.position ?? 'Position pending'}</p>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               <div className="mb-5 flex items-center gap-2">
                 <Users size={18} className="text-brand-primary" />
                 <h2 className="text-xl font-bold text-text-primary">Squad</h2>
@@ -275,7 +326,24 @@ export default async function TeamDetailPage({ params }: PageProps) {
                           {player.jersey_number ?? '--'}
                         </div>
                         <div className="min-w-0">
-                          <p className="truncate font-semibold text-text-primary">{player.full_name}</p>
+                          <div className="flex flex-wrap items-center gap-2">
+                            <p className="truncate font-semibold text-text-primary">{player.full_name}</p>
+                            {player.leadership_role === 'captain' && (
+                              <span className="rounded-full border border-white/10 bg-white/[0.04] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-brand-secondary">
+                                Captain
+                              </span>
+                            )}
+                            {player.leadership_role === 'vice_captain' && (
+                              <span className="rounded-full border border-white/10 bg-white/[0.04] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-brand-secondary">
+                                Vice captain
+                              </span>
+                            )}
+                            {player.is_starter && (
+                              <span className="rounded-full border border-emerald-500/20 bg-emerald-500/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-emerald-300">
+                                Starting XI
+                              </span>
+                            )}
+                          </div>
                           <p className="text-xs text-text-muted">{player.position ?? 'Position pending'}</p>
                         </div>
                       </div>

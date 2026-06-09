@@ -56,6 +56,8 @@ export interface Database {
           full_name: string
           position: string | null
           jersey_number: number | null
+          leadership_role: 'captain' | 'vice_captain' | null
+          is_starter: boolean
           date_of_birth: string | null
           nationality: string | null
           photo_url: string | null

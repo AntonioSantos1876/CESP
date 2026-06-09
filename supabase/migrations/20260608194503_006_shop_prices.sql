@@ -1,3 +1,4 @@
+
 create table if not exists public.shop_prices (
   kind text primary key,
   price numeric not null default 0
@@ -30,3 +31,4 @@ insert into public.shop_prices (kind, price) values
   ('bottle', 14),
   ('armband', 9)
 on conflict (kind) do nothing;
+;

@@ -37,9 +37,11 @@ type LineupData = {
 }
 
 type DbPlayer = {
+  id: string
   full_name: string
   position: string | null
   jersey_number: number | null
+  is_starter: boolean
 }
 
 type FixtureData = {
@@ -104,8 +106,16 @@ function spreadX(count: number, index: number): number {
 function buildLineup(dbPlayers: DbPlayer[], side: 'home' | 'away'): LineupData | null {
   if (dbPlayers.length === 0) return null
 
-  const gks = dbPlayers.filter(p => categorizePosition(p.position) === 'GK')
-  const outfield = dbPlayers.filter(p => categorizePosition(p.position) !== 'GK')
+  const starters = dbPlayers.filter(player => player.is_starter)
+  const orderedPlayers = starters.length > 0
+    ? [
+        ...starters,
+        ...dbPlayers.filter(player => !player.is_starter),
+      ]
+    : dbPlayers
+
+  const gks = orderedPlayers.filter(p => categorizePosition(p.position) === 'GK')
+  const outfield = orderedPlayers.filter(p => categorizePosition(p.position) !== 'GK')
   const gk = gks[0]
   const selected = outfield.slice(0, 10)
   const benchGks = gks.slice(1)
@@ -186,9 +196,10 @@ async function fetchLineup(teamName: string, side: 'home' | 'away'): Promise<Lin
 
   const { data: players } = await (supabase as any)
     .from('players')
-    .select('full_name, position, jersey_number')
+    .select('id, full_name, position, jersey_number, is_starter')
     .eq('team_id', teamRow.id)
     .eq('is_active', true)
+    .order('is_starter', { ascending: false })
     .order('jersey_number', { ascending: true })
 
   return buildLineup((players ?? []) as DbPlayer[], side)

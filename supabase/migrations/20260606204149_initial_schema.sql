@@ -1,8 +1,3 @@
--- ============================================================
--- CESP Initial Database Schema
--- Run this in Supabase SQL Editor (Dashboard > SQL Editor)
--- ============================================================
-
 -- Enable extensions
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 CREATE EXTENSION IF NOT EXISTS "pg_trgm";
@@ -160,7 +155,7 @@ CREATE TABLE match_scores (
 );
 
 -- ============================================================
--- MATCH STATS (goal scorers, cards, etc.)
+-- MATCH STATS
 -- ============================================================
 
 CREATE TABLE match_stats (
@@ -168,7 +163,7 @@ CREATE TABLE match_stats (
   fixture_id UUID NOT NULL REFERENCES fixtures(id) ON DELETE CASCADE,
   player_id UUID REFERENCES players(id) ON DELETE SET NULL,
   team_id UUID NOT NULL REFERENCES teams(id) ON DELETE CASCADE,
-  event_type TEXT NOT NULL, -- 'goal', 'own_goal', 'yellow_card', 'red_card', 'substitution'
+  event_type TEXT NOT NULL,
   event_minute INTEGER,
   notes TEXT,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
@@ -177,7 +172,7 @@ CREATE TABLE match_stats (
 CREATE INDEX idx_match_stats_fixture ON match_stats(fixture_id);
 
 -- ============================================================
--- PLAYER STATS (season stats)
+-- PLAYER STATS
 -- ============================================================
 
 CREATE TABLE player_stats (
@@ -193,7 +188,7 @@ CREATE TABLE player_stats (
 );
 
 -- ============================================================
--- ARTICLES (news, match reports, features — created by photographers/journalists)
+-- ARTICLES
 -- ============================================================
 
 CREATE TABLE articles (
@@ -224,7 +219,6 @@ CREATE TRIGGER articles_updated_at
   BEFORE UPDATE ON articles
   FOR EACH ROW EXECUTE FUNCTION update_updated_at();
 
--- Auto-set published_at when status changes to published
 CREATE OR REPLACE FUNCTION handle_article_publish()
 RETURNS TRIGGER LANGUAGE plpgsql AS $$
 BEGIN
@@ -272,14 +266,14 @@ CREATE TABLE gallery_photos (
 CREATE INDEX idx_gallery_photos_album ON gallery_photos(album_id, sort_order);
 
 -- ============================================================
--- PRODUCTS (merch store)
+-- PRODUCTS
 -- ============================================================
 
 CREATE TABLE products (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   name TEXT NOT NULL,
   description TEXT,
-  price INTEGER NOT NULL, -- in cents (JMD or USD)
+  price INTEGER NOT NULL,
   currency TEXT NOT NULL DEFAULT 'USD',
   images TEXT[] NOT NULL DEFAULT '{}',
   category TEXT NOT NULL DEFAULT 'apparel',
@@ -359,7 +353,7 @@ CREATE TABLE live_chat (
 CREATE INDEX idx_live_chat_fixture ON live_chat(fixture_id, created_at);
 
 -- ============================================================
--- STREAM VIEWERS (realtime presence)
+-- STREAM VIEWERS
 -- ============================================================
 
 CREATE TABLE stream_viewers (
@@ -400,7 +394,7 @@ CREATE TABLE notifications (
   user_id UUID REFERENCES profiles(id) ON DELETE CASCADE,
   title TEXT NOT NULL,
   body TEXT NOT NULL,
-  type TEXT NOT NULL, -- 'match_start', 'goal', 'full_time', 'news', 'general'
+  type TEXT NOT NULL,
   data JSONB,
   is_read BOOLEAN NOT NULL DEFAULT FALSE,
   sent_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -473,7 +467,7 @@ ALTER TABLE notifications ENABLE ROW LEVEL SECURITY;
 ALTER TABLE sponsors ENABLE ROW LEVEL SECURITY;
 ALTER TABLE volunteers ENABLE ROW LEVEL SECURITY;
 
--- Helper function: check user role
+-- Helper functions
 CREATE OR REPLACE FUNCTION auth_user_role()
 RETURNS user_role LANGUAGE sql STABLE SECURITY DEFINER AS $$
   SELECT role FROM profiles WHERE id = auth.uid()
@@ -493,33 +487,33 @@ CREATE POLICY "profiles_public_read" ON profiles FOR SELECT USING (true);
 CREATE POLICY "profiles_own_update" ON profiles FOR UPDATE USING (auth.uid() = id);
 CREATE POLICY "profiles_admin_all" ON profiles FOR ALL USING (is_admin());
 
--- TEAMS (public read, admin write)
+-- TEAMS
 CREATE POLICY "teams_public_read" ON teams FOR SELECT USING (true);
 CREATE POLICY "teams_admin_write" ON teams FOR ALL USING (is_admin());
 
--- PLAYERS (public read, admin write)
+-- PLAYERS
 CREATE POLICY "players_public_read" ON players FOR SELECT USING (true);
 CREATE POLICY "players_admin_write" ON players FOR ALL USING (is_admin());
 
--- FIXTURES (public read, admin write)
+-- FIXTURES
 CREATE POLICY "fixtures_public_read" ON fixtures FOR SELECT USING (true);
 CREATE POLICY "fixtures_admin_write" ON fixtures FOR ALL USING (is_admin());
 
--- MATCH SCORES (public read, live operator/admin write)
+-- MATCH SCORES
 CREATE POLICY "match_scores_public_read" ON match_scores FOR SELECT USING (true);
 CREATE POLICY "match_scores_operator_write" ON match_scores FOR ALL USING (
   auth_user_role() IN ('super_admin', 'team_admin', 'livestream_operator')
 );
 
--- MATCH STATS (public read, admin write)
+-- MATCH STATS
 CREATE POLICY "match_stats_public_read" ON match_stats FOR SELECT USING (true);
 CREATE POLICY "match_stats_admin_write" ON match_stats FOR ALL USING (is_admin());
 
--- PLAYER STATS (public read, admin write)
+-- PLAYER STATS
 CREATE POLICY "player_stats_public_read" ON player_stats FOR SELECT USING (true);
 CREATE POLICY "player_stats_admin_write" ON player_stats FOR ALL USING (is_admin());
 
--- ARTICLES (published articles public; drafts only to author/admin)
+-- ARTICLES
 CREATE POLICY "articles_published_read" ON articles FOR SELECT
   USING (status = 'published' OR author_id = auth.uid() OR is_admin());
 CREATE POLICY "articles_author_insert" ON articles FOR INSERT
@@ -531,7 +525,7 @@ CREATE POLICY "articles_author_update" ON articles FOR UPDATE
   USING (author_id = auth.uid() OR is_admin());
 CREATE POLICY "articles_admin_delete" ON articles FOR DELETE USING (is_admin());
 
--- GALLERY ALBUMS (published public; drafts to author/admin)
+-- GALLERY ALBUMS
 CREATE POLICY "gallery_albums_published_read" ON gallery_albums FOR SELECT
   USING (is_published OR author_id = auth.uid() OR is_admin());
 CREATE POLICY "gallery_albums_author_insert" ON gallery_albums FOR INSERT
@@ -543,7 +537,7 @@ CREATE POLICY "gallery_albums_author_update" ON gallery_albums FOR UPDATE
   USING (author_id = auth.uid() OR is_admin());
 CREATE POLICY "gallery_albums_admin_delete" ON gallery_albums FOR DELETE USING (is_admin());
 
--- GALLERY PHOTOS (same as albums)
+-- GALLERY PHOTOS
 CREATE POLICY "gallery_photos_public_read" ON gallery_photos FOR SELECT USING (
   EXISTS (SELECT 1 FROM gallery_albums WHERE id = album_id AND (is_published OR is_admin()))
 );
@@ -554,11 +548,11 @@ CREATE POLICY "gallery_photos_author_write" ON gallery_photos FOR ALL USING (
   )
 );
 
--- PRODUCTS (public read, admin write)
+-- PRODUCTS
 CREATE POLICY "products_public_read" ON products FOR SELECT USING (is_active OR is_admin());
 CREATE POLICY "products_admin_write" ON products FOR ALL USING (is_admin());
 
--- ORDERS (own orders only)
+-- ORDERS
 CREATE POLICY "orders_own_read" ON orders FOR SELECT USING (user_id = auth.uid() OR is_admin());
 CREATE POLICY "orders_own_insert" ON orders FOR INSERT WITH CHECK (user_id = auth.uid());
 CREATE POLICY "orders_admin_update" ON orders FOR UPDATE USING (is_admin());
@@ -571,14 +565,14 @@ CREATE POLICY "order_items_insert" ON order_items FOR INSERT WITH CHECK (
   EXISTS (SELECT 1 FROM orders WHERE id = order_id AND user_id = auth.uid())
 );
 
--- DONATIONS (public can see non-anonymous; own always)
+-- DONATIONS
 CREATE POLICY "donations_read" ON donations FOR SELECT USING (
   NOT is_anonymous OR user_id = auth.uid() OR is_admin()
 );
 CREATE POLICY "donations_insert" ON donations FOR INSERT WITH CHECK (true);
 CREATE POLICY "donations_admin_update" ON donations FOR UPDATE USING (is_admin());
 
--- LIVE CHAT (authenticated users)
+-- LIVE CHAT
 CREATE POLICY "live_chat_read" ON live_chat FOR SELECT USING (true);
 CREATE POLICY "live_chat_insert" ON live_chat FOR INSERT WITH CHECK (
   auth.uid() = user_id AND auth.uid() IS NOT NULL
@@ -588,13 +582,13 @@ CREATE POLICY "live_chat_admin_delete" ON live_chat FOR DELETE USING (is_admin()
 -- STREAM VIEWERS
 CREATE POLICY "stream_viewers_all" ON stream_viewers FOR ALL USING (true);
 
--- FORMATIONS (public read, admin write)
+-- FORMATIONS
 CREATE POLICY "formations_public_read" ON formations FOR SELECT USING (true);
 CREATE POLICY "formations_admin_write" ON formations FOR ALL USING (
   auth_user_role() IN ('super_admin', 'team_admin', 'coach')
 );
 
--- NOTIFICATIONS (own notifications)
+-- NOTIFICATIONS
 CREATE POLICY "notifications_own" ON notifications FOR SELECT
   USING (user_id = auth.uid() OR user_id IS NULL);
 CREATE POLICY "notifications_own_update" ON notifications FOR UPDATE
@@ -602,11 +596,11 @@ CREATE POLICY "notifications_own_update" ON notifications FOR UPDATE
 CREATE POLICY "notifications_admin_insert" ON notifications FOR INSERT
   WITH CHECK (is_admin());
 
--- SPONSORS (public read, admin write)
+-- SPONSORS
 CREATE POLICY "sponsors_public_read" ON sponsors FOR SELECT USING (is_active OR is_admin());
 CREATE POLICY "sponsors_admin_write" ON sponsors FOR ALL USING (is_admin());
 
--- VOLUNTEERS (own + admin)
+-- VOLUNTEERS
 CREATE POLICY "volunteers_own_read" ON volunteers FOR SELECT
   USING (user_id = auth.uid() OR is_admin());
 CREATE POLICY "volunteers_own_insert" ON volunteers FOR INSERT
@@ -614,18 +608,10 @@ CREATE POLICY "volunteers_own_insert" ON volunteers FOR INSERT
 CREATE POLICY "volunteers_admin_update" ON volunteers FOR UPDATE USING (is_admin());
 
 -- ============================================================
--- REALTIME (enable for live match updates)
+-- REALTIME
 -- ============================================================
 
 ALTER PUBLICATION supabase_realtime ADD TABLE match_scores;
 ALTER PUBLICATION supabase_realtime ADD TABLE live_chat;
 ALTER PUBLICATION supabase_realtime ADD TABLE stream_viewers;
-ALTER PUBLICATION supabase_realtime ADD TABLE fixtures;
-
--- ============================================================
--- SUPER ADMIN SEED
--- After running this migration, go to Supabase Auth > Users,
--- create the user clarendonelitecup@gmail.com manually,
--- then run the following to elevate to super_admin:
--- UPDATE profiles SET role = 'super_admin' WHERE email = 'clarendonelitecup@gmail.com';
--- ============================================================
+ALTER PUBLICATION supabase_realtime ADD TABLE fixtures;;

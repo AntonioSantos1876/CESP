@@ -63,6 +63,9 @@ apps/mobile/web-build/
 # Claude Code / MCP tool config
 .claude/
 .mcp.json
+.agents/
+skills-lock.json
+supabase/.temp/
 
 # npm lockfile (project uses pnpm)
 package-lock.json

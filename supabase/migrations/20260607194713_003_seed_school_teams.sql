@@ -34,4 +34,4 @@ WHERE NOT EXISTS (
   SELECT 1
   FROM teams
   WHERE LOWER(teams.name) = LOWER(values_table.name)
-);
+);;

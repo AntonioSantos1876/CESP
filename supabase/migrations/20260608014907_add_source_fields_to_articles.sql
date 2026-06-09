@@ -1,0 +1,1 @@
+ALTER TABLE articles ADD COLUMN IF NOT EXISTS source_url TEXT, ADD COLUMN IF NOT EXISTS source_name TEXT;;
