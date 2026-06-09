@@ -12,13 +12,14 @@ const AUTHOR_ROLES = ['super_admin', 'team_admin', 'photographer']
 export async function proxy(request: NextRequest) {
   const pathname = request.nextUrl.pathname
   const search = request.nextUrl.search
+  const code = request.nextUrl.searchParams.get('code')
 
   const isAuthRoute = AUTH_ROUTES.some(route => matchesRoutePrefix(pathname, route))
   const isProtectedRoute = PROTECTED_ROUTES.some(route => matchesRoutePrefix(pathname, route))
   const isAdminRoute = ADMIN_ROUTES.some(route => matchesRoutePrefix(pathname, route))
   const isAuthorRoute = AUTHOR_ROUTES.some(route => matchesRoutePrefix(pathname, route))
 
-  if (!isAuthRoute && !isProtectedRoute && !isAdminRoute && !isAuthorRoute) {
+  if (!code && !isAuthRoute && !isProtectedRoute && !isAdminRoute && !isAuthorRoute) {
     return NextResponse.next()
   }
 
@@ -42,6 +43,18 @@ export async function proxy(request: NextRequest) {
       },
     }
   )
+
+  if (code) {
+    await supabase.auth.exchangeCodeForSession(code)
+
+    const cleanUrl = request.nextUrl.clone()
+    cleanUrl.searchParams.delete('code')
+    cleanUrl.searchParams.delete('type')
+    cleanUrl.searchParams.delete('redirect_to')
+    cleanUrl.searchParams.delete('redirectTo')
+
+    return NextResponse.redirect(cleanUrl)
+  }
 
   const {
     data: { user },
