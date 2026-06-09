@@ -5,6 +5,8 @@ import './globals.css'
 import { CartProvider } from '@/components/cart-provider'
 import { NavServer } from '@/components/NavServer'
 import { ScrollToTop } from '@/components/ScrollToTop'
+import { SpeedInsights } from '@vercel/speed-insights/next'
+import { Analytics } from '@vercel/analytics/next'
 
 const inter = Inter({
   subsets: ['latin'],
@@ -86,6 +88,8 @@ export default function RootLayout({
           </div>
           <NotificationPrompt />
         </CartProvider>
+        <SpeedInsights />
+        <Analytics />
       </body>
     </html>
   )
