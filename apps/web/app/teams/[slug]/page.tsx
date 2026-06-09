@@ -69,12 +69,20 @@ function formatTime(matchDate: string) {
 
 function sortPlayers(players: PlayerRow[]) {
   return [...players].sort((left, right) => {
-    if (left.is_starter !== right.is_starter) return left.is_starter ? -1 : 1
     const leftNumber = left.jersey_number ?? 999
     const rightNumber = right.jersey_number ?? 999
     if (leftNumber !== rightNumber) return leftNumber - rightNumber
     return left.full_name.localeCompare(right.full_name)
   })
+}
+
+function getLeadershipLabel(player: PlayerRow, viceCaptainOrder: Map<string, number>) {
+  if (player.leadership_role === 'captain') return 'Captain'
+  if (player.leadership_role === 'vice_captain') {
+    const number = viceCaptainOrder.get(player.id)
+    return number ? `Vice Captain ${number}` : 'Vice Captain'
+  }
+  return null
 }
 
 function buildFallbackFixture(teamName: string): FixtureRow[] {
@@ -199,10 +207,14 @@ export default async function TeamDetailPage({ params }: PageProps) {
   const coach = staff.find(member => member.role === 'coach')?.full_name ?? 'Pending assignment'
   const teamAdmin = staff.find(member => member.role === 'team_admin')?.full_name ?? 'Pending assignment'
   const activePlayers = players.filter(player => player.is_active)
-  const startingPlayers = players.filter(player => player.is_active && player.is_starter)
   const upcomingFixtures = fixtures.filter(fixture => fixture.status === 'scheduled' || fixture.status === 'live').slice(0, 4)
   const recentFixtures = fixtures.filter(fixture => fixture.status === 'completed').slice(-4).reverse()
   const fixturePreview = upcomingFixtures.length > 0 ? upcomingFixtures : recentFixtures
+  const viceCaptainOrder = new Map(
+    players
+      .filter(player => player.leadership_role === 'vice_captain')
+      .map((player, index) => [player.id, index + 1])
+  )
 
   return (
     <main className="min-h-screen bg-bg-base">
@@ -261,52 +273,9 @@ export default async function TeamDetailPage({ params }: PageProps) {
         <section className="mt-8 grid gap-6 xl:grid-cols-[minmax(0,1.2fr),minmax(21rem,0.8fr)]">
           <div className="space-y-6">
             <div className="card">
-              {startingPlayers.length > 0 && (
-                <div className="mb-6">
-                  <div className="mb-4 flex items-center gap-2">
-                    <Target size={18} className="text-brand-primary" />
-                    <h2 className="text-xl font-bold text-text-primary">Starting XI</h2>
-                  </div>
-                  <div className="grid gap-3 sm:grid-cols-2">
-                    {startingPlayers.map(player => (
-                      <div key={`starter-${player.id}`} className="rounded-[1.25rem] border border-white/10 bg-white/[0.02] px-4 py-3">
-                        <div className="flex items-center gap-3">
-                          <div
-                            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-sm font-black"
-                            style={{
-                              backgroundColor: hexToRgba(branding.primary, 0.18),
-                              color: branding.secondary,
-                              border: `1px solid ${hexToRgba(branding.primary, 0.35)}`,
-                            }}
-                          >
-                            {player.jersey_number ?? '--'}
-                          </div>
-                          <div className="min-w-0">
-                            <div className="flex flex-wrap items-center gap-2">
-                              <p className="truncate font-semibold text-text-primary">{player.full_name}</p>
-                              {player.leadership_role === 'captain' && (
-                                <span className="rounded-full border border-white/10 bg-white/[0.04] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-brand-secondary">
-                                  Captain
-                                </span>
-                              )}
-                              {player.leadership_role === 'vice_captain' && (
-                                <span className="rounded-full border border-white/10 bg-white/[0.04] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-brand-secondary">
-                                  Vice captain
-                                </span>
-                              )}
-                            </div>
-                            <p className="text-xs text-text-muted">{player.position ?? 'Position pending'}</p>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
               <div className="mb-5 flex items-center gap-2">
                 <Users size={18} className="text-brand-primary" />
-                <h2 className="text-xl font-bold text-text-primary">Squad</h2>
+                <h2 className="text-xl font-bold text-text-primary">Team Roster</h2>
               </div>
               {players.length === 0 ? (
                 <p className="text-sm text-text-muted">Player registration will appear here once the coach or team admin adds the squad.</p>
@@ -328,23 +297,15 @@ export default async function TeamDetailPage({ params }: PageProps) {
                         <div className="min-w-0">
                           <div className="flex flex-wrap items-center gap-2">
                             <p className="truncate font-semibold text-text-primary">{player.full_name}</p>
-                            {player.leadership_role === 'captain' && (
-                              <span className="rounded-full border border-white/10 bg-white/[0.04] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-brand-secondary">
-                                Captain
-                              </span>
-                            )}
-                            {player.leadership_role === 'vice_captain' && (
-                              <span className="rounded-full border border-white/10 bg-white/[0.04] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-brand-secondary">
-                                Vice captain
-                              </span>
-                            )}
-                            {player.is_starter && (
+                            {getLeadershipLabel(player, viceCaptainOrder) && (
                               <span className="rounded-full border border-emerald-500/20 bg-emerald-500/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-emerald-300">
-                                Starting XI
+                                {getLeadershipLabel(player, viceCaptainOrder)}
                               </span>
                             )}
                           </div>
-                          <p className="text-xs text-text-muted">{player.position ?? 'Position pending'}</p>
+                          <p className="text-xs text-text-muted">
+                            {player.position ?? 'Position pending'}
+                          </p>
                         </div>
                       </div>
                     </div>

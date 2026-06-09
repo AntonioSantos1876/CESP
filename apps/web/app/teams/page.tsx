@@ -39,7 +39,8 @@ type TeamCard = {
   name: string
   shortName: string
   color: string
-  manager: string
+  coach: string
+  teamAdmin: string
   played: number
   won: number
   drawn: number
@@ -101,7 +102,10 @@ function TeamCardItem({ team, index }: { team: TeamCard; index: number }) {
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
                 <h2 className="font-bold leading-tight text-text-primary">{team.name}</h2>
-                <p className="text-xs text-text-muted">Staff lead: {team.manager}</p>
+                <div className="mt-1 space-y-0.5 text-xs text-text-muted">
+                  <p>Coach: {team.coach}</p>
+                  <p>Team Admin: {team.teamAdmin}</p>
+                </div>
               </div>
               <span
                 className="rounded-full px-3 py-1 text-[11px] font-bold uppercase tracking-[0.28em]"
@@ -208,7 +212,8 @@ export default function TeamsPage() {
         name: team.name,
         shortName: team.short_name,
         color: getTeamBranding(team.name)?.primary ?? team.home_colour,
-        manager: 'Team staff pending',
+        coach: 'Pending assignment',
+        teamAdmin: 'Pending assignment',
         played: 0,
         won: 0,
         drawn: 0,
@@ -255,7 +260,8 @@ export default function TeamsPage() {
         const staff = staffByTeam.get(team.id) ?? []
         const coach = staff.find(member => member.role === 'coach')
         const teamAdmin = staff.find(member => member.role === 'team_admin')
-        team.manager = coach?.full_name ?? teamAdmin?.full_name ?? 'Team staff pending'
+        team.coach = coach?.full_name ?? 'Pending assignment'
+        team.teamAdmin = teamAdmin?.full_name ?? 'Pending assignment'
 
         const scorers = goalCounts.get(team.id)
         if (scorers && scorers.size > 0) {
