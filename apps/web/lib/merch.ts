@@ -30,10 +30,21 @@ const TEAM_JERSEY_ASSETS: Record<string, string> = {
   'Vere Technical High School': '/merch/teams/vere-technical-high-school.jpeg',
 }
 
+const TEAM_LOGO_ASSETS: Record<string, string> = {
+  'Denbigh High School': '/team-logos/denbigh-high-school.jpeg',
+  'Excelsior High School': '/team-logos/excelsior-high-school.jpeg',
+  'Glenmuir High School': '/team-logos/glenmuir-high-school.jpeg',
+  'Kingston College': '/team-logos/kingston-college.jpeg',
+  'Manchester High School': '/team-logos/manchester-high-school.jpeg',
+  'Mona High School': '/team-logos/mona-high-school.jpeg',
+  'Vere Technical High School': '/team-logos/vere-technical-high-school.jpeg',
+}
+
 function buildTeamMerch(teamName: string): MerchProduct[] {
   const branding = SCHOOL_TEAM_BRANDING[teamName]
   const teamSlug = getTeamSlug(teamName)
-  const imagePath = TEAM_JERSEY_ASSETS[teamName]
+  const jerseyImage = TEAM_JERSEY_ASSETS[teamName]
+  const logoImage = TEAM_LOGO_ASSETS[teamName] ?? jerseyImage
 
   return [
     {
@@ -48,7 +59,7 @@ function buildTeamMerch(teamName: string): MerchProduct[] {
       sizes: ['XS', 'S', 'M', 'L', 'XL', 'XXL'],
       customizable: true,
       badge: 'Best seller',
-      imagePath,
+      imagePath: jerseyImage,
       branding,
     },
     {
@@ -62,7 +73,7 @@ function buildTeamMerch(teamName: string): MerchProduct[] {
       price: 18,
       sizes: ['One size'],
       customizable: false,
-      imagePath,
+      imagePath: logoImage,
       branding,
     },
     {
@@ -76,7 +87,7 @@ function buildTeamMerch(teamName: string): MerchProduct[] {
       price: 14,
       sizes: ['750ml'],
       customizable: false,
-      imagePath,
+      imagePath: logoImage,
       branding,
     },
     {
@@ -90,7 +101,7 @@ function buildTeamMerch(teamName: string): MerchProduct[] {
       price: 9,
       sizes: ['Junior', 'Senior'],
       customizable: false,
-      imagePath,
+      imagePath: logoImage,
       branding,
     },
   ]
