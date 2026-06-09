@@ -229,7 +229,7 @@ function OptionsModal({
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
-        className="fixed inset-0 z-[70] bg-black/70 backdrop-blur-sm"
+        className="fixed inset-0 z-[70] overflow-y-auto bg-black/70 backdrop-blur-sm"
         onClick={onClose}
       >
         <motion.div
@@ -237,7 +237,7 @@ function OptionsModal({
           animate={{ opacity: 1, y: 0, scale: 1 }}
           exit={{ opacity: 0, y: 18, scale: 0.98 }}
           transition={{ duration: 0.24, ease: [0.22, 1, 0.36, 1] }}
-          className="mx-auto mt-8 w-[min(92vw,44rem)] rounded-[2rem] border border-white/10 bg-[#0f0f0f] p-4 shadow-2xl sm:mt-12 sm:p-6"
+          className="mx-auto my-4 w-[min(92vw,44rem)] rounded-[2rem] border border-white/10 bg-[#0f0f0f] p-4 shadow-2xl sm:my-8 sm:p-6"
           onClick={event => event.stopPropagation()}
         >
           <div className="mb-5 flex items-start justify-between gap-4">
