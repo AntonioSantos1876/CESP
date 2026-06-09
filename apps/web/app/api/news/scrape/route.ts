@@ -36,6 +36,26 @@ function extractDescription(html: string): string {
   )
 }
 
+const ALLOWED_SCRAPE_HOSTNAMES = [
+  'jamaicaobserver.com',
+  'jamaica-gleaner.com',
+  'jamaica-star.com',
+  'observer.com.jm',
+  'gleaner.com',
+  'thestar.com.jm',
+]
+
+function isAllowedScrapeUrl(urlString: string): boolean {
+  try {
+    const { hostname, protocol } = new URL(urlString)
+    if (protocol !== 'https:' && protocol !== 'http:') return false
+    const bare = hostname.replace(/^www\./, '')
+    return ALLOWED_SCRAPE_HOSTNAMES.some(h => bare === h || bare.endsWith('.' + h))
+  } catch {
+    return false
+  }
+}
+
 function extractSourceName(url: string): string {
   try {
     const host = new URL(url).hostname.replace(/^www\./, '')
@@ -68,6 +88,10 @@ export async function POST(req: Request) {
 
   const { url } = body
   if (!url) return NextResponse.json({ error: 'url is required' }, { status: 400 })
+
+  if (!isAllowedScrapeUrl(url)) {
+    return NextResponse.json({ error: 'URL not allowed' }, { status: 422 })
+  }
 
   let html: string
   try {
