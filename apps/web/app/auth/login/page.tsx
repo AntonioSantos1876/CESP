@@ -3,12 +3,13 @@
 import { CespLogo } from '@/components/CespLogo'
 import { Suspense, useState } from 'react'
 import Link from 'next/link'
-import { useSearchParams } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { getSafeRedirectPath } from '@/lib/auth-routing'
 import { Eye, EyeOff } from 'lucide-react'
 
 function LoginContent() {
+  const router = useRouter()
   const searchParams = useSearchParams()
   const redirectTo = getSafeRedirectPath(searchParams.get('redirectTo'))
 
@@ -32,7 +33,8 @@ function LoginContent() {
       return
     }
 
-    window.location.href = redirectTo
+    router.replace(redirectTo)
+    router.refresh()
   }
 
   async function handleGoogleLogin() {

@@ -3,12 +3,13 @@
 import Link from 'next/link'
 import Image from 'next/image'
 import { motion, useScroll, useTransform, useInView } from 'framer-motion'
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import {
   Trophy, Zap, Users, Camera, Heart, ShoppingBag, ChevronRight,
   Calendar, Radio, ArrowDown, Award,
 } from 'lucide-react'
 import { SponsorShowcase } from '@/components/SponsorShowcase'
+import { createClient } from '@/lib/supabase/client'
 
 const HOME_STATS = {
   teams: 8,
@@ -119,6 +120,30 @@ export function HomePageClient({ isSignedIn }: { isSignedIn: boolean }) {
   const { scrollYProgress } = useScroll({ target: heroRef, offset: ['start start', 'end start'] })
   const heroY = useTransform(scrollYProgress, [0, 1], [0, 120])
   const heroOpacity = useTransform(scrollYProgress, [0, 0.6], [1, 0])
+  const [signedIn, setSignedIn] = useState(isSignedIn)
+
+  useEffect(() => {
+    setSignedIn(isSignedIn)
+  }, [isSignedIn])
+
+  useEffect(() => {
+    const supabase = createClient()
+
+    async function syncSignedIn() {
+      const { data: { user } } = await supabase.auth.getUser()
+      setSignedIn(Boolean(user))
+    }
+
+    syncSignedIn()
+
+    const { data: authListener } = supabase.auth.onAuthStateChange((_event, session) => {
+      setSignedIn(Boolean(session?.user))
+    })
+
+    return () => {
+      authListener.subscription.unsubscribe()
+    }
+  }, [])
 
   const stats: { num: number; suffix: string; label: string }[] = [
     { num: HOME_STATS.teams, suffix: '', label: 'Teams' },
@@ -366,9 +391,9 @@ export function HomePageClient({ isSignedIn }: { isSignedIn: boolean }) {
             <div className="max-w-2xl mx-auto space-y-6">
               <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-brand-primary/10 border border-brand-primary/20 text-brand-secondary text-sm font-medium">
                 <Radio size={12} />
-                {isSignedIn ? 'Support the cause' : 'Live now'}
+                {signedIn ? 'Support the cause' : 'Live now'}
               </div>
-              {isSignedIn ? (
+              {signedIn ? (
                 <>
                   <h2 className="text-heading-xl font-bold text-text-primary text-balance">
                     Help keep this tournament moving

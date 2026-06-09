@@ -2,7 +2,7 @@
 
 import { CespLogo } from '@/components/CespLogo'
 import Link from 'next/link'
-import { usePathname } from 'next/navigation'
+import { usePathname, useRouter } from 'next/navigation'
 import { useState, useEffect } from 'react'
 import { useCart } from '@/components/cart-provider'
 import { createClient } from '@/lib/supabase/client'
@@ -29,17 +29,67 @@ interface NavProps {
   user?: { email?: string; full_name?: string; role?: string } | null
 }
 
+type NavUser = { email?: string; full_name?: string; role?: string } | null
+
 export function Nav({ user }: NavProps) {
   const pathname = usePathname()
+  const router = useRouter()
   const { itemCount } = useCart()
   const [mobileOpen, setMobileOpen] = useState(false)
   const [profileOpen, setProfileOpen] = useState(false)
   const [unreadCount, setUnreadCount] = useState(0)
   const [bellOpen, setBellOpen] = useState(false)
   const [notifications, setNotifications] = useState<{ id: string; title: string; body: string; is_read: boolean; sent_at: string }[]>([])
+  const [currentUser, setCurrentUser] = useState<NavUser>(user ?? null)
 
   useEffect(() => {
-    if (!user) return
+    setCurrentUser(user ?? null)
+  }, [user])
+
+  useEffect(() => {
+    const supabase = createClient()
+
+    async function syncUser() {
+      const { data: { user: authUser } } = await supabase.auth.getUser()
+
+      if (!authUser) {
+        setCurrentUser(null)
+        return
+      }
+
+      const { data: profile } = await (supabase as any)
+        .from('profiles')
+        .select('full_name, role')
+        .eq('id', authUser.id)
+        .maybeSingle()
+
+      setCurrentUser({
+        email: authUser.email,
+        full_name: profile?.full_name ?? undefined,
+        role: profile?.role ?? undefined,
+      })
+    }
+
+    syncUser()
+
+    const { data: authListener } = supabase.auth.onAuthStateChange((event) => {
+      syncUser()
+      if (event === 'SIGNED_IN' || event === 'SIGNED_OUT' || event === 'USER_UPDATED') {
+        router.refresh()
+      }
+    })
+
+    return () => {
+      authListener.subscription.unsubscribe()
+    }
+  }, [router])
+
+  useEffect(() => {
+    if (!currentUser) {
+      setNotifications([])
+      setUnreadCount(0)
+      return
+    }
     const supabase = createClient()
     async function fetchNotifs() {
       const { data } = await (supabase as any)
@@ -64,7 +114,7 @@ export function Nav({ user }: NavProps) {
     fetchNotifs()
     const interval = setInterval(fetchNotifs, 30000)
     return () => clearInterval(interval)
-  }, [user])
+  }, [currentUser])
 
   async function markAllRead() {
     const supabase = createClient()
@@ -78,7 +128,9 @@ export function Nav({ user }: NavProps) {
   async function handleSignOut() {
     const supabase = createClient()
     await supabase.auth.signOut()
-    window.location.href = '/auth/login'
+    setCurrentUser(null)
+    router.replace('/auth/login')
+    router.refresh()
   }
 
   const isActive = (href: string) =>
@@ -130,7 +182,7 @@ export function Nav({ user }: NavProps) {
           </Link>
 
           {/* Notification bell */}
-          {user && (
+          {currentUser && (
             <div className="relative">
               <button
                 onClick={() => { setBellOpen(v => !v); if (!bellOpen) markAllRead() }}
@@ -170,7 +222,7 @@ export function Nav({ user }: NavProps) {
             </div>
           )}
 
-          {user ? (
+          {currentUser ? (
             <div className="relative">
               <button
                 onClick={() => setProfileOpen(v => !v)}
@@ -180,7 +232,7 @@ export function Nav({ user }: NavProps) {
                   <User size={12} className="text-brand-primary" />
                 </div>
                 <span className="hidden sm:inline text-text-primary font-medium max-w-[100px] truncate">
-                  {user.full_name ?? user.email?.split('@')[0]}
+                  {currentUser.full_name ?? currentUser.email?.split('@')[0]}
                 </span>
                 <ChevronDown size={12} className="text-text-muted" />
               </button>
@@ -197,7 +249,7 @@ export function Nav({ user }: NavProps) {
                       <User size={14} />
                       Profile
                     </Link>
-                    {(user.role === 'super_admin' || user.role === 'team_admin') && (
+                    {['super_admin', 'team_admin', 'coach'].includes(currentUser.role ?? '') && (
                       <Link
                         href="/admin"
                         className="flex items-center gap-2 px-4 py-3 text-sm text-text-secondary hover:bg-bg-hover hover:text-text-primary transition-colors border-t border-bg-border"
@@ -259,7 +311,7 @@ export function Nav({ user }: NavProps) {
                 {label === 'Live' && <span className="live-dot ml-auto" />}
               </Link>
             ))}
-            {!user && (
+            {!currentUser && (
               <div className="flex flex-col gap-2 mt-2">
                 <Link
                   href="/auth/register"
