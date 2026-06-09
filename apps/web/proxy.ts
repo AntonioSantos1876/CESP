@@ -6,7 +6,7 @@ const AUTH_ROUTES = ['/auth/login', '/auth/register', '/auth/forgot-password', '
 const PROTECTED_ROUTES = ['/profile']
 const ADMIN_ROUTES = ['/admin']
 const AUTHOR_ROUTES = ['/news/create']
-const ADMIN_ROLES = ['super_admin', 'team_admin']
+const ADMIN_ROLES = ['super_admin', 'team_admin', 'coach']
 const AUTHOR_ROLES = ['super_admin', 'team_admin', 'photographer']
 
 function copyCookies(from: NextResponse, to: NextResponse) {
