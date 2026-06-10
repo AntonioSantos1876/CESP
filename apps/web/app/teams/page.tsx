@@ -181,8 +181,7 @@ export default function TeamsPage() {
           .in('role', ['coach', 'team_admin']),
         (supabase as any)
           .from('fixtures')
-          .select('home_team_id, away_team_id, status, match_scores(home_score, away_score)')
-          .in('status', ['live', 'completed']),
+          .select('home_team_id, away_team_id, status, match_scores(home_score, away_score)'),
         (supabase as any)
           .from('match_stats')
           .select('team_id, player:players(full_name)')
@@ -233,24 +232,28 @@ export default function TeamsPage() {
 
         const homeTeam = teamMap.get(fixture.home_team_id)
         const awayTeam = teamMap.get(fixture.away_team_id)
-        if (!homeTeam || !awayTeam) return
+        if (!homeTeam && !awayTeam) return
 
-        homeTeam.played += 1
-        awayTeam.played += 1
-        homeTeam.goalsFor += score.home_score
-        homeTeam.goalsAgainst += score.away_score
-        awayTeam.goalsFor += score.away_score
-        awayTeam.goalsAgainst += score.home_score
+        if (homeTeam) {
+          homeTeam.played += 1
+          homeTeam.goalsFor += score.home_score
+          homeTeam.goalsAgainst += score.away_score
+        }
+        if (awayTeam) {
+          awayTeam.played += 1
+          awayTeam.goalsFor += score.away_score
+          awayTeam.goalsAgainst += score.home_score
+        }
 
         if (score.home_score > score.away_score) {
-          homeTeam.won += 1
-          awayTeam.lost += 1
+          if (homeTeam) homeTeam.won += 1
+          if (awayTeam) awayTeam.lost += 1
         } else if (score.home_score < score.away_score) {
-          awayTeam.won += 1
-          homeTeam.lost += 1
+          if (awayTeam) awayTeam.won += 1
+          if (homeTeam) homeTeam.lost += 1
         } else {
-          homeTeam.drawn += 1
-          awayTeam.drawn += 1
+          if (homeTeam) homeTeam.drawn += 1
+          if (awayTeam) awayTeam.drawn += 1
         }
       })
 
