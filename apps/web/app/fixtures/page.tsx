@@ -116,15 +116,20 @@ function getOpeningRoundMatchCount(teamCount: number) {
   return Math.ceil(teamCount / 2)
 }
 
+/**
+ * Extract the date portion (YYYY-MM-DD) directly from an ISO datetime string,
+ * without letting the Date constructor apply a timezone offset. This ensures
+ * the date the admin sets is exactly what is stored and displayed.
+ */
 function getDateKey(matchDate: string) {
-  const date = new Date(matchDate)
-  const year = date.getFullYear()
-  const month = String(date.getMonth() + 1).padStart(2, '0')
-  const day = String(date.getDate()).padStart(2, '0')
-  return `${year}-${month}-${day}`
+  // ISO strings from Supabase are like "2026-07-15T14:30:00+00:00" or "2026-07-15T14:30:00"
+  // We extract the date part directly to avoid local-timezone shifts
+  const datePart = matchDate.slice(0, 10) // 'YYYY-MM-DD'
+  return datePart
 }
 
 function formatMatchDate(dateKey: string) {
+  // Append T00:00:00 so the Date constructor treats this as local time (no offset)
   return new Date(`${dateKey}T00:00:00`).toLocaleDateString('en-GB', {
     weekday: 'long',
     day: 'numeric',
@@ -135,18 +140,33 @@ function formatMatchDate(dateKey: string) {
 
 function formatRoundDate(matchDate: string | null) {
   if (!matchDate) return 'Date TBC'
-  return new Date(matchDate).toLocaleDateString('en-GB', {
+  // Extract date portion directly, then format without timezone shift
+  const dateKey = matchDate.slice(0, 10)
+  return new Date(`${dateKey}T00:00:00`).toLocaleDateString('en-GB', {
     day: 'numeric',
     month: 'long',
     year: 'numeric',
   })
 }
 
+/**
+ * Extract the HH:MM time directly from an ISO datetime string,
+ * without applying any timezone conversion. The time the admin
+ * enters is treated as the intended wall-clock kickoff time.
+ */
 function formatMatchTime(matchDate: string) {
-  return new Date(matchDate).toLocaleTimeString('en-GB', {
-    hour: '2-digit',
-    minute: '2-digit',
-  })
+  // matchDate is like "2026-07-15T14:30:00" or "2026-07-15T14:30:00+00:00"
+  // Grab the time part (characters 11–15) directly
+  const timePart = matchDate.slice(11, 16) // 'HH:MM'
+  if (!timePart || timePart.length < 5) {
+    // Fallback: use toLocaleTimeString but in UTC to avoid offset
+    return new Date(matchDate).toLocaleTimeString('en-GB', {
+      hour: '2-digit',
+      minute: '2-digit',
+      timeZone: 'UTC',
+    })
+  }
+  return timePart
 }
 
 function mapStatus(status: DbFixtureStatus): FixtureStatus {

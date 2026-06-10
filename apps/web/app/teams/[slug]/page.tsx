@@ -52,7 +52,9 @@ function getScore(matchScores: FixtureRow['match_scores']) {
 }
 
 function formatLongDate(matchDate: string) {
-  return new Date(matchDate).toLocaleDateString('en-GB', {
+  // Extract YYYY-MM-DD directly to avoid timezone shift
+  const dateKey = matchDate.slice(0, 10)
+  return new Date(`${dateKey}T00:00:00`).toLocaleDateString('en-GB', {
     weekday: 'short',
     day: 'numeric',
     month: 'long',
@@ -61,10 +63,16 @@ function formatLongDate(matchDate: string) {
 }
 
 function formatTime(matchDate: string) {
-  return new Date(matchDate).toLocaleTimeString('en-GB', {
-    hour: '2-digit',
-    minute: '2-digit',
-  })
+  // Extract HH:MM directly — the admin's intended wall-clock time
+  const timePart = matchDate.slice(11, 16)
+  if (!timePart || timePart.length < 5) {
+    return new Date(matchDate).toLocaleTimeString('en-GB', {
+      hour: '2-digit',
+      minute: '2-digit',
+      timeZone: 'UTC',
+    })
+  }
+  return timePart
 }
 
 function sortPlayers(players: PlayerRow[]) {

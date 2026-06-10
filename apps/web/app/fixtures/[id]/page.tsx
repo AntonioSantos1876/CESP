@@ -123,19 +123,28 @@ const ALL_FIXTURES: FixtureData[] = [
   },
 ]
 
+/**
+ * Extract the date portion (YYYY-MM-DD) directly from an ISO datetime string
+ * to avoid local-timezone shifts when displaying dates.
+ */
 function getDateKey(matchDate: string) {
-  const date = new Date(matchDate)
-  const year = date.getFullYear()
-  const month = String(date.getMonth() + 1).padStart(2, '0')
-  const day = String(date.getDate()).padStart(2, '0')
-  return `${year}-${month}-${day}`
+  return matchDate.slice(0, 10) // 'YYYY-MM-DD'
 }
 
+/**
+ * Extract HH:MM directly from an ISO datetime string without timezone conversion.
+ * The time the admin enters is the intended wall-clock kickoff time.
+ */
 function formatMatchTime(matchDate: string) {
-  return new Date(matchDate).toLocaleTimeString('en-GB', {
-    hour: '2-digit',
-    minute: '2-digit',
-  })
+  const timePart = matchDate.slice(11, 16) // 'HH:MM'
+  if (!timePart || timePart.length < 5) {
+    return new Date(matchDate).toLocaleTimeString('en-GB', {
+      hour: '2-digit',
+      minute: '2-digit',
+      timeZone: 'UTC',
+    })
+  }
+  return timePart
 }
 
 function mapDbStatus(status: DbFixture['status']): FixtureStatus {
