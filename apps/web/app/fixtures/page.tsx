@@ -322,7 +322,8 @@ function buildBracket(fixtures: DbFixture[]) {
     if (round) grouped[round].push(fixture)
   })
 
-  if (!grouped.quarterfinal.length && !grouped.semifinal.length && !grouped.final.length) {
+  const hasKnockoutRounds = grouped.quarterfinal.length > 0 || grouped.semifinal.length > 0 || grouped.final.length > 0 || grouped.third.length > 0
+  if (!hasKnockoutRounds) {
     const activeFixtures = sorted.filter(fixture => fixture.status !== 'cancelled')
     grouped.quarterfinal = activeFixtures.slice(0, 4)
     grouped.semifinal = activeFixtures.slice(4, 6)
@@ -439,6 +440,7 @@ function BCard({ match }: { match: BMatch }) {
 function BracketView({ fixtures }: { fixtures: DbFixture[] }) {
   const bracket = buildBracket(fixtures)
   const hasBracketContent = fixtures.length > 0
+  const hasQuarterfinals = bracket.quarterfinals.some(m => m.home || m.away)
 
   return (
     <div className="rounded-[28px] border border-bg-border bg-[#0E0E0E] p-4 md:p-6">
@@ -450,25 +452,25 @@ function BracketView({ fixtures }: { fixtures: DbFixture[] }) {
 
       {hasBracketContent && (
         <>
-          <div className="mb-6 grid gap-4 md:grid-cols-3">
-            {[
-              { label: 'Quarter-finals', date: getRoundHeaderDate(bracket.quarterfinals), accent: 'text-brand-secondary' },
-              {
-                label: 'Semi-finals',
-                date: formatRoundDate(bracket.semifinals.find(match => match.date)?.date ?? DEFAULT_SEMI_FINAL_DATE),
-                accent: 'text-brand-secondary',
-              },
-              {
-                label: 'Final + 3rd',
-                date: formatRoundDate(bracket.final.date || bracket.third.date || DEFAULT_FINAL_DATE),
-                accent: 'text-amber-400',
-              },
-            ].map(round => (
-              <div key={round.label} className="rounded-2xl border border-bg-border bg-bg-card/70 px-4 py-3 text-center">
-                <p className={`text-xs font-bold uppercase tracking-[0.24em] ${round.accent}`}>{round.label}</p>
-                <p className="mt-2 text-sm text-text-secondary">{round.date}</p>
+          <div className={`mb-6 grid gap-4 ${hasQuarterfinals ? 'md:grid-cols-3' : 'md:grid-cols-2'}`}>
+            {hasQuarterfinals && (
+              <div className="rounded-2xl border border-bg-border bg-bg-card/70 px-4 py-3 text-center">
+                <p className="text-xs font-bold uppercase tracking-[0.24em] text-brand-secondary">Quarter-finals</p>
+                <p className="mt-2 text-sm text-text-secondary">{getRoundHeaderDate(bracket.quarterfinals)}</p>
               </div>
-            ))}
+            )}
+            <div className="rounded-2xl border border-bg-border bg-bg-card/70 px-4 py-3 text-center">
+              <p className="text-xs font-bold uppercase tracking-[0.24em] text-brand-secondary">Semi-finals</p>
+              <p className="mt-2 text-sm text-text-secondary">
+                {formatRoundDate(bracket.semifinals.find(match => match.date)?.date ?? DEFAULT_SEMI_FINAL_DATE)}
+              </p>
+            </div>
+            <div className="rounded-2xl border border-bg-border bg-bg-card/70 px-4 py-3 text-center">
+              <p className="text-xs font-bold uppercase tracking-[0.24em] text-amber-400">Final + 3rd Place</p>
+              <p className="mt-2 text-sm text-text-secondary">
+                {formatRoundDate(bracket.final.date || bracket.third.date || DEFAULT_FINAL_DATE)}
+              </p>
+            </div>
           </div>
 
           <div className="relative w-full">

@@ -23,13 +23,14 @@ type LineupStatus = 'starter' | 'bench' | 'out'
 
 type Fixture = {
   id: string
-  home_team_id: string
-  away_team_id: string
+  home_team_id: string | null
+  away_team_id: string | null
   home_team: { name: string } | null
   away_team: { name: string } | null
   match_date: string
   status: FixtureStatus
   round: string | null
+  knockout_round: string | null
   youtube_stream_id: string | null
   match_scores: { home_score: number; away_score: number } | null
 }
@@ -41,7 +42,20 @@ type EditState = {
   youtube: string
   match_date: string
   status: FixtureStatus
+  home_team_id: string | null
+  away_team_id: string | null
+  round: string
 }
+
+type AddFixtureForm = {
+  home_team_id: string
+  away_team_id: string
+  round: string
+  match_date: string
+  status: FixtureStatus
+}
+
+type TeamOption = { id: string; name: string }
 
 type RosterPlayer = {
   id: string
@@ -178,7 +192,7 @@ function getFixtureEditTeams(fixture: Fixture, role: UserRole | null, assignedTe
   const options = [
     { teamId: fixture.home_team_id, teamName: fixture.home_team?.name ?? 'Home Team' },
     { teamId: fixture.away_team_id, teamName: fixture.away_team?.name ?? 'Away Team' },
-  ]
+  ].filter((option) => option.teamId !== null) as { teamId: string; teamName: string }[]
 
   if (role === 'super_admin') return options
   return options.filter((option) => option.teamId === assignedTeamId)
@@ -200,6 +214,12 @@ export default function AdminMatchesPage() {
   const [lineupEditKey, setLineupEditKey] = useState<string | null>(null)
   const [lineupSavingKey, setLineupSavingKey] = useState<string | null>(null)
   const [lineupErrors, setLineupErrors] = useState<Record<string, string>>({})
+  const [allTeams, setAllTeams] = useState<TeamOption[]>([])
+  const [showAddForm, setShowAddForm] = useState(false)
+  const [addForm, setAddForm] = useState<AddFixtureForm>({
+    home_team_id: '', away_team_id: '', round: '', match_date: '', status: 'scheduled',
+  })
+  const [addSaving, setAddSaving] = useState(false)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -255,7 +275,7 @@ export default function AdminMatchesPage() {
     let fixturesQuery = (supabase as any)
       .from('fixtures')
       .select(`
-        id, home_team_id, away_team_id, match_date, status, round, youtube_stream_id,
+        id, home_team_id, away_team_id, match_date, status, round, knockout_round, youtube_stream_id,
         home_team:teams!fixtures_home_team_id_fkey(name),
         away_team:teams!fixtures_away_team_id_fkey(name),
         match_scores(home_score, away_score)
@@ -271,10 +291,16 @@ export default function AdminMatchesPage() {
     setFixtures(nextFixtures)
 
     const teamIdsToLoad = nextRole === 'super_admin'
-      ? [...new Set(nextFixtures.flatMap((fixture) => [fixture.home_team_id, fixture.away_team_id]))]
+      ? [...new Set(nextFixtures.flatMap((fixture) => [fixture.home_team_id, fixture.away_team_id]).filter(Boolean) as string[])]
       : profile.team_id
         ? [profile.team_id]
         : []
+
+    if (nextRole === 'super_admin') {
+      const { data: teamsRows } = await (supabase as any)
+        .from('teams').select('id, name').order('name', { ascending: true })
+      setAllTeams((teamsRows ?? []) as TeamOption[])
+    }
 
     const fixtureIds = nextFixtures.map((fixture) => fixture.id)
 
@@ -340,6 +366,9 @@ export default function AdminMatchesPage() {
       youtube: fixture.youtube_stream_id ?? '',
       match_date: fixture.match_date ? fixture.match_date.slice(0, 16) : '',
       status: fixture.status,
+      home_team_id: fixture.home_team_id,
+      away_team_id: fixture.away_team_id,
+      round: fixture.round ?? '',
     })
   }
 
@@ -360,6 +389,9 @@ export default function AdminMatchesPage() {
       youtube_stream_id: edit.youtube || null,
       status: edit.status,
       match_date: edit.match_date || null,
+      home_team_id: edit.home_team_id || null,
+      away_team_id: edit.away_team_id || null,
+      round: edit.round || null,
     }).eq('id', edit.id)
 
     const { data: existing } = await (supabase as any)
@@ -380,9 +412,59 @@ export default function AdminMatchesPage() {
       await (supabase as any).from('match_scores').insert(payload)
     }
 
+    // Auto-advance knockout bracket when a semi-final is completed
+    const fixture = fixtures.find((f) => f.id === edit.id)
+    if (fixture?.knockout_round && (fixture.knockout_round === 'semi_1' || fixture.knockout_round === 'semi_2') && edit.status === 'completed') {
+      const homeScore = Number(edit.home_score) || 0
+      const awayScore = Number(edit.away_score) || 0
+      const winnerId = homeScore > awayScore
+        ? (edit.home_team_id ?? fixture.home_team_id)
+        : awayScore > homeScore
+          ? (edit.away_team_id ?? fixture.away_team_id)
+          : null
+      const loserId = homeScore > awayScore
+        ? (edit.away_team_id ?? fixture.away_team_id)
+        : awayScore > homeScore
+          ? (edit.home_team_id ?? fixture.home_team_id)
+          : null
+
+      if (winnerId || loserId) {
+        const isSemi1 = fixture.knockout_round === 'semi_1'
+        const finalField = isSemi1 ? { home_team_id: winnerId } : { away_team_id: winnerId }
+        const thirdField = isSemi1 ? { home_team_id: loserId } : { away_team_id: loserId }
+
+        if (winnerId) {
+          await (supabase as any).from('fixtures').update(finalField)
+            .eq('knockout_round', 'final')
+        }
+        if (loserId) {
+          await (supabase as any).from('fixtures').update(thirdField)
+            .eq('knockout_round', 'third_place')
+        }
+      }
+    }
+
     setSaving(null)
     setEditId(null)
     setEdit(null)
+    load()
+  }
+
+  async function addFixture() {
+    if (!addForm.home_team_id || !addForm.away_team_id || !addForm.round) return
+    if (addForm.home_team_id === addForm.away_team_id) return
+    setAddSaving(true)
+    const supabase = createClient()
+    await (supabase as any).from('fixtures').insert({
+      home_team_id: addForm.home_team_id,
+      away_team_id: addForm.away_team_id,
+      round: addForm.round,
+      match_date: addForm.match_date ? new Date(addForm.match_date).toISOString() : new Date().toISOString(),
+      status: addForm.status,
+    })
+    setAddSaving(false)
+    setShowAddForm(false)
+    setAddForm({ home_team_id: '', away_team_id: '', round: '', match_date: '', status: 'scheduled' })
     load()
   }
 
@@ -507,14 +589,110 @@ export default function AdminMatchesPage() {
                 : 'You can only manage lineups for your assigned team.'}
           </p>
         </div>
-        <button
-          onClick={load}
-          className="flex items-center gap-2 rounded-xl border border-bg-border bg-bg-muted px-3 py-2 text-sm text-text-secondary transition-colors hover:bg-bg-hover hover:text-text-primary"
-        >
-          <RefreshCw size={14} />
-          Refresh
-        </button>
+        <div className="flex items-center gap-2">
+          {userRole === 'super_admin' && (
+            <button
+              onClick={() => setShowAddForm((prev) => !prev)}
+              className="flex items-center gap-2 rounded-xl bg-brand-primary px-3 py-2 text-sm font-medium text-white transition-colors hover:bg-brand-primary/90"
+            >
+              <Play size={14} />
+              Add fixture
+            </button>
+          )}
+          <button
+            onClick={load}
+            className="flex items-center gap-2 rounded-xl border border-bg-border bg-bg-muted px-3 py-2 text-sm text-text-secondary transition-colors hover:bg-bg-hover hover:text-text-primary"
+          >
+            <RefreshCw size={14} />
+            Refresh
+          </button>
+        </div>
       </div>
+
+      {userRole === 'super_admin' && showAddForm && (
+        <div className="mb-6 overflow-hidden rounded-2xl border border-brand-primary/20 bg-brand-primary/5">
+          <div className="border-b border-brand-primary/15 px-5 py-3">
+            <p className="text-sm font-semibold text-brand-secondary">Add new fixture</p>
+          </div>
+          <div className="grid grid-cols-1 gap-4 px-5 py-4 sm:grid-cols-2 lg:grid-cols-3">
+            <div>
+              <label className="mb-1.5 block text-xs text-text-muted">Home team</label>
+              <select
+                value={addForm.home_team_id}
+                onChange={(e) => setAddForm({ ...addForm, home_team_id: e.target.value })}
+                className="input w-full"
+              >
+                <option value="">Select team</option>
+                {allTeams.map((team) => (
+                  <option key={team.id} value={team.id}>{team.name}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="mb-1.5 block text-xs text-text-muted">Away team</label>
+              <select
+                value={addForm.away_team_id}
+                onChange={(e) => setAddForm({ ...addForm, away_team_id: e.target.value })}
+                className="input w-full"
+              >
+                <option value="">Select team</option>
+                {allTeams.map((team) => (
+                  <option key={team.id} value={team.id}>{team.name}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="mb-1.5 block text-xs text-text-muted">Round / label</label>
+              <input
+                type="text"
+                value={addForm.round}
+                onChange={(e) => setAddForm({ ...addForm, round: e.target.value })}
+                placeholder="e.g. Group Stage, Quarter-Final 1"
+                className="input w-full"
+              />
+            </div>
+            <div>
+              <label className="mb-1.5 block text-xs text-text-muted">Match date &amp; time</label>
+              <input
+                type="datetime-local"
+                value={addForm.match_date}
+                onChange={(e) => setAddForm({ ...addForm, match_date: e.target.value })}
+                className="input w-full"
+              />
+            </div>
+            <div>
+              <label className="mb-1.5 block text-xs text-text-muted">Status</label>
+              <select
+                value={addForm.status}
+                onChange={(e) => setAddForm({ ...addForm, status: e.target.value as FixtureStatus })}
+                className="input w-full"
+              >
+                <option value="scheduled">Scheduled</option>
+                <option value="live">Live</option>
+                <option value="completed">Completed</option>
+                <option value="postponed">Postponed</option>
+              </select>
+            </div>
+            <div className="flex items-end gap-2">
+              <button
+                onClick={addFixture}
+                disabled={addSaving || !addForm.home_team_id || !addForm.away_team_id || !addForm.round || addForm.home_team_id === addForm.away_team_id}
+                className="flex items-center gap-2 rounded-xl bg-brand-primary px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-brand-primary/90 disabled:opacity-50"
+              >
+                <Save size={14} />
+                {addSaving ? 'Saving...' : 'Create fixture'}
+              </button>
+              <button
+                onClick={() => setShowAddForm(false)}
+                className="flex items-center gap-2 rounded-xl border border-bg-border bg-bg-muted px-4 py-2 text-sm text-text-secondary hover:text-text-primary"
+              >
+                <X size={14} />
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="mb-6 flex flex-wrap gap-2">
         {FILTER_TABS.map(({ key, label }) => (
@@ -568,7 +746,7 @@ export default function AdminMatchesPage() {
 
                   <div className="min-w-0 flex-1">
                     <p className="text-sm font-semibold text-text-primary">
-                      {fixture.home_team?.name ?? 'TBD'} vs {fixture.away_team?.name ?? 'TBD'}
+                      {fixture.home_team?.name ?? 'TBA'} vs {fixture.away_team?.name ?? 'TBA'}
                     </p>
                     <div className="mt-0.5 flex flex-wrap items-center gap-3 text-xs text-text-muted">
                       <span>{fixture.round ?? 'Match'}</span>
@@ -636,8 +814,38 @@ export default function AdminMatchesPage() {
                       className="overflow-hidden border-t border-[#1a1a1a]"
                     >
                       <div className="grid grid-cols-1 gap-4 px-5 py-4 sm:grid-cols-2 lg:grid-cols-3">
+                        {fixture.knockout_round && (
+                          <>
+                            <div>
+                              <label className="mb-1.5 block text-xs text-text-muted">Home team (TBA)</label>
+                              <select
+                                value={edit.home_team_id ?? ''}
+                                onChange={(event) => setEdit({ ...edit, home_team_id: event.target.value || null })}
+                                className="input w-full"
+                              >
+                                <option value="">TBA</option>
+                                {allTeams.map((team) => (
+                                  <option key={team.id} value={team.id}>{team.name}</option>
+                                ))}
+                              </select>
+                            </div>
+                            <div>
+                              <label className="mb-1.5 block text-xs text-text-muted">Away team (TBA)</label>
+                              <select
+                                value={edit.away_team_id ?? ''}
+                                onChange={(event) => setEdit({ ...edit, away_team_id: event.target.value || null })}
+                                className="input w-full"
+                              >
+                                <option value="">TBA</option>
+                                {allTeams.map((team) => (
+                                  <option key={team.id} value={team.id}>{team.name}</option>
+                                ))}
+                              </select>
+                            </div>
+                          </>
+                        )}
                         <div>
-                          <label className="mb-1.5 block text-xs text-text-muted">{fixture.home_team?.name ?? 'Home'} score</label>
+                          <label className="mb-1.5 block text-xs text-text-muted">{edit.home_team_id ? (allTeams.find(t => t.id === edit.home_team_id)?.name ?? fixture.home_team?.name ?? 'Home') : (fixture.home_team?.name ?? 'Home')} score</label>
                           <input
                             type="number"
                             min={0}
@@ -647,7 +855,7 @@ export default function AdminMatchesPage() {
                           />
                         </div>
                         <div>
-                          <label className="mb-1.5 block text-xs text-text-muted">{fixture.away_team?.name ?? 'Away'} score</label>
+                          <label className="mb-1.5 block text-xs text-text-muted">{edit.away_team_id ? (allTeams.find(t => t.id === edit.away_team_id)?.name ?? fixture.away_team?.name ?? 'Away') : (fixture.away_team?.name ?? 'Away')} score</label>
                           <input
                             type="number"
                             min={0}
