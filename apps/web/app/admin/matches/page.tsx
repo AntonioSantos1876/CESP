@@ -8,6 +8,7 @@ import {
   ClipboardList,
   Edit3,
   Play,
+  Plus,
   RefreshCw,
   Save,
   Square,
@@ -64,6 +65,15 @@ type RosterPlayer = {
   position: string | null
   jersey_number: number | null
   is_starter: boolean
+}
+
+type GoalEvent = {
+  id: string
+  player_id: string | null
+  team_id: string
+  event_minute: number | null
+  notes: string | null
+  player_name: string | null
 }
 
 type StoredLineupPlayer = {
@@ -220,6 +230,12 @@ export default function AdminMatchesPage() {
     home_team_id: '', away_team_id: '', round: '', match_date: '', status: 'scheduled',
   })
   const [addSaving, setAddSaving] = useState(false)
+  const [goalsByFixture, setGoalsByFixture] = useState<Record<string, GoalEvent[]>>({})
+  const [goalFormOpen, setGoalFormOpen] = useState(false)
+  const [goalFormTeamId, setGoalFormTeamId] = useState('')
+  const [goalFormPlayerId, setGoalFormPlayerId] = useState('')
+  const [goalFormMinute, setGoalFormMinute] = useState('')
+  const [savingGoal, setSavingGoal] = useState(false)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -370,6 +386,84 @@ export default function AdminMatchesPage() {
       away_team_id: fixture.away_team_id,
       round: fixture.round ?? '',
     })
+    setGoalFormOpen(false)
+    setGoalFormTeamId(fixture.home_team_id ?? '')
+    setGoalFormPlayerId('')
+    setGoalFormMinute('')
+    if (fixture.status === 'live' || fixture.status === 'completed') {
+      loadGoals(fixture.id)
+    }
+  }
+
+  async function loadGoals(fixtureId: string) {
+    const supabase = createClient()
+    const { data } = await (supabase as any)
+      .from('match_stats')
+      .select('id, player_id, team_id, event_minute, notes, player:players(full_name)')
+      .eq('fixture_id', fixtureId)
+      .eq('event_type', 'goal')
+      .order('event_minute', { ascending: true, nullsFirst: false })
+
+    const goals = ((data ?? []) as any[]).map(row => ({
+      id: row.id,
+      player_id: row.player_id,
+      team_id: row.team_id,
+      event_minute: row.event_minute,
+      notes: row.notes,
+      player_name: Array.isArray(row.player) ? (row.player[0]?.full_name ?? null) : (row.player?.full_name ?? null),
+    }))
+
+    setGoalsByFixture(prev => ({ ...prev, [fixtureId]: goals }))
+  }
+
+  function formatGoalMinute(goal: GoalEvent) {
+    const raw = goal.notes ?? (goal.event_minute !== null ? String(goal.event_minute) : null)
+    if (!raw) return '?'
+    return raw.endsWith("'") ? raw : `${raw}'`
+  }
+
+  async function logGoal(fixture: Fixture) {
+    if (!goalFormTeamId || !editId) return
+    setSavingGoal(true)
+    const supabase = createClient()
+
+    const minuteRaw = goalFormMinute.trim()
+    const minuteMatch = minuteRaw.match(/^(\d+)/)
+    const minuteNum = minuteMatch ? parseInt(minuteMatch[1], 10) : null
+
+    await (supabase as any).from('match_stats').insert({
+      fixture_id: editId,
+      player_id: goalFormPlayerId || null,
+      team_id: goalFormTeamId,
+      event_type: 'goal',
+      event_minute: minuteNum,
+      notes: minuteRaw || null,
+    })
+
+    const homeTeamId = edit?.home_team_id ?? fixture.home_team_id
+    const awayTeamId = edit?.away_team_id ?? fixture.away_team_id
+    const existing = goalsByFixture[editId] ?? []
+    const isHome = goalFormTeamId === homeTeamId
+    const homeCount = existing.filter(g => g.team_id === homeTeamId).length + (isHome ? 1 : 0)
+    const awayCount = existing.filter(g => g.team_id === awayTeamId).length + (!isHome ? 1 : 0)
+
+    const { data: scoreRow } = await (supabase as any)
+      .from('match_scores')
+      .select('id')
+      .eq('fixture_id', editId)
+      .maybeSingle()
+
+    if (scoreRow) {
+      await (supabase as any).from('match_scores').update({ home_score: homeCount, away_score: awayCount }).eq('fixture_id', editId)
+    } else {
+      await (supabase as any).from('match_scores').insert({ fixture_id: editId, home_score: homeCount, away_score: awayCount })
+    }
+
+    setGoalFormPlayerId('')
+    setGoalFormMinute('')
+    setSavingGoal(false)
+    await loadGoals(editId)
+    load()
   }
 
   async function updateStatus(id: string, status: FixtureStatus) {
@@ -899,6 +993,129 @@ export default function AdminMatchesPage() {
                             className="input w-full"
                           />
                         </div>
+                        {(edit.status === 'live' || edit.status === 'completed') && (edit.home_team_id || fixture.home_team_id) && (edit.away_team_id || fixture.away_team_id) && (
+                          <div className="sm:col-span-2 lg:col-span-3 rounded-xl border border-[#1e1e1e] bg-[#0a0a0a] p-4">
+                            <div className="mb-3 flex items-center justify-between">
+                              <p className="text-xs font-semibold uppercase tracking-wider text-text-muted">Goals</p>
+                              <button
+                                onClick={() => {
+                                  setGoalFormOpen(open => !open)
+                                  setGoalFormTeamId(edit.home_team_id ?? fixture.home_team_id ?? '')
+                                  setGoalFormPlayerId('')
+                                  setGoalFormMinute('')
+                                }}
+                                className="flex items-center gap-1 rounded-lg bg-brand-primary/10 px-2.5 py-1 text-xs font-medium text-brand-secondary hover:bg-brand-primary/20 transition-colors"
+                              >
+                                <Plus size={11} />
+                                Log goal
+                              </button>
+                            </div>
+
+                            {(() => {
+                              const goals = goalsByFixture[fixture.id] ?? []
+                              const homeTeamId = edit.home_team_id ?? fixture.home_team_id ?? ''
+                              const awayTeamId = edit.away_team_id ?? fixture.away_team_id ?? ''
+                              const homeGoals = goals.filter(g => g.team_id === homeTeamId)
+                              const awayGoals = goals.filter(g => g.team_id === awayTeamId)
+                              const homeName = edit.home_team_id ? (allTeams.find(t => t.id === edit.home_team_id)?.name ?? fixture.home_team?.name ?? 'Home') : (fixture.home_team?.name ?? 'Home')
+                              const awayName = edit.away_team_id ? (allTeams.find(t => t.id === edit.away_team_id)?.name ?? fixture.away_team?.name ?? 'Away') : (fixture.away_team?.name ?? 'Away')
+                              const homeScore = homeGoals.length
+                              const awayScore = awayGoals.length
+
+                              return (
+                                <div>
+                                  <div className="mb-3 flex items-center gap-2">
+                                    <div className="flex-1 text-center">
+                                      <p className="text-[10px] font-semibold uppercase tracking-wider text-text-muted mb-1">{homeName.split(' ')[0]}</p>
+                                      {homeGoals.length === 0 ? (
+                                        <p className="text-xs text-text-muted italic">No goals</p>
+                                      ) : (
+                                        <div className="space-y-0.5">
+                                          {homeGoals.map(g => (
+                                            <p key={g.id} className="text-xs text-text-primary">{g.player_name ?? 'Unknown'} <span className="text-text-muted">{formatGoalMinute(g)}</span></p>
+                                          ))}
+                                        </div>
+                                      )}
+                                    </div>
+                                    <div className="px-3 text-center">
+                                      <p className="text-lg font-bold text-text-primary tabular-nums">{homeScore} - {awayScore}</p>
+                                    </div>
+                                    <div className="flex-1 text-center">
+                                      <p className="text-[10px] font-semibold uppercase tracking-wider text-text-muted mb-1">{awayName.split(' ')[0]}</p>
+                                      {awayGoals.length === 0 ? (
+                                        <p className="text-xs text-text-muted italic">No goals</p>
+                                      ) : (
+                                        <div className="space-y-0.5">
+                                          {awayGoals.map(g => (
+                                            <p key={g.id} className="text-xs text-text-primary">{g.player_name ?? 'Unknown'} <span className="text-text-muted">{formatGoalMinute(g)}</span></p>
+                                          ))}
+                                        </div>
+                                      )}
+                                    </div>
+                                  </div>
+
+                                  {goalFormOpen && (
+                                    <div className="mt-3 border-t border-[#1e1e1e] pt-3 grid grid-cols-1 gap-3 sm:grid-cols-3">
+                                      <div>
+                                        <label className="mb-1 block text-[10px] font-semibold uppercase tracking-wider text-text-muted">Team</label>
+                                        <div className="flex gap-1.5">
+                                          <button
+                                            onClick={() => { setGoalFormTeamId(homeTeamId); setGoalFormPlayerId('') }}
+                                            className={`flex-1 rounded-lg py-1.5 text-xs font-medium transition-colors ${goalFormTeamId === homeTeamId ? 'bg-brand-primary text-white' : 'border border-[#333] bg-[#111] text-text-secondary hover:text-text-primary'}`}
+                                          >
+                                            {homeName.split(' ')[0]}
+                                          </button>
+                                          <button
+                                            onClick={() => { setGoalFormTeamId(awayTeamId); setGoalFormPlayerId('') }}
+                                            className={`flex-1 rounded-lg py-1.5 text-xs font-medium transition-colors ${goalFormTeamId === awayTeamId ? 'bg-brand-primary text-white' : 'border border-[#333] bg-[#111] text-text-secondary hover:text-text-primary'}`}
+                                          >
+                                            {awayName.split(' ')[0]}
+                                          </button>
+                                        </div>
+                                      </div>
+                                      <div>
+                                        <label className="mb-1 block text-[10px] font-semibold uppercase tracking-wider text-text-muted">Scorer</label>
+                                        <select
+                                          value={goalFormPlayerId}
+                                          onChange={e => setGoalFormPlayerId(e.target.value)}
+                                          className="input w-full text-xs py-1.5"
+                                        >
+                                          <option value="">Unknown / no scorer</option>
+                                          {(rostersByTeam[goalFormTeamId] ?? []).map(p => (
+                                            <option key={p.id} value={p.id}>
+                                              {p.jersey_number ? `#${p.jersey_number} ` : ''}{p.full_name}
+                                            </option>
+                                          ))}
+                                        </select>
+                                      </div>
+                                      <div>
+                                        <label className="mb-1 block text-[10px] font-semibold uppercase tracking-wider text-text-muted">Minute</label>
+                                        <div className="flex gap-2">
+                                          <input
+                                            type="text"
+                                            placeholder="e.g. 45 or 90+3"
+                                            value={goalFormMinute}
+                                            onChange={e => setGoalFormMinute(e.target.value)}
+                                            className="input flex-1 text-xs py-1.5"
+                                          />
+                                          <button
+                                            onClick={() => logGoal(fixture)}
+                                            disabled={savingGoal || !goalFormTeamId}
+                                            className="flex items-center gap-1 rounded-xl bg-brand-primary px-3 py-1.5 text-xs font-medium text-white hover:bg-brand-primary/90 disabled:opacity-50 transition-colors"
+                                          >
+                                            <Save size={11} />
+                                            {savingGoal ? '...' : 'Add'}
+                                          </button>
+                                        </div>
+                                      </div>
+                                    </div>
+                                  )}
+                                </div>
+                              )
+                            })()}
+                          </div>
+                        )}
+
                         <div className="sm:col-span-2 lg:col-span-3 flex justify-end">
                           <button
                             onClick={saveEdit}

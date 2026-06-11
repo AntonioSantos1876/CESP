@@ -22,12 +22,14 @@ type Player = {
   position: string
   x: number
   y: number
+  photo_url?: string | null
 }
 
 type BenchPlayer = {
   number: number
   name: string
   position: string | null
+  photo_url?: string | null
 }
 
 type LineupData = {
@@ -42,6 +44,7 @@ type DbPlayer = {
   position: string | null
   jersey_number: number | null
   is_starter: boolean
+  photo_url?: string | null
 }
 
 type LineupEntry = {
@@ -50,6 +53,7 @@ type LineupEntry = {
   jersey_number: number | null
   is_starter: boolean
   sort_order: number
+  photo_url?: string | null
 }
 
 type DbFormation = {
@@ -226,6 +230,7 @@ function buildLineup(entries: LineupEntry[], side: 'home' | 'away', formationOve
     number: p.jersey_number ?? 0,
     name: p.full_name,
     position: p.position ?? null,
+    photo_url: p.photo_url ?? null,
   }))
 
   const hasMeaningful = selected.some(p => {
@@ -253,7 +258,7 @@ function buildLineup(entries: LineupEntry[], side: 'home' | 'away', formationOve
   const players: Player[] = []
 
   if (gk) {
-    players.push({ number: gk.jersey_number ?? 1, name: gk.full_name, position: 'GK', x: 150, y: yGK })
+    players.push({ number: gk.jersey_number ?? 1, name: gk.full_name, position: 'GK', x: 150, y: yGK, photo_url: gk.photo_url ?? null })
   }
 
   defs.forEach((p, i) => players.push({
@@ -262,6 +267,7 @@ function buildLineup(entries: LineupEntry[], side: 'home' | 'away', formationOve
     position: p.position ?? 'DEF',
     x: spreadX(defs.length, i),
     y: yDEF,
+    photo_url: p.photo_url ?? null,
   }))
 
   mids.forEach((p, i) => players.push({
@@ -270,6 +276,7 @@ function buildLineup(entries: LineupEntry[], side: 'home' | 'away', formationOve
     position: p.position ?? 'MID',
     x: spreadX(mids.length, i),
     y: yMID,
+    photo_url: p.photo_url ?? null,
   }))
 
   fwds.forEach((p, i) => players.push({
@@ -278,6 +285,7 @@ function buildLineup(entries: LineupEntry[], side: 'home' | 'away', formationOve
     position: p.position ?? 'FWD',
     x: spreadX(fwds.length, i),
     y: yFWD,
+    photo_url: p.photo_url ?? null,
   }))
 
   const formationParts = [defs.length, mids.length, fwds.length].filter(n => n > 0)
@@ -298,6 +306,7 @@ function normalizeFormationLineup(lineup: DbFormation['lineup']): LineupEntry[] 
       jersey_number: typeof player.jersey_number === 'number' ? player.jersey_number : null,
       is_starter: player.lineup_status === 'starter',
       sort_order: typeof player.sort_order === 'number' ? player.sort_order : index,
+      photo_url: null,
     }]
   }).sort((left, right) => left.sort_order - right.sort_order)
 }
@@ -318,7 +327,7 @@ async function fetchLineup(teamId: string, fixtureId: string, side: 'home' | 'aw
 
   const { data: players } = await (supabase as any)
     .from('players')
-    .select('id, full_name, position, jersey_number, is_starter')
+    .select('id, full_name, position, jersey_number, is_starter, photo_url')
     .eq('team_id', teamId)
     .eq('is_active', true)
     .order('is_starter', { ascending: false })
@@ -330,6 +339,7 @@ async function fetchLineup(teamId: string, fixtureId: string, side: 'home' | 'aw
     jersey_number: player.jersey_number,
     is_starter: player.is_starter,
     sort_order: index,
+    photo_url: player.photo_url ?? null,
   }))
 
   return buildLineup(fallbackEntries, side)
@@ -515,12 +525,21 @@ function PitchViewer({
                     }
                   : undefined}
               >
-                <span
-                  className="w-5 h-5 rounded-full flex items-center justify-center text-white font-bold text-[9px] shrink-0"
-                  style={{ backgroundColor: activeTeam === 'home' ? homeBranding.primary : awayBranding.primary }}
-                >
-                  {p.number}
-                </span>
+                {p.photo_url ? (
+                  <img
+                    src={p.photo_url}
+                    alt={p.name}
+                    className="w-6 h-6 rounded-full object-cover shrink-0 border"
+                    style={{ borderColor: activeTeam === 'home' ? homeBranding.primary : awayBranding.primary }}
+                  />
+                ) : (
+                  <span
+                    className="w-6 h-6 rounded-full flex items-center justify-center text-white font-bold text-[9px] shrink-0"
+                    style={{ backgroundColor: activeTeam === 'home' ? homeBranding.primary : awayBranding.primary }}
+                  >
+                    {p.number}
+                  </span>
+                )}
                 <span className="truncate">{p.name}</span>
               </button>
             ))}
@@ -531,9 +550,17 @@ function PitchViewer({
               <div className="grid grid-cols-2 gap-1">
                 {currentLineup.bench.map(p => (
                   <div key={p.number} className="flex items-center gap-2 px-3 py-1.5 text-xs text-text-muted">
-                    <span className="w-5 h-5 rounded-full flex items-center justify-center font-bold text-[9px] shrink-0 bg-[#1e1e1e] border border-[#333] text-text-muted">
-                      {p.number || '?'}
-                    </span>
+                    {p.photo_url ? (
+                      <img
+                        src={p.photo_url}
+                        alt={p.name}
+                        className="w-6 h-6 rounded-full object-cover shrink-0 border border-[#333]"
+                      />
+                    ) : (
+                      <span className="w-6 h-6 rounded-full flex items-center justify-center font-bold text-[9px] shrink-0 bg-[#1e1e1e] border border-[#333] text-text-muted">
+                        {p.number || '?'}
+                      </span>
+                    )}
                     <span className="truncate">{p.name}</span>
                   </div>
                 ))}

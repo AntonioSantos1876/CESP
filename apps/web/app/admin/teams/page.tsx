@@ -1,11 +1,11 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
-import { Plus, Pencil, Trash2, Check, X, ChevronDown } from 'lucide-react'
+import { Plus, Pencil, Trash2, Check, X, ChevronDown, Camera } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { TeamLogo } from '@/components/TeamLogo'
 
-type UserRole = 'super_admin' | 'coach' | 'team_admin'
+type UserRole = 'super_admin' | 'coach' | 'team_admin' | 'photographer'
 type LeadershipRole = 'captain' | 'vice_captain' | null
 type LeadershipValue = '' | 'captain' | 'vice_captain'
 
@@ -24,6 +24,7 @@ type Player = {
   is_active: boolean
   leadership_role: LeadershipRole
   is_starter: boolean
+  photo_url: string | null
 }
 
 type EditState = {
@@ -110,6 +111,7 @@ export default function AdminTeamsPage() {
   const [newPlayer, setNewPlayer] = useState<EditState>(BLANK_EDIT)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
+  const [uploadingPhotoId, setUploadingPhotoId] = useState<string | null>(null)
 
   const selectedTeam = teams.find(team => team.id === selectedTeamId) ?? null
   const starterCount = players.filter(player => player.is_starter).length
@@ -172,7 +174,7 @@ export default function AdminTeamsPage() {
     const supabase = createClient()
     const { data } = await (supabase as any)
       .from('players')
-      .select('id, team_id, full_name, position, jersey_number, is_active, leadership_role, is_starter')
+      .select('id, team_id, full_name, position, jersey_number, is_active, leadership_role, is_starter, photo_url')
       .eq('team_id', teamId)
       .order('jersey_number', { ascending: true, nullsFirst: false })
       .order('full_name', { ascending: true })
@@ -414,6 +416,22 @@ export default function AdminTeamsPage() {
     if (selectedTeamId) await loadPlayers(selectedTeamId)
   }
 
+  async function uploadPhoto(playerId: string, file: File) {
+    setUploadingPhotoId(playerId)
+    const formData = new FormData()
+    formData.append('file', file)
+    formData.append('player_id', playerId)
+
+    const res = await fetch('/api/player-photo', { method: 'POST', body: formData })
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({ error: 'Upload failed' }))
+      setError(body.error ?? 'Upload failed')
+    } else {
+      if (selectedTeamId) await loadPlayers(selectedTeamId)
+    }
+    setUploadingPhotoId(null)
+  }
+
   const starterNames = useMemo(
     () => players.filter(player => player.is_starter).map(player => player.full_name),
     [players]
@@ -611,6 +629,7 @@ export default function AdminTeamsPage() {
                     <th className="w-40 px-3 py-2 text-left text-[10px] font-semibold uppercase tracking-wider text-text-muted">Leadership</th>
                     <th className="w-28 px-3 py-2 text-left text-[10px] font-semibold uppercase tracking-wider text-text-muted">Lineup</th>
                     <th className="w-20 px-3 py-2 text-left text-[10px] font-semibold uppercase tracking-wider text-text-muted">Status</th>
+                    <th className="w-20 px-3 py-2 text-left text-[10px] font-semibold uppercase tracking-wider text-text-muted">Photo</th>
                     <th className="w-20" />
                   </tr>
                 </thead>
@@ -683,6 +702,7 @@ export default function AdminTeamsPage() {
                             <span className="text-xs text-text-muted">Active</span>
                           </label>
                         </td>
+                        <td className="px-3 py-2" />
                         <td className="px-5 py-2">
                           <div className="flex items-center justify-end gap-1">
                             <button
@@ -766,6 +786,39 @@ export default function AdminTeamsPage() {
                           <span className={`text-xs font-medium ${player.is_active ? 'text-green-400' : 'text-[#555]'}`}>
                             {player.is_active ? 'Active' : 'Inactive'}
                           </span>
+                        </td>
+                        <td className="px-3 py-3">
+                          <label className="relative block h-9 w-9 cursor-pointer" title="Upload player photo">
+                            <input
+                              type="file"
+                              accept="image/*"
+                              className="sr-only"
+                              disabled={uploadingPhotoId === player.id}
+                              onChange={e => {
+                                const file = e.target.files?.[0]
+                                if (file) uploadPhoto(player.id, file)
+                                e.target.value = ''
+                              }}
+                            />
+                            {player.photo_url ? (
+                              <img
+                                src={player.photo_url}
+                                alt={player.full_name}
+                                className="h-9 w-9 rounded-full object-cover"
+                              />
+                            ) : (
+                              <div className="h-9 w-9 rounded-full bg-[#1e1e1e] flex items-center justify-center text-xs font-bold text-text-muted">
+                                {player.full_name.charAt(0).toUpperCase()}
+                              </div>
+                            )}
+                            <div className="absolute inset-0 flex items-center justify-center rounded-full bg-black/60 opacity-0 transition-opacity hover:opacity-100">
+                              {uploadingPhotoId === player.id ? (
+                                <div className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                              ) : (
+                                <Camera size={13} className="text-white" />
+                              )}
+                            </div>
+                          </label>
                         </td>
                         <td className="px-5 py-3">
                           <div className="flex items-center justify-end gap-1 opacity-0 transition-opacity group-hover:opacity-100">
