@@ -213,20 +213,18 @@ function buildLineup(entries: LineupEntry[], side: 'home' | 'away', formationOve
   if (entries.length === 0) return null
 
   const starters = entries.filter(player => player.is_starter)
-  const orderedPlayers = starters.length > 0
-    ? [
-        ...starters,
-        ...entries.filter(player => !player.is_starter),
-      ]
-    : entries
+  const nonStarters = entries.filter(player => !player.is_starter)
 
-  const gks = orderedPlayers.filter(p => categorizePosition(p.position) === 'GK')
-  const outfield = orderedPlayers.filter(p => categorizePosition(p.position) !== 'GK')
+  // Only place actual starters on the pitch; fall back to all entries if none are marked
+  const pitchPlayers = starters.length > 0 ? starters : entries
+
+  const gks = pitchPlayers.filter(p => categorizePosition(p.position) === 'GK')
+  const outfield = pitchPlayers.filter(p => categorizePosition(p.position) !== 'GK')
   const gk = gks[0]
   const selected = outfield.slice(0, 10)
-  const benchGks = gks.slice(1)
-  const benchOutfield = outfield.slice(10)
-  const bench: BenchPlayer[] = [...benchGks, ...benchOutfield].map(p => ({
+
+  // Bench is all non-starters (empty when no starters are set, since everyone is on pitch)
+  const bench: BenchPlayer[] = (starters.length > 0 ? nonStarters : []).map(p => ({
     number: p.jersey_number ?? 0,
     name: p.full_name,
     position: p.position ?? null,
