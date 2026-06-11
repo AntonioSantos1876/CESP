@@ -35,20 +35,28 @@ export function SponsorShowcase({
 
       <div className={`mt-8 grid gap-5 ${compact ? 'sm:grid-cols-2 xl:grid-cols-5' : 'sm:grid-cols-2 xl:grid-cols-5'}`}>
         {MAIN_SPONSORS.map(sponsor => (
-          <div
+          <a
             key={sponsor.name}
-            className="flex h-full min-h-[220px] items-center justify-center rounded-[1.75rem] border border-white/10 bg-white p-6 shadow-[0_18px_40px_rgba(0,0,0,0.18)]"
+            href={sponsor.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex h-full flex-col rounded-[1.75rem] border border-white/10 bg-white shadow-[0_18px_40px_rgba(0,0,0,0.18)] overflow-hidden transition-transform hover:scale-[1.02] hover:shadow-[0_24px_48px_rgba(0,0,0,0.24)]"
           >
-            <div className="relative h-36 w-full">
-              <Image
-                src={sponsor.imagePath}
-                alt={sponsor.name}
-                fill
-                className="object-contain"
-                sizes="(max-width: 768px) 100vw, (max-width: 1280px) 50vw, 20vw"
-              />
+            <div className="flex flex-1 min-h-[180px] items-center justify-center p-6">
+              <div className="relative h-32 w-full">
+                <Image
+                  src={sponsor.imagePath}
+                  alt={sponsor.name}
+                  fill
+                  className="object-contain"
+                  sizes="(max-width: 768px) 100vw, (max-width: 1280px) 50vw, 20vw"
+                />
+              </div>
             </div>
-          </div>
+            <div className="border-t border-black/8 px-4 py-3 text-center">
+              <p className="text-sm font-semibold text-gray-800 leading-tight">{sponsor.name}</p>
+            </div>
+          </a>
         ))}
       </div>
     </section>
