@@ -195,6 +195,7 @@ export default async function TeamDetailPage({ params }: PageProps) {
   let goalsAgainst = 0
 
   fixtures.forEach(fixture => {
+    if (fixture.status !== 'completed') return
     const score = getScore(fixture.match_scores)
     if (!score) return
     played += 1

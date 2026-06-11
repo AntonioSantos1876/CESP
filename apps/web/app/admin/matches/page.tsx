@@ -759,7 +759,7 @@ export default function AdminMatchesPage() {
                             })
                           : 'TBD'}
                       </span>
-                      {fixture.match_scores && (
+                      {(fixture.status === 'live' || fixture.status === 'completed') && fixture.match_scores && (
                         <span className="font-bold text-text-primary">
                           {fixture.match_scores.home_score} - {fixture.match_scores.away_score}
                         </span>

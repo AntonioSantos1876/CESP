@@ -227,6 +227,7 @@ export default function TeamsPage() {
       const teamMap = new Map(cards.map(team => [team.id, team]))
 
       ;((fixturesData ?? []) as FixtureRow[]).forEach(fixture => {
+        if (fixture.status !== 'completed') return
         const score = getScore(fixture.match_scores)
         if (!score) return
 
