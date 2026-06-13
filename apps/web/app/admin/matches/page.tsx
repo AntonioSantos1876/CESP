@@ -7,6 +7,7 @@ import {
   ChevronDown,
   ClipboardList,
   Edit3,
+  MapPin,
   Play,
   Plus,
   RefreshCw,
@@ -33,6 +34,7 @@ type Fixture = {
   round: string | null
   knockout_round: string | null
   youtube_stream_id: string | null
+  venue: string | null
   match_scores: { home_score: number; away_score: number } | null
 }
 
@@ -46,6 +48,7 @@ type EditState = {
   home_team_id: string | null
   away_team_id: string | null
   round: string
+  venue: string
 }
 
 type AddFixtureForm = {
@@ -291,7 +294,7 @@ export default function AdminMatchesPage() {
     let fixturesQuery = (supabase as any)
       .from('fixtures')
       .select(`
-        id, home_team_id, away_team_id, match_date, status, round, knockout_round, youtube_stream_id,
+        id, home_team_id, away_team_id, match_date, status, round, knockout_round, youtube_stream_id, venue,
         home_team:teams!fixtures_home_team_id_fkey(name),
         away_team:teams!fixtures_away_team_id_fkey(name),
         match_scores(home_score, away_score)
@@ -385,6 +388,7 @@ export default function AdminMatchesPage() {
       home_team_id: fixture.home_team_id,
       away_team_id: fixture.away_team_id,
       round: fixture.round ?? '',
+      venue: fixture.venue ?? '',
     })
     setGoalFormOpen(false)
     setGoalFormTeamId(fixture.home_team_id ?? '')
@@ -486,6 +490,7 @@ export default function AdminMatchesPage() {
       home_team_id: edit.home_team_id || null,
       away_team_id: edit.away_team_id || null,
       round: edit.round || null,
+      venue: edit.venue || null,
     }).eq('id', edit.id)
 
     const { data: existing } = await (supabase as any)
@@ -990,6 +995,19 @@ export default function AdminMatchesPage() {
                             placeholder="e.g. dQw4w9WgXcQ"
                             value={edit.youtube}
                             onChange={(event) => setEdit({ ...edit, youtube: event.target.value })}
+                            className="input w-full"
+                          />
+                        </div>
+                        <div className="sm:col-span-2 lg:col-span-3">
+                          <label className="mb-1.5 flex items-center gap-1.5 text-xs text-text-muted">
+                            <MapPin size={12} className="text-brand-secondary" />
+                            Venue
+                          </label>
+                          <input
+                            type="text"
+                            placeholder="e.g. Glenmuir High School"
+                            value={edit.venue}
+                            onChange={(event) => setEdit({ ...edit, venue: event.target.value })}
                             className="input w-full"
                           />
                         </div>
