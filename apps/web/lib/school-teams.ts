@@ -51,8 +51,8 @@ export const SCHOOL_TEAM_BRANDING: Record<string, TeamBranding> = {
   'Mona High School': {
     slug: 'mona-high-school',
     shortName: 'MON',
-    primary: '#111111',
-    secondary: '#cc2222',
+    primary: '#cc2222',
+    secondary: '#111111',
     accent: '#991a1a',
     logoPath: '/team-logos/mona-high-school.jpeg',
   },
