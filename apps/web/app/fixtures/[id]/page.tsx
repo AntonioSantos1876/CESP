@@ -9,6 +9,7 @@ import {
 } from 'lucide-react'
 import Link from 'next/link'
 import { TeamLogo } from '@/components/TeamLogo'
+import { PlayerHoverCard } from '@/components/PlayerHoverCard'
 import { createClient } from '@/lib/supabase/client'
 import { getTeamBranding, getTeamHref, hexToRgba } from '@/lib/school-teams'
 
@@ -17,6 +18,7 @@ type DetailTab = 'info' | 'lineups'
 type LineupTeam = 'home' | 'away'
 
 type Player = {
+  id?: string
   number: number
   name: string
   position: string
@@ -26,6 +28,7 @@ type Player = {
 }
 
 type BenchPlayer = {
+  id?: string
   number: number
   name: string
   position: string | null
@@ -48,6 +51,7 @@ type DbPlayer = {
 }
 
 type LineupEntry = {
+  id?: string
   full_name: string
   position: string | null
   jersey_number: number | null
@@ -225,6 +229,7 @@ function buildLineup(entries: LineupEntry[], side: 'home' | 'away', formationOve
 
   // Bench is all non-starters (empty when no starters are set, since everyone is on pitch)
   const bench: BenchPlayer[] = (starters.length > 0 ? nonStarters : []).map(p => ({
+    id: p.id,
     number: p.jersey_number ?? 0,
     name: p.full_name,
     position: p.position ?? null,
@@ -256,10 +261,11 @@ function buildLineup(entries: LineupEntry[], side: 'home' | 'away', formationOve
   const players: Player[] = []
 
   if (gk) {
-    players.push({ number: gk.jersey_number ?? 1, name: gk.full_name, position: 'GK', x: 150, y: yGK, photo_url: gk.photo_url ?? null })
+    players.push({ id: gk.id, number: gk.jersey_number ?? 1, name: gk.full_name, position: 'GK', x: 150, y: yGK, photo_url: gk.photo_url ?? null })
   }
 
   defs.forEach((p, i) => players.push({
+    id: p.id,
     number: p.jersey_number ?? (i + 2),
     name: p.full_name,
     position: p.position ?? 'DEF',
@@ -269,6 +275,7 @@ function buildLineup(entries: LineupEntry[], side: 'home' | 'away', formationOve
   }))
 
   mids.forEach((p, i) => players.push({
+    id: p.id,
     number: p.jersey_number ?? (defs.length + i + 2),
     name: p.full_name,
     position: p.position ?? 'MID',
@@ -278,6 +285,7 @@ function buildLineup(entries: LineupEntry[], side: 'home' | 'away', formationOve
   }))
 
   fwds.forEach((p, i) => players.push({
+    id: p.id,
     number: p.jersey_number ?? (defs.length + mids.length + i + 2),
     name: p.full_name,
     position: p.position ?? 'FWD',
@@ -299,6 +307,7 @@ function normalizeFormationLineup(lineup: DbFormation['lineup']): LineupEntry[] 
     if (!player?.full_name) return []
 
     return [{
+      id: typeof player.player_id === 'string' ? player.player_id : undefined,
       full_name: player.full_name,
       position: typeof player.position === 'string' ? player.position : null,
       jersey_number: typeof player.jersey_number === 'number' ? player.jersey_number : null,
@@ -332,6 +341,7 @@ async function fetchLineup(teamId: string, fixtureId: string, side: 'home' | 'aw
     .order('jersey_number', { ascending: true })
 
   const fallbackEntries = ((players ?? []) as DbPlayer[]).map((player, index) => ({
+    id: player.id,
     full_name: player.full_name,
     position: player.position,
     jersey_number: player.jersey_number,
@@ -507,61 +517,96 @@ function PitchViewer({
         <div className="mt-4">
           <p className="text-[10px] font-semibold text-text-muted uppercase tracking-wider mb-2">Starting XI</p>
           <div className="grid grid-cols-2 gap-1.5">
-            {currentLineup.players.map(p => (
-              <button
-                key={p.number}
-                onClick={() => handlePlayerClick(p, activeTeam)}
-                className={`flex items-center gap-2 text-left px-3 py-2 rounded-lg text-xs transition-colors ${
-                  selectedPlayer?.number === p.number && selectedPlayer.team === activeTeam
-                    ? ''
-                    : 'hover:bg-bg-muted text-text-secondary'
-                }`}
-                style={selectedPlayer?.number === p.number && selectedPlayer.team === activeTeam
-                  ? {
-                      backgroundColor: hexToRgba(activeTeam === 'home' ? homeBranding.primary : awayBranding.primary, 0.18),
-                      color: activeTeam === 'home' ? homeBranding.accent : awayBranding.accent,
-                    }
-                  : undefined}
-              >
-                {p.photo_url ? (
-                  <img
-                    src={p.photo_url}
-                    alt={p.name}
-                    className="w-6 h-6 rounded-full object-cover shrink-0 border"
-                    style={{ borderColor: activeTeam === 'home' ? homeBranding.primary : awayBranding.primary }}
-                  />
-                ) : (
-                  <span
-                    className="w-6 h-6 rounded-full flex items-center justify-center text-white font-bold text-[9px] shrink-0"
-                    style={{ backgroundColor: activeTeam === 'home' ? homeBranding.primary : awayBranding.primary }}
-                  >
-                    {p.number}
-                  </span>
-                )}
-                <span className="truncate">{p.name}</span>
-              </button>
-            ))}
+            {currentLineup.players.map(p => {
+              const teamColor = activeTeam === 'home' ? homeBranding.primary : awayBranding.primary
+              const btn = (
+                <button
+                  onClick={() => handlePlayerClick(p, activeTeam)}
+                  className={`flex items-center gap-2 text-left px-3 py-2 rounded-lg text-xs transition-colors w-full ${
+                    selectedPlayer?.number === p.number && selectedPlayer.team === activeTeam
+                      ? ''
+                      : 'hover:bg-bg-muted text-text-secondary'
+                  }`}
+                  style={selectedPlayer?.number === p.number && selectedPlayer.team === activeTeam
+                    ? {
+                        backgroundColor: hexToRgba(teamColor, 0.18),
+                        color: activeTeam === 'home' ? homeBranding.accent : awayBranding.accent,
+                      }
+                    : undefined}
+                >
+                  {p.photo_url ? (
+                    <img
+                      src={p.photo_url}
+                      alt={p.name}
+                      className="w-6 h-6 rounded-full object-cover shrink-0 border"
+                      style={{ borderColor: teamColor }}
+                    />
+                  ) : (
+                    <span
+                      className="w-6 h-6 rounded-full flex items-center justify-center text-white font-bold text-[9px] shrink-0"
+                      style={{ backgroundColor: teamColor }}
+                    >
+                      {p.number}
+                    </span>
+                  )}
+                  <span className="truncate">{p.name}</span>
+                </button>
+              )
+              return p.id ? (
+                <PlayerHoverCard
+                  key={p.number}
+                  playerId={p.id}
+                  playerName={p.name}
+                  photoUrl={p.photo_url}
+                  jerseyNumber={p.number}
+                  position={p.position}
+                  teamColor={teamColor}
+                >
+                  {btn}
+                </PlayerHoverCard>
+              ) : (
+                <div key={p.number}>{btn}</div>
+              )
+            })}
           </div>
           {currentLineup.bench.length > 0 && (
             <div className="mt-4 pt-4 border-t border-[#1e1e1e]">
               <p className="text-[10px] font-semibold text-text-muted uppercase tracking-wider mb-2">Bench</p>
               <div className="grid grid-cols-2 gap-1">
-                {currentLineup.bench.map(p => (
-                  <div key={p.number} className="flex items-center gap-2 px-3 py-1.5 text-xs text-text-muted">
-                    {p.photo_url ? (
-                      <img
-                        src={p.photo_url}
-                        alt={p.name}
-                        className="w-6 h-6 rounded-full object-cover shrink-0 border border-[#333]"
-                      />
-                    ) : (
-                      <span className="w-6 h-6 rounded-full flex items-center justify-center font-bold text-[9px] shrink-0 bg-[#1e1e1e] border border-[#333] text-text-muted">
-                        {p.number || '?'}
-                      </span>
-                    )}
-                    <span className="truncate">{p.name}</span>
-                  </div>
-                ))}
+                {currentLineup.bench.map(p => {
+                  const teamColor = activeTeam === 'home' ? homeBranding.primary : awayBranding.primary
+                  const inner = (
+                    <div className="flex items-center gap-2 px-3 py-1.5 text-xs text-text-muted">
+                      {p.photo_url ? (
+                        <img
+                          src={p.photo_url}
+                          alt={p.name}
+                          className="w-6 h-6 rounded-full object-cover shrink-0 border border-[#333]"
+                        />
+                      ) : (
+                        <span className="w-6 h-6 rounded-full flex items-center justify-center font-bold text-[9px] shrink-0 bg-[#1e1e1e] border border-[#333] text-text-muted">
+                          {p.number || '?'}
+                        </span>
+                      )}
+                      <span className="truncate">{p.name}</span>
+                    </div>
+                  )
+                  return p.id ? (
+                    <PlayerHoverCard
+                      key={p.number}
+                      playerId={p.id}
+                      playerName={p.name}
+                      photoUrl={p.photo_url}
+                      jerseyNumber={p.number}
+                      position={p.position}
+                      teamColor={teamColor}
+                    >
+                      {inner}
+                    </PlayerHoverCard>
+                  ) : (
+                    <div key={p.number}>{inner}</div>
+                  )
+                })}
               </div>
             </div>
           )}
