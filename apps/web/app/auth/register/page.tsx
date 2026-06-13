@@ -233,7 +233,7 @@ export default function RegisterPage() {
                   value={fullName}
                   onChange={e => setFullName(e.target.value)}
                   required
-                  placeholder="Michael Crawford"
+                  placeholder="Full Name"
                   className="input"
                 />
               </div>
