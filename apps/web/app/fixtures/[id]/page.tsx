@@ -41,15 +41,6 @@ type LineupData = {
   bench: BenchPlayer[]
 }
 
-type DbPlayer = {
-  id: string
-  full_name: string
-  position: string | null
-  jersey_number: number | null
-  is_starter: boolean
-  photo_url?: string | null
-}
-
 type LineupEntry = {
   id?: string
   full_name: string
@@ -197,12 +188,16 @@ function toFixtureData(row: DbFixture): FixtureData {
   }
 }
 
-function categorizePosition(pos: string | null): 'GK' | 'DEF' | 'MID' | 'FWD' {
+type PositionCategory = 'GK' | 'DEF' | 'DM' | 'MID' | 'AM' | 'FWD'
+
+function categorizePosition(pos: string | null): PositionCategory {
   if (!pos) return 'MID'
-  const p = pos.toLowerCase()
+  const p = pos.toLowerCase().trim()
   if (p.includes('gk') || p.includes('goal')) return 'GK'
   if (p.includes('def') || p.includes('back') || p === 'cb' || p === 'rb' || p === 'lb' || p === 'rwb' || p === 'lwb') return 'DEF'
-  if (p.includes('fwd') || p.includes('forward') || p.includes('striker') || p.includes('wing') || p === 'st' || p === 'cf' || p === 'rw' || p === 'lw') return 'FWD'
+  if (p === 'dm' || p === 'cdm' || p.includes('defensive mid') || p.includes('holding')) return 'DM'
+  if (p === 'cam' || p === 'am' || p.includes('attacking mid') || p === 'no.10') return 'AM'
+  if (p.includes('fwd') || p.includes('forward') || p.includes('striker') || p === 'st' || p === 'cf' || p === 'rw' || p === 'lw' || (p.includes('wing') && !p.includes('back'))) return 'FWD'
   return 'MID'
 }
 
@@ -213,21 +208,27 @@ function spreadX(count: number, index: number): number {
   return Math.round(left + ((right - left) / (count - 1)) * index)
 }
 
+function getFormationRowY(numRows: number, side: 'home' | 'away'): number[] {
+  const homeY: Record<number, number[]> = {
+    2: [310, 155],
+    3: [325, 237, 140],
+    4: [330, 277, 205, 115],
+    5: [332, 287, 240, 178, 110],
+  }
+  const ys = homeY[numRows] ?? homeY[3]
+  return side === 'home' ? ys : ys.map(y => 420 - y)
+}
+
 function buildLineup(entries: LineupEntry[], side: 'home' | 'away', formationOverride?: string | null): LineupData | null {
   if (entries.length === 0) return null
 
   const starters = entries.filter(player => player.is_starter)
   const nonStarters = entries.filter(player => !player.is_starter)
-
-  // Only place actual starters on the pitch; fall back to all entries if none are marked
   const pitchPlayers = starters.length > 0 ? starters : entries
 
-  const gks = pitchPlayers.filter(p => categorizePosition(p.position) === 'GK')
-  const outfield = pitchPlayers.filter(p => categorizePosition(p.position) !== 'GK')
-  const gk = gks[0]
-  const selected = outfield.slice(0, 10)
+  const gk = pitchPlayers.find(p => categorizePosition(p.position) === 'GK') ?? pitchPlayers[0]
+  const outfield = pitchPlayers.filter(p => p !== gk).slice(0, 10)
 
-  // Bench is all non-starters (empty when no starters are set, since everyone is on pitch)
   const bench: BenchPlayer[] = (starters.length > 0 ? nonStarters : []).map(p => ({
     id: p.id,
     number: p.jersey_number ?? 0,
@@ -236,66 +237,84 @@ function buildLineup(entries: LineupEntry[], side: 'home' | 'away', formationOve
     photo_url: p.photo_url ?? null,
   }))
 
-  const hasMeaningful = selected.some(p => {
-    const pos = (p.position ?? '').toLowerCase()
-    return pos && !pos.includes('pending') && !pos.includes('unknown') && pos !== ''
-  })
-
-  let defs: LineupEntry[], mids: LineupEntry[], fwds: LineupEntry[]
-
-  if (hasMeaningful) {
-    defs = selected.filter(p => categorizePosition(p.position) === 'DEF')
-    mids = selected.filter(p => categorizePosition(p.position) === 'MID')
-    fwds = selected.filter(p => categorizePosition(p.position) === 'FWD')
-  } else {
-    defs = selected.slice(0, 4)
-    mids = selected.slice(4, 8)
-    fwds = selected.slice(8)
-  }
-
   const yGK = side === 'home' ? 393 : 27
-  const yDEF = side === 'home' ? 325 : 95
-  const yMID = side === 'home' ? 237 : 178
-  const yFWD = side === 'home' ? 143 : 278
-
   const players: Player[] = []
 
   if (gk) {
     players.push({ id: gk.id, number: gk.jersey_number ?? 1, name: gk.full_name, position: 'GK', x: 150, y: yGK, photo_url: gk.photo_url ?? null })
   }
 
-  defs.forEach((p, i) => players.push({
-    id: p.id,
-    number: p.jersey_number ?? (i + 2),
-    name: p.full_name,
-    position: p.position ?? 'DEF',
-    x: spreadX(defs.length, i),
-    y: yDEF,
-    photo_url: p.photo_url ?? null,
-  }))
+  const rowCounts = (formationOverride ?? '').split('-').map(Number).filter(n => n > 0)
+  const numRows = rowCounts.length
 
-  mids.forEach((p, i) => players.push({
-    id: p.id,
-    number: p.jersey_number ?? (defs.length + i + 2),
-    name: p.full_name,
-    position: p.position ?? 'MID',
-    x: spreadX(mids.length, i),
-    y: yMID,
-    photo_url: p.photo_url ?? null,
-  }))
+  if (numRows >= 2) {
+    const rowYs = getFormationRowY(numRows, side)
 
-  fwds.forEach((p, i) => players.push({
-    id: p.id,
-    number: p.jersey_number ?? (defs.length + mids.length + i + 2),
-    name: p.full_name,
-    position: p.position ?? 'FWD',
-    x: spreadX(fwds.length, i),
-    y: yFWD,
-    photo_url: p.photo_url ?? null,
-  }))
+    if (numRows === 4) {
+      const defs = outfield.filter(p => categorizePosition(p.position) === 'DEF')
+      const dms = outfield.filter(p => categorizePosition(p.position) === 'DM')
+      const mids = outfield.filter(p => categorizePosition(p.position) === 'MID')
+      const ams = outfield.filter(p => categorizePosition(p.position) === 'AM')
+      const fwds = outfield.filter(p => categorizePosition(p.position) === 'FWD')
 
-  const formationParts = [defs.length, mids.length, fwds.length].filter(n => n > 0)
-  const formation = formationOverride || (formationParts.length ? formationParts.join('-') : '4-3-3')
+      const midHalf = Math.ceil(mids.length / 2)
+      const dmRow = [...dms, ...mids.slice(0, midHalf)]
+      const amRow = [...ams, ...mids.slice(midHalf)]
+
+      const rows = [defs, dmRow, amRow, fwds]
+      rows.forEach((row, ri) => {
+        row.forEach((p, i) => players.push({
+          id: p.id, number: p.jersey_number ?? 0, name: p.full_name,
+          position: p.position ?? 'MID', x: spreadX(row.length, i), y: rowYs[ri],
+          photo_url: p.photo_url ?? null,
+        }))
+      })
+    } else {
+      const defs = outfield.filter(p => categorizePosition(p.position) === 'DEF')
+      const mids = outfield.filter(p => ['DM', 'MID', 'AM'].includes(categorizePosition(p.position)))
+      const fwds = outfield.filter(p => categorizePosition(p.position) === 'FWD')
+
+      const hasMeaningful = outfield.some(p => {
+        const pos = (p.position ?? '').toLowerCase()
+        return pos && !pos.includes('pending') && pos !== ''
+      })
+
+      let rows: LineupEntry[][]
+      if (hasMeaningful && numRows === 3) {
+        rows = [defs, mids, fwds]
+      } else {
+        rows = [outfield.slice(0, rowCounts[0]), outfield.slice(rowCounts[0], rowCounts[0] + rowCounts[1]), outfield.slice(rowCounts[0] + rowCounts[1])]
+      }
+
+      rows.forEach((row, ri) => {
+        const y = rowYs[ri] ?? rowYs[rowYs.length - 1]
+        row.forEach((p, i) => players.push({
+          id: p.id, number: p.jersey_number ?? 0, name: p.full_name,
+          position: p.position ?? 'MID', x: spreadX(row.length, i), y,
+          photo_url: p.photo_url ?? null,
+        }))
+      })
+    }
+  } else {
+    const rowYs = getFormationRowY(3, side)
+    const defs = outfield.filter(p => categorizePosition(p.position) === 'DEF')
+    const mids = outfield.filter(p => ['DM', 'MID', 'AM'].includes(categorizePosition(p.position)))
+    const fwds = outfield.filter(p => categorizePosition(p.position) === 'FWD')
+    ;[defs, mids, fwds].forEach((row, ri) => {
+      row.forEach((p, i) => players.push({
+        id: p.id, number: p.jersey_number ?? 0, name: p.full_name,
+        position: p.position ?? 'MID', x: spreadX(row.length, i), y: rowYs[ri],
+        photo_url: p.photo_url ?? null,
+      }))
+    })
+  }
+
+  const formation = formationOverride || (() => {
+    const defs = outfield.filter(p => categorizePosition(p.position) === 'DEF').length
+    const mids = outfield.filter(p => ['DM', 'MID', 'AM'].includes(categorizePosition(p.position))).length
+    const fwds = outfield.filter(p => categorizePosition(p.position) === 'FWD').length
+    return [defs, mids, fwds].filter(n => n > 0).join('-') || '4-3-3'
+  })()
 
   return { formation, players, bench }
 }
@@ -327,30 +346,12 @@ async function fetchLineup(teamId: string, fixtureId: string, side: 'home' | 'aw
     .eq('team_id', teamId)
     .maybeSingle()
 
+  if (!formationRow) return null
+
   const savedEntries = normalizeFormationLineup((formationRow as DbFormation | null)?.lineup ?? null)
-  if (savedEntries.length > 0) {
-    return buildLineup(savedEntries, side, (formationRow as DbFormation | null)?.formation ?? null)
-  }
+  if (savedEntries.length === 0) return null
 
-  const { data: players } = await (supabase as any)
-    .from('players')
-    .select('id, full_name, position, jersey_number, is_starter, photo_url')
-    .eq('team_id', teamId)
-    .eq('is_active', true)
-    .order('is_starter', { ascending: false })
-    .order('jersey_number', { ascending: true })
-
-  const fallbackEntries = ((players ?? []) as DbPlayer[]).map((player, index) => ({
-    id: player.id,
-    full_name: player.full_name,
-    position: player.position,
-    jersey_number: player.jersey_number,
-    is_starter: player.is_starter,
-    sort_order: index,
-    photo_url: player.photo_url ?? null,
-  }))
-
-  return buildLineup(fallbackEntries, side)
+  return buildLineup(savedEntries, side, (formationRow as DbFormation | null)?.formation ?? null)
 }
 
 function PitchViewer({
@@ -381,8 +382,7 @@ function PitchViewer({
   }
 
   function renderPlayers(lineup: LineupData | null, team: LineupTeam) {
-    if (!lineup) return null
-    const isActive = activeTeam === team
+    if (!lineup || activeTeam !== team) return null
     const branding = team === 'home' ? homeBranding : awayBranding
     const color = branding.primary
     const borderColor = branding.secondary
@@ -393,7 +393,6 @@ function PitchViewer({
         <g
           key={`${team}-${p.number}`}
           style={{ cursor: 'pointer' }}
-          opacity={isActive ? 1 : 0.32}
           onClick={() => handlePlayerClick(p, team)}
         >
           <circle
@@ -465,14 +464,6 @@ function PitchViewer({
           <rect x="78" y="343" width="144" height="72" fill="none" stroke="white" strokeWidth="1.5" strokeOpacity="0.65" />
           <rect x="108" y="388" width="84" height="27" fill="none" stroke="white" strokeWidth="1.5" strokeOpacity="0.65" />
           <circle cx="150" cy="356" r="2.5" fill="white" fillOpacity="0.65" />
-          <text x="150" y="410" textAnchor="middle" fontSize="8" opacity="0.5"
-            style={{ fontFamily: 'system-ui, sans-serif', fill: homeBranding.accent }}>
-            {homeTeam.split(' ')[0]} attacking
-          </text>
-          <text x="150" y="18" textAnchor="middle" fontSize="8" opacity="0.5"
-            style={{ fontFamily: 'system-ui, sans-serif', fill: awayBranding.accent }}>
-            {awayTeam.split(' ')[0]} attacking
-          </text>
           {renderPlayers(awayLineup, 'away')}
           {renderPlayers(homeLineup, 'home')}
         </svg>
@@ -502,16 +493,16 @@ function PitchViewer({
         )}
       </AnimatePresence>
 
-      <div className="mt-4 flex items-center justify-center gap-6 text-xs text-text-muted">
-        <div className="flex items-center gap-1.5">
-          <span className="w-3 h-3 rounded-full inline-block" style={{ backgroundColor: homeBranding.primary }} />
-          {homeTeam.split(' ')[0]} {homeLineup ? `(${homeLineup.formation})` : '(TBA)'}
+      {currentLineup && (
+        <div className="mt-3 flex items-center justify-center gap-2 text-xs text-text-muted">
+          <span
+            className="w-3 h-3 rounded-full inline-block"
+            style={{ backgroundColor: activeTeam === 'home' ? homeBranding.primary : awayBranding.primary }}
+          />
+          <span>{activeTeam === 'home' ? homeTeam.split(' ')[0] : awayTeam.split(' ')[0]}</span>
+          <span className="opacity-60">{currentLineup.formation}</span>
         </div>
-        <div className="flex items-center gap-1.5">
-          <span className="w-3 h-3 rounded-full inline-block border" style={{ backgroundColor: awayBranding.primary, borderColor: awayBranding.secondary }} />
-          {awayTeam.split(' ')[0]} {awayLineup ? `(${awayLineup.formation})` : '(TBA)'}
-        </div>
-      </div>
+      )}
 
       {currentLineup ? (
         <div className="mt-4">

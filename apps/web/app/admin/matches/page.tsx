@@ -7,6 +7,7 @@ import {
   ChevronDown,
   ClipboardList,
   Edit3,
+  LayoutGrid,
   MapPin,
   Play,
   Plus,
@@ -16,6 +17,7 @@ import {
   Video,
   X,
 } from 'lucide-react'
+import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 
 type UserRole = 'super_admin' | 'team_admin' | 'coach'
@@ -1251,13 +1253,22 @@ export default function AdminMatchesPage() {
                                     </button>
                                   </>
                                 ) : (
-                                  <button
-                                    onClick={() => startLineupEdit(fixture.id, teamEditor.teamId)}
-                                    className="flex items-center gap-1.5 rounded-lg bg-brand-primary/10 px-3 py-1.5 text-xs font-medium text-brand-secondary transition-colors hover:bg-brand-primary/20"
-                                  >
-                                    <Edit3 size={12} />
-                                    {record ? 'Edit lineup' : 'Create lineup'}
-                                  </button>
+                                  <>
+                                    <Link
+                                      href={`/admin/formations/${fixture.id}`}
+                                      className="flex items-center gap-1.5 rounded-lg border border-[#333] bg-[#111] px-3 py-1.5 text-xs font-medium text-text-secondary transition-colors hover:text-text-primary"
+                                    >
+                                      <LayoutGrid size={12} />
+                                      Visual editor
+                                    </Link>
+                                    <button
+                                      onClick={() => startLineupEdit(fixture.id, teamEditor.teamId)}
+                                      className="flex items-center gap-1.5 rounded-lg bg-brand-primary/10 px-3 py-1.5 text-xs font-medium text-brand-secondary transition-colors hover:bg-brand-primary/20"
+                                    >
+                                      <Edit3 size={12} />
+                                      {record ? 'Edit lineup' : 'Create lineup'}
+                                    </button>
+                                  </>
                                 )}
                               </div>
                             </div>

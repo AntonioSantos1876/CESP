@@ -29,7 +29,7 @@ const TEAM_STAFF_NAV = [
 
 function isAllowedPath(pathname: string, role: UserRole) {
   if (role === 'super_admin') return true
-  return pathname === '/admin' || pathname.startsWith('/admin/matches') || pathname.startsWith('/admin/teams')
+  return pathname === '/admin' || pathname.startsWith('/admin/matches') || pathname.startsWith('/admin/teams') || pathname.startsWith('/admin/formations')
 }
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
