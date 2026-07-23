@@ -52,6 +52,28 @@ const TOURNAMENT_FORMAT = [
   },
 ] as const
 
+const PARALLAX_PHOTOS = [
+  { src: '/gallery/launch-june-2026/prematch-handshake-lineup.jpeg', alt: 'Pre-match handshake lineup' },
+  { src: '/gallery/launch-june-2026/team-manchester-lineup.jpeg', alt: 'Manchester High School lineup' },
+  { src: '/gallery/launch-june-2026/team-denbigh-lineup.jpeg', alt: 'Denbigh High School lineup' },
+  { src: '/gallery/launch-june-2026/team-vere-last-year.jpeg', alt: 'Vere Technical High School 2025' },
+]
+
+function ParallaxPhoto({ src, alt }: { src: string; alt: string }) {
+  const ref = useRef(null)
+  const { scrollYProgress } = useScroll({ target: ref, offset: ['start end', 'end start'] })
+  const y = useTransform(scrollYProgress, [0, 1], ['-12%', '12%'])
+
+  return (
+    <div ref={ref} className="relative h-[38vh] overflow-hidden">
+      <motion.div style={{ y }} className="absolute inset-0 scale-125">
+        <Image src={src} alt={alt} fill className="object-cover object-center" sizes="100vw" />
+      </motion.div>
+      <div className="absolute inset-0 bg-bg-base/55" />
+    </div>
+  )
+}
+
 function CountUp({ target, suffix = '' }: { target: number; suffix?: string }) {
   const ref = useRef<HTMLSpanElement>(null)
   const isInView = useInView(ref, { once: true, margin: '0px' })
@@ -250,6 +272,8 @@ export function HomePageClient({ isSignedIn }: { isSignedIn: boolean }) {
         </motion.div>
       </section>
 
+      <ParallaxPhoto {...PARALLAX_PHOTOS[0]} />
+
       <section className="border-y border-bg-border bg-bg-card/40">
         <div className="container-cesp py-10 grid grid-cols-2 md:grid-cols-4 gap-6">
           {stats.map(({ num, suffix, label }, i) => (
@@ -264,6 +288,8 @@ export function HomePageClient({ isSignedIn }: { isSignedIn: boolean }) {
           ))}
         </div>
       </section>
+
+      <ParallaxPhoto {...PARALLAX_PHOTOS[1]} />
 
       <section className="section border-b border-bg-border">
         <div className="container-cesp">
@@ -325,6 +351,8 @@ export function HomePageClient({ isSignedIn }: { isSignedIn: boolean }) {
         </div>
       </section>
 
+      <ParallaxPhoto {...PARALLAX_PHOTOS[2]} />
+
       <section className="section border-b border-bg-border">
         <div className="container-cesp">
           <FadeInWhenVisible>
@@ -350,6 +378,8 @@ export function HomePageClient({ isSignedIn }: { isSignedIn: boolean }) {
           </div>
         </div>
       </section>
+
+      <ParallaxPhoto {...PARALLAX_PHOTOS[3]} />
 
       <section className="section">
         <div className="container-cesp">

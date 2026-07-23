@@ -48,16 +48,21 @@ export const MAIN_SPONSORS: MainSponsor[] = [
   {
     name: 'Neeks Help Slay',
     imagePath: '/sponsors/neeks-help-slay.jpeg',
-    url: '',
+    url: 'https://www.instagram.com/neekshelpslay/',
   },
   {
     name: "Neth's Event Planning & Decor",
     imagePath: '/sponsors/neths-event-planning-and-decor.jpeg',
-    url: '',
+    url: 'https://www.instagram.com/netheventplanninganddecor/',
   },
   {
     name: 'RG Express Courier',
     imagePath: '/sponsors/rg-express-courier.jpeg',
+    url: '',
+  },
+  {
+    name: 'A.H.W.S',
+    imagePath: '/sponsors/ahws.jpeg',
     url: '',
   },
 ]
