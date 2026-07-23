@@ -40,4 +40,24 @@ export const MAIN_SPONSORS: MainSponsor[] = [
     imagePath: '/sponsors/rolling-acres-farm.jpeg',
     url: 'https://www.myrollingacresfarm.com/',
   },
+  {
+    name: 'National Selfserve Wholesale',
+    imagePath: '/sponsors/national-selfserve-wholesale.jpeg',
+    url: '',
+  },
+  {
+    name: 'Neeks Help Slay',
+    imagePath: '/sponsors/neeks-help-slay.jpeg',
+    url: '',
+  },
+  {
+    name: "Neth's Event Planning & Decor",
+    imagePath: '/sponsors/neths-event-planning-and-decor.jpeg',
+    url: '',
+  },
+  {
+    name: 'RG Express Courier',
+    imagePath: '/sponsors/rg-express-courier.jpeg',
+    url: '',
+  },
 ]
