@@ -10,7 +10,7 @@ import { createClient } from '@/lib/supabase/client'
 type StreamStatus = 'live' | 'upcoming' | 'vod'
 
 type Stream = {
-  id: number
+  id: string
   home: string
   away: string
   date: string
@@ -32,7 +32,7 @@ function formatDate(dateStr: string) {
 }
 
 export default function LivePage() {
-  const [reminders, setReminders] = useState<Set<number>>(new Set())
+  const [reminders, setReminders] = useState<Set<string>>(new Set())
   const [viewers, setViewers] = useState(0)
   const [streams, setStreams] = useState<Stream[]>([])
 
@@ -56,14 +56,14 @@ export default function LivePage() {
         .order('match_date', { ascending: true })
 
       const rows = (data ?? []) as any[]
-      const mapped: Stream[] = rows.map((row, i) => {
+      const mapped: Stream[] = rows.map((row) => {
         const score = Array.isArray(row.match_scores) ? row.match_scores[0] : row.match_scores
         let streamStatus: StreamStatus = 'upcoming'
         if (row.status === 'live') streamStatus = 'live'
         else if (row.status === 'completed') streamStatus = 'vod'
 
         return {
-          id: i + 1,
+          id: row.id,
           home: row.home_team?.name ?? 'TBA',
           away: row.away_team?.name ?? 'TBA',
           date: row.match_date?.slice(0, 10) ?? '',
@@ -100,7 +100,7 @@ export default function LivePage() {
     }
   }, [])
 
-  function toggleReminder(id: number) {
+  function toggleReminder(id: string) {
     setReminders(prev => {
       const next = new Set(prev)
       if (next.has(id)) next.delete(id)

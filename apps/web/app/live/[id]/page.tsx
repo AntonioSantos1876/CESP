@@ -433,20 +433,22 @@ function LineupsTab({ lineups, setLineups, homeTeam, awayTeam, loggedIn }: {
 
 export default function StreamPage() {
   const params = useParams()
-  const id = Array.isArray(params.id) ? params.id[0] : params.id ?? '9'
-  const match = MATCHES[id] ?? MATCHES['9']
-  const homeBranding = getTeamBranding(match.home)
-  const awayBranding = getTeamBranding(match.away)
+  const id = Array.isArray(params.id) ? params.id[0] : params.id ?? ''
+
+  const hardcoded = MATCHES[id] ?? null
+  const [match, setMatch] = useState<MatchData | null>(hardcoded)
+  const homeBranding = getTeamBranding(match?.home ?? '')
+  const awayBranding = getTeamBranding(match?.away ?? '')
 
   const [tab, setTab] = useState<Tab>('chat')
   const [messages, setMessages] = useState<ChatMessage[]>(MOCK_CHAT)
   const [chatInput, setChatInput] = useState('')
   const [viewers, setViewers] = useState(312)
-  const [homeScore, setHomeScore] = useState(match.homeScore)
-  const [awayScore, setAwayScore] = useState(match.awayScore)
-  const [clock, setClock] = useState(match.clock)
+  const [homeScore, setHomeScore] = useState(match?.homeScore ?? 0)
+  const [awayScore, setAwayScore] = useState(match?.awayScore ?? 0)
+  const [clock, setClock] = useState(match?.clock ?? "0'")
   const [showAdmin, setShowAdmin] = useState(false)
-  const [clockRunning, setClockRunning] = useState(match.status === 'live')
+  const [clockRunning, setClockRunning] = useState(match?.status === 'live')
   const [extraTime, setExtraTime] = useState(0)
   const [lineups, setLineups] = useState<Lineups>(DEFAULT_LINEUPS)
   const [loggedIn, setLoggedIn] = useState(false)
@@ -456,27 +458,76 @@ export default function StreamPage() {
   const playerRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
+    if (hardcoded) return
+    const supabase = createClient()
+
+    async function loadFixture() {
+      const { data } = await (supabase as any)
+        .from('fixtures')
+        .select(`
+          id, match_date, venue, status, youtube_stream_id,
+          home_team:teams!fixtures_home_team_id_fkey(name),
+          away_team:teams!fixtures_away_team_id_fkey(name),
+          match_scores(home_score, away_score)
+        `)
+        .eq('id', id)
+        .single()
+
+      if (data) {
+        const score = Array.isArray(data.match_scores) ? data.match_scores[0] : data.match_scores
+        const isLiveStatus = data.status === 'live'
+        setMatch({
+          id: 0,
+          home: data.home_team?.name ?? 'TBA',
+          away: data.away_team?.name ?? 'TBA',
+          date: data.match_date?.slice(0, 10) ?? '',
+          time: data.match_date?.slice(11, 16) ?? '',
+          venue: data.venue ?? 'TBC',
+          homeScore: score?.home_score ?? 0,
+          awayScore: score?.away_score ?? 0,
+          status: isLiveStatus ? 'live' : 'vod',
+          youtubeId: data.youtube_stream_id ?? 'live_placeholder',
+          clock: isLiveStatus ? "0'" : 'FT',
+        })
+        setHomeScore(score?.home_score ?? 0)
+        setAwayScore(score?.away_score ?? 0)
+        setClockRunning(isLiveStatus)
+      }
+    }
+
+    loadFixture()
+
+    const dataChannel = supabase
+      .channel(`fixture_stream_${id}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'match_scores', filter: `fixture_id=eq.${id}` }, loadFixture)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'fixtures', filter: `id=eq.${id}` }, loadFixture)
+      .subscribe()
+
+    return () => { supabase.removeChannel(dataChannel) }
+  }, [id, hardcoded])
+
+  useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages])
 
   useEffect(() => {
-    if (!clockRunning || match.status !== 'live') return
+    if (!clockRunning || match?.status !== 'live') return
     const interval = setInterval(() => {
       clockRef.current += 1
       const mins = clockRef.current
       setClock(mins <= 90 ? `${mins}'` : `90+${mins - 90}'`)
     }, 60000)
     return () => clearInterval(interval)
-  }, [clockRunning, match.status])
+  }, [clockRunning, match?.status])
 
   useEffect(() => {
     const supabase = createClient()
     supabase.auth.getUser().then(({ data }) => {
       setLoggedIn(!!data.user)
     })
-    const matchChannel = supabase.channel(`match_${match.id}`)
+    const matchChannel = supabase.channel(`match_chat_${id}`)
     matchChannel
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'live_chat', filter: `match_id=eq.${match.id}` }, payload => {
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'live_chat', filter: `match_id=eq.${id}` }, payload => {
         const row = payload.new as { id: string; author: string; text: string; created_at: string }
         setMessages(prev => [...prev, { id: row.id, author: row.author, text: row.text, ts: new Date(row.created_at).getTime() }])
       })
@@ -491,7 +542,7 @@ export default function StreamPage() {
         }
       })
     return () => { supabase.removeChannel(matchChannel) }
-  }, [match.id])
+  }, [id])
 
   useEffect(() => {
     function onFullscreenChange() {
@@ -515,6 +566,14 @@ export default function StreamPage() {
     setMessages(prev => [...prev, { id: `local_${Date.now()}`, author: 'You', text, ts: Date.now() }])
     setChatInput('')
   }, [chatInput])
+
+  if (!match) {
+    return (
+      <main className="min-h-screen bg-bg-base flex items-center justify-center">
+        <div className="h-6 w-6 animate-spin rounded-full border-2 border-brand-primary border-t-transparent" />
+      </main>
+    )
+  }
 
   const isLive = match.status === 'live'
   const youtubeEmbedUrl = `https://www.youtube-nocookie.com/embed/${match.youtubeId}?autoplay=1&modestbranding=1&rel=0&color=white`
