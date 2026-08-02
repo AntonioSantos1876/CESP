@@ -244,6 +244,9 @@ export default function AdminMatchesPage() {
   const [goalFormAssistId, setGoalFormAssistId] = useState('')
   const [goalFormMinute, setGoalFormMinute] = useState('')
   const [savingGoal, setSavingGoal] = useState(false)
+  const [editingGoalId, setEditingGoalId] = useState<string | null>(null)
+  const [deletingGoalId, setDeletingGoalId] = useState<string | null>(null)
+  const [goalFormIsOwnGoal, setGoalFormIsOwnGoal] = useState(false)
   const [psGoalsByFixture, setPsGoalsByFixture] = useState<Record<string, GoalEvent[]>>({})
   const [psFormOpen, setPsFormOpen] = useState(false)
   const [psFormTeamId, setPsFormTeamId] = useState('')
@@ -404,6 +407,8 @@ export default function AdminMatchesPage() {
     setGoalFormTeamId(fixture.home_team_id ?? '')
     setGoalFormPlayerId('')
     setGoalFormMinute('')
+    setGoalFormIsOwnGoal(false)
+    setEditingGoalId(null)
     if (fixture.status === 'live' || fixture.status === 'completed') {
       loadGoals(fixture.id)
       loadPsGoals(fixture.id)
@@ -456,10 +461,36 @@ export default function AdminMatchesPage() {
     setPsGoalsByFixture(prev => ({ ...prev, [fixtureId]: goals }))
   }
 
+  function isOwnGoal(goal: GoalEvent) {
+    return /\bOG\s*$/.test(goal.notes ?? '')
+  }
+
   function formatGoalMinute(goal: GoalEvent) {
     const raw = goal.notes ?? (goal.event_minute !== null ? String(goal.event_minute) : null)
     if (!raw) return '?'
-    return raw.endsWith("'") ? raw : `${raw}'`
+    const stripped = raw.replace(/\s*OG\s*$/, '').trim()
+    if (!stripped) return ''
+    return stripped.endsWith("'") ? stripped : `${stripped}'`
+  }
+
+  async function recalcScore(fixtureId: string, fixture: Fixture) {
+    const supabase = createClient()
+    const homeTeamId = edit?.home_team_id ?? fixture.home_team_id
+    const awayTeamId = edit?.away_team_id ?? fixture.away_team_id
+    const { data: goals } = await (supabase as any)
+      .from('match_stats')
+      .select('team_id')
+      .eq('fixture_id', fixtureId)
+      .eq('event_type', 'goal')
+    const homeCount = ((goals ?? []) as { team_id: string }[]).filter(g => g.team_id === homeTeamId).length
+    const awayCount = ((goals ?? []) as { team_id: string }[]).filter(g => g.team_id === awayTeamId).length
+    const { data: scoreRow } = await (supabase as any)
+      .from('match_scores').select('id').eq('fixture_id', fixtureId).maybeSingle()
+    if (scoreRow) {
+      await (supabase as any).from('match_scores').update({ home_score: homeCount, away_score: awayCount }).eq('fixture_id', fixtureId)
+    } else {
+      await (supabase as any).from('match_scores').insert({ fixture_id: fixtureId, home_score: homeCount, away_score: awayCount })
+    }
   }
 
   async function logGoal(fixture: Fixture) {
@@ -470,42 +501,74 @@ export default function AdminMatchesPage() {
     const minuteRaw = goalFormMinute.trim()
     const minuteMatch = minuteRaw.match(/^(\d+)/)
     const minuteNum = minuteMatch ? parseInt(minuteMatch[1], 10) : null
+    const notesVal = goalFormIsOwnGoal
+      ? (minuteRaw ? `${minuteRaw} OG` : 'OG')
+      : (minuteRaw || null)
 
-    await (supabase as any).from('match_stats').insert({
-      fixture_id: editId,
-      player_id: goalFormPlayerId || null,
-      assist_player_id: goalFormAssistId || null,
-      team_id: goalFormTeamId,
-      event_type: 'goal',
-      event_minute: minuteNum,
-      notes: minuteRaw || null,
-    })
-
-    const homeTeamId = edit?.home_team_id ?? fixture.home_team_id
-    const awayTeamId = edit?.away_team_id ?? fixture.away_team_id
-    const existing = goalsByFixture[editId] ?? []
-    const isHome = goalFormTeamId === homeTeamId
-    const homeCount = existing.filter(g => g.team_id === homeTeamId).length + (isHome ? 1 : 0)
-    const awayCount = existing.filter(g => g.team_id === awayTeamId).length + (!isHome ? 1 : 0)
-
-    const { data: scoreRow } = await (supabase as any)
-      .from('match_scores')
-      .select('id')
-      .eq('fixture_id', editId)
-      .maybeSingle()
-
-    if (scoreRow) {
-      await (supabase as any).from('match_scores').update({ home_score: homeCount, away_score: awayCount }).eq('fixture_id', editId)
+    if (editingGoalId) {
+      await (supabase as any).from('match_stats').update({
+        player_id: goalFormPlayerId || null,
+        assist_player_id: goalFormIsOwnGoal ? null : (goalFormAssistId || null),
+        team_id: goalFormTeamId,
+        event_minute: minuteNum,
+        notes: notesVal,
+      }).eq('id', editingGoalId)
+      setEditingGoalId(null)
     } else {
-      await (supabase as any).from('match_scores').insert({ fixture_id: editId, home_score: homeCount, away_score: awayCount })
+      await (supabase as any).from('match_stats').insert({
+        fixture_id: editId,
+        player_id: goalFormPlayerId || null,
+        assist_player_id: goalFormIsOwnGoal ? null : (goalFormAssistId || null),
+        team_id: goalFormTeamId,
+        event_type: 'goal',
+        event_minute: minuteNum,
+        notes: notesVal,
+      })
     }
+
+    await recalcScore(editId, fixture)
 
     setGoalFormPlayerId('')
     setGoalFormAssistId('')
     setGoalFormMinute('')
+    setGoalFormIsOwnGoal(false)
+    setGoalFormOpen(false)
     setSavingGoal(false)
     await loadGoals(editId)
     load()
+  }
+
+  async function deleteGoal(goalId: string, fixture: Fixture) {
+    if (!editId) return
+    setDeletingGoalId(goalId)
+    const supabase = createClient()
+    await (supabase as any).from('match_stats').delete().eq('id', goalId)
+    await recalcScore(editId, fixture)
+    setDeletingGoalId(null)
+    await loadGoals(editId)
+    load()
+  }
+
+  async function deletePsGoal(goalId: string) {
+    if (!editId) return
+    setDeletingGoalId(goalId)
+    const supabase = createClient()
+    await (supabase as any).from('match_stats').delete().eq('id', goalId)
+    setDeletingGoalId(null)
+    await loadPsGoals(editId)
+  }
+
+  function startEditGoal(goal: GoalEvent, homeTeamId: string, awayTeamId: string) {
+    const og = isOwnGoal(goal)
+    const minuteStripped = (goal.notes ?? '').replace(/\s*OG\s*$/, '').trim()
+    const minuteDisplay = minuteStripped || (goal.event_minute !== null ? String(goal.event_minute) : '')
+    setEditingGoalId(goal.id)
+    setGoalFormOpen(true)
+    setGoalFormTeamId(goal.team_id)
+    setGoalFormIsOwnGoal(og)
+    setGoalFormPlayerId(goal.player_id ?? '')
+    setGoalFormAssistId(og ? '' : (goal.assist_player_id ?? ''))
+    setGoalFormMinute(minuteDisplay)
   }
 
   async function logPsGoal(fixture: Fixture) {
@@ -1082,15 +1145,26 @@ export default function AdminMatchesPage() {
                               <p className="text-xs font-semibold uppercase tracking-wider text-text-muted">Goals</p>
                               <button
                                 onClick={() => {
-                                  setGoalFormOpen(open => !open)
-                                  setGoalFormTeamId(edit.home_team_id ?? fixture.home_team_id ?? '')
-                                  setGoalFormPlayerId('')
-                                  setGoalFormMinute('')
+                                  if (goalFormOpen && editingGoalId) {
+                                    setEditingGoalId(null)
+                                    setGoalFormPlayerId('')
+                                    setGoalFormAssistId('')
+                                    setGoalFormMinute('')
+                                    setGoalFormIsOwnGoal(false)
+                                    setGoalFormTeamId(edit.home_team_id ?? fixture.home_team_id ?? '')
+                                  } else {
+                                    setGoalFormOpen(open => !open)
+                                    setGoalFormTeamId(edit.home_team_id ?? fixture.home_team_id ?? '')
+                                    setGoalFormPlayerId('')
+                                    setGoalFormMinute('')
+                                    setGoalFormIsOwnGoal(false)
+                                    setEditingGoalId(null)
+                                  }
                                 }}
                                 className="flex items-center gap-1 rounded-lg bg-brand-primary/10 px-2.5 py-1 text-xs font-medium text-brand-secondary hover:bg-brand-primary/20 transition-colors"
                               >
                                 <Plus size={11} />
-                                Log goal
+                                {goalFormOpen && editingGoalId ? 'Cancel edit' : 'Log goal'}
                               </button>
                             </div>
 
@@ -1115,10 +1189,22 @@ export default function AdminMatchesPage() {
                                       ) : (
                                         <div className="space-y-0.5">
                                           {homeGoals.map(g => (
-                                            <p key={g.id} className="text-xs text-text-primary">
-                                              {g.player_name ?? 'Unknown'} <span className="text-text-muted">{formatGoalMinute(g)}</span>
-                                              {g.assist_player_name && <span className="text-text-muted"> (ast. {g.assist_player_name})</span>}
-                                            </p>
+                                            <div key={g.id} className="flex items-center gap-1 group">
+                                              <p className="flex-1 text-xs text-text-primary text-left">
+                                                {isOwnGoal(g) && <span className="mr-1 rounded bg-amber-500/20 px-1 text-[9px] font-bold text-amber-400">OG</span>}
+                                                {g.player_name ?? 'Unknown'}
+                                                {formatGoalMinute(g) && <span className="text-text-muted"> {formatGoalMinute(g)}</span>}
+                                                {!isOwnGoal(g) && g.assist_player_name && <span className="text-text-muted"> (ast. {g.assist_player_name})</span>}
+                                              </p>
+                                              <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                <button onClick={() => startEditGoal(g, homeTeamId, awayTeamId)} className="rounded p-0.5 text-text-muted transition-colors hover:text-brand-secondary">
+                                                  <Edit3 size={9} />
+                                                </button>
+                                                <button onClick={() => deleteGoal(g.id, fixture)} disabled={deletingGoalId === g.id} className="rounded p-0.5 text-text-muted transition-colors hover:text-red-400 disabled:opacity-40">
+                                                  <X size={9} />
+                                                </button>
+                                              </div>
+                                            </div>
                                           ))}
                                         </div>
                                       )}
@@ -1133,10 +1219,22 @@ export default function AdminMatchesPage() {
                                       ) : (
                                         <div className="space-y-0.5">
                                           {awayGoals.map(g => (
-                                            <p key={g.id} className="text-xs text-text-primary">
-                                              {g.player_name ?? 'Unknown'} <span className="text-text-muted">{formatGoalMinute(g)}</span>
-                                              {g.assist_player_name && <span className="text-text-muted"> (ast. {g.assist_player_name})</span>}
-                                            </p>
+                                            <div key={g.id} className="flex items-center gap-1 group">
+                                              <p className="flex-1 text-xs text-text-primary text-left">
+                                                {isOwnGoal(g) && <span className="mr-1 rounded bg-amber-500/20 px-1 text-[9px] font-bold text-amber-400">OG</span>}
+                                                {g.player_name ?? 'Unknown'}
+                                                {formatGoalMinute(g) && <span className="text-text-muted"> {formatGoalMinute(g)}</span>}
+                                                {!isOwnGoal(g) && g.assist_player_name && <span className="text-text-muted"> (ast. {g.assist_player_name})</span>}
+                                              </p>
+                                              <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                <button onClick={() => startEditGoal(g, homeTeamId, awayTeamId)} className="rounded p-0.5 text-text-muted transition-colors hover:text-brand-secondary">
+                                                  <Edit3 size={9} />
+                                                </button>
+                                                <button onClick={() => deleteGoal(g.id, fixture)} disabled={deletingGoalId === g.id} className="rounded p-0.5 text-text-muted transition-colors hover:text-red-400 disabled:opacity-40">
+                                                  <X size={9} />
+                                                </button>
+                                              </div>
+                                            </div>
                                           ))}
                                         </div>
                                       )}
@@ -1145,8 +1243,30 @@ export default function AdminMatchesPage() {
 
                                   {goalFormOpen && (
                                     <div className="mt-3 border-t border-[#1e1e1e] pt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
+                                      {editingGoalId && (
+                                        <div className="sm:col-span-2 rounded-lg bg-amber-500/10 px-3 py-1.5 text-xs text-amber-400 font-medium">
+                                          Editing goal - make changes then click Update
+                                        </div>
+                                      )}
+                                      <div className="sm:col-span-2 flex items-center gap-2">
+                                        <label className="flex items-center gap-2 cursor-pointer select-none">
+                                          <input
+                                            type="checkbox"
+                                            checked={goalFormIsOwnGoal}
+                                            onChange={e => {
+                                              setGoalFormIsOwnGoal(e.target.checked)
+                                              setGoalFormPlayerId('')
+                                              setGoalFormAssistId('')
+                                            }}
+                                            className="h-3.5 w-3.5 rounded accent-amber-400"
+                                          />
+                                          <span className="text-[10px] font-semibold uppercase tracking-wider text-amber-400">Own goal</span>
+                                        </label>
+                                      </div>
                                       <div>
-                                        <label className="mb-1 block text-[10px] font-semibold uppercase tracking-wider text-text-muted">Team</label>
+                                        <label className="mb-1 block text-[10px] font-semibold uppercase tracking-wider text-text-muted">
+                                          {goalFormIsOwnGoal ? 'Team credited (benefitting)' : 'Team'}
+                                        </label>
                                         <div className="flex gap-1.5">
                                           <button
                                             onClick={() => { setGoalFormTeamId(homeTeamId); setGoalFormPlayerId(''); setGoalFormAssistId('') }}
@@ -1178,42 +1298,46 @@ export default function AdminMatchesPage() {
                                             className="flex items-center gap-1 rounded-xl bg-brand-primary px-3 py-1.5 text-xs font-medium text-white hover:bg-brand-primary/90 disabled:opacity-50 transition-colors"
                                           >
                                             <Save size={11} />
-                                            {savingGoal ? '...' : 'Add'}
+                                            {savingGoal ? '...' : editingGoalId ? 'Update' : 'Add'}
                                           </button>
                                         </div>
                                       </div>
                                       <div>
-                                        <label className="mb-1 block text-[10px] font-semibold uppercase tracking-wider text-text-muted">Scorer</label>
+                                        <label className="mb-1 block text-[10px] font-semibold uppercase tracking-wider text-text-muted">
+                                          {goalFormIsOwnGoal ? 'OG scorer (opposing team)' : 'Scorer'}
+                                        </label>
                                         <select
                                           value={goalFormPlayerId}
                                           onChange={e => setGoalFormPlayerId(e.target.value)}
                                           className="input w-full text-xs py-1.5"
                                         >
                                           <option value="">Unknown / no scorer</option>
-                                          {(rostersByTeam[goalFormTeamId] ?? []).map(p => (
+                                          {(rostersByTeam[goalFormIsOwnGoal ? (goalFormTeamId === homeTeamId ? awayTeamId : homeTeamId) : goalFormTeamId] ?? []).map(p => (
                                             <option key={p.id} value={p.id}>
                                               {p.jersey_number ? `#${p.jersey_number} ` : ''}{p.full_name}
                                             </option>
                                           ))}
                                         </select>
                                       </div>
-                                      <div>
-                                        <label className="mb-1 block text-[10px] font-semibold uppercase tracking-wider text-text-muted">Assist (optional)</label>
-                                        <select
-                                          value={goalFormAssistId}
-                                          onChange={e => setGoalFormAssistId(e.target.value)}
-                                          className="input w-full text-xs py-1.5"
-                                        >
-                                          <option value="">No assist</option>
-                                          {(rostersByTeam[goalFormTeamId] ?? [])
-                                            .filter(p => p.id !== goalFormPlayerId)
-                                            .map(p => (
-                                              <option key={p.id} value={p.id}>
-                                                {p.jersey_number ? `#${p.jersey_number} ` : ''}{p.full_name}
-                                              </option>
-                                            ))}
-                                        </select>
-                                      </div>
+                                      {!goalFormIsOwnGoal && (
+                                        <div>
+                                          <label className="mb-1 block text-[10px] font-semibold uppercase tracking-wider text-text-muted">Assist (optional)</label>
+                                          <select
+                                            value={goalFormAssistId}
+                                            onChange={e => setGoalFormAssistId(e.target.value)}
+                                            className="input w-full text-xs py-1.5"
+                                          >
+                                            <option value="">No assist</option>
+                                            {(rostersByTeam[goalFormTeamId] ?? [])
+                                              .filter(p => p.id !== goalFormPlayerId)
+                                              .map(p => (
+                                                <option key={p.id} value={p.id}>
+                                                  {p.jersey_number ? `#${p.jersey_number} ` : ''}{p.full_name}
+                                                </option>
+                                              ))}
+                                          </select>
+                                        </div>
+                                      )}
                                     </div>
                                   )}
                                 </div>
@@ -1261,7 +1385,12 @@ export default function AdminMatchesPage() {
                                         ) : (
                                           <div className="space-y-0.5">
                                             {homeGoals.map(g => (
-                                              <p key={g.id} className="text-xs text-text-primary">{g.player_name ?? 'Unknown'}</p>
+                                              <div key={g.id} className="flex items-center gap-1 group">
+                                                <p className="flex-1 text-xs text-text-primary">{g.player_name ?? 'Unknown'}</p>
+                                                <button onClick={() => deletePsGoal(g.id)} disabled={deletingGoalId === g.id} className="opacity-0 group-hover:opacity-100 rounded p-0.5 text-text-muted transition-colors hover:text-red-400 disabled:opacity-40">
+                                                  <X size={9} />
+                                                </button>
+                                              </div>
                                             ))}
                                           </div>
                                         )}
@@ -1277,7 +1406,12 @@ export default function AdminMatchesPage() {
                                         ) : (
                                           <div className="space-y-0.5">
                                             {awayGoals.map(g => (
-                                              <p key={g.id} className="text-xs text-text-primary">{g.player_name ?? 'Unknown'}</p>
+                                              <div key={g.id} className="flex items-center gap-1 group">
+                                                <p className="flex-1 text-xs text-text-primary">{g.player_name ?? 'Unknown'}</p>
+                                                <button onClick={() => deletePsGoal(g.id)} disabled={deletingGoalId === g.id} className="opacity-0 group-hover:opacity-100 rounded p-0.5 text-text-muted transition-colors hover:text-red-400 disabled:opacity-40">
+                                                  <X size={9} />
+                                                </button>
+                                              </div>
                                             ))}
                                           </div>
                                         )}
