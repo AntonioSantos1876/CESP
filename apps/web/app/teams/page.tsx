@@ -168,8 +168,9 @@ export default function TeamsPage() {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
+    const supabase = createClient()
+
     async function load() {
-      const supabase = createClient()
       const [{ data: teamsData }, { data: staffData }, { data: fixturesData }, { data: goalsData }] = await Promise.all([
         (supabase as any)
           .from('teams')
@@ -279,6 +280,15 @@ export default function TeamsPage() {
     }
 
     load()
+
+    const channel = supabase
+      .channel('teams_page_updates')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'match_stats' }, load)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'match_scores' }, load)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'fixtures' }, load)
+      .subscribe()
+
+    return () => { supabase.removeChannel(channel) }
   }, [])
 
   return (

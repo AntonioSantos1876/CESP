@@ -56,6 +56,8 @@ type BracketSlot = {
   logoPath: string | null
 } | null
 
+type Trophy = 'gold' | 'silver' | 'bronze'
+
 type BMatch = {
   id: string
   home: BracketSlot
@@ -66,6 +68,8 @@ type BMatch = {
   time: string
   venue: string
   note?: string
+  homeTrophy?: Trophy | null
+  awayTrophy?: Trophy | null
 }
 
 const BRACKET_CARD_WIDTH = 272
@@ -347,15 +351,28 @@ function buildBracket(fixtures: DbFixture[]) {
     grouped.quarterfinal[i] ? getWinnerLoser(grouped.quarterfinal[i]) : { winner: null, loser: null }
   )
 
-  const semifinals = Array.from({ length: 2 }, (_, i) => {
-    const fixture = grouped.semifinal[i] ?? null
+  // Order semis so the top slot (position 0) contains the QF0+QF1 winners,
+  // matching the visual connector lines that link the top two QFs to the top SF.
+  const qf01Winners = new Set([qfResults[0]?.winner, qfResults[1]?.winner].filter((w): w is string => Boolean(w)))
+  let orderedSemis: (DbFixture | null)[]
+  if (qf01Winners.size > 0 && grouped.semifinal.length > 0) {
+    const sfTop = grouped.semifinal.find(sf => {
+      return [sf.home_team?.name, sf.away_team?.name].some(t => t && qf01Winners.has(t))
+    }) ?? null
+    const sfBottom = grouped.semifinal.find(sf => sf !== sfTop) ?? null
+    orderedSemis = [sfTop, sfBottom]
+  } else {
+    orderedSemis = [grouped.semifinal[0] ?? null, grouped.semifinal[1] ?? null]
+  }
+
+  const semifinals = orderedSemis.map((fixture, i) => {
     const homeWinner = qfResults[i * 2]?.winner ?? null
     const awayWinner = qfResults[i * 2 + 1]?.winner ?? null
     return buildBracketMatch(fixture, `sf-${i + 1}`, `Winner QF${i * 2 + 1} vs Winner QF${i * 2 + 2}`, homeWinner, awayWinner)
   })
 
-  const sfResults = Array.from({ length: 2 }, (_, i) =>
-    grouped.semifinal[i] ? getWinnerLoser(grouped.semifinal[i]) : { winner: null, loser: null }
+  const sfResults = orderedSemis.map(fixture =>
+    fixture ? getWinnerLoser(fixture) : { winner: null, loser: null }
   )
 
   const final = buildBracketMatch(
@@ -364,11 +381,23 @@ function buildBracket(fixtures: DbFixture[]) {
     sfResults[1]?.winner ?? null,
   )
 
+  const finalResult = grouped.final[0] ? getWinnerLoser(grouped.final[0]) : { winner: null, loser: null }
+  if (finalResult.winner) {
+    final.homeTrophy = final.home?.name === finalResult.winner ? 'gold' : final.home ? 'silver' : null
+    final.awayTrophy = final.away?.name === finalResult.winner ? 'gold' : final.away ? 'silver' : null
+  }
+
   const third = buildBracketMatch(
     grouped.third[0] ?? null, 'third', 'Loser SF1 vs Loser SF2',
     sfResults[0]?.loser ?? null,
     sfResults[1]?.loser ?? null,
   )
+
+  const thirdResult = grouped.third[0] ? getWinnerLoser(grouped.third[0]) : { winner: null, loser: null }
+  if (thirdResult.winner) {
+    third.homeTrophy = third.home?.name === thirdResult.winner ? 'bronze' : null
+    third.awayTrophy = third.away?.name === thirdResult.winner ? 'bronze' : null
+  }
 
   return { quarterfinals, semifinals, final, third }
 }
@@ -378,7 +407,9 @@ function getRoundHeaderDate(matches: BMatch[]) {
   return formatRoundDate(datedMatch?.date ?? null)
 }
 
-function BSlotRow({ slot, score, border }: { slot: BracketSlot; score: number | null; border: boolean }) {
+const TROPHY_EMOJI: Record<Trophy, string> = { gold: '🥇', silver: '🥈', bronze: '🥉' }
+
+function BSlotRow({ slot, score, border, trophy }: { slot: BracketSlot; score: number | null; border: boolean; trophy?: Trophy | null }) {
   const badgeStyle = slot
     ? {
         background: `linear-gradient(145deg, ${hexToRgba(slot.primary, slot.eliminated ? 0.18 : 0.92)} 0%, ${hexToRgba(slot.primary, slot.eliminated ? 0.1 : 0.72)} 100%)`,
@@ -416,6 +447,11 @@ function BSlotRow({ slot, score, border }: { slot: BracketSlot; score: number | 
           >
             {slot.name}
           </span>
+          {trophy && (
+            <span className="shrink-0 text-base leading-none" title={trophy === 'gold' ? '1st Place' : trophy === 'silver' ? '2nd Place' : '3rd Place'}>
+              {TROPHY_EMOJI[trophy]}
+            </span>
+          )}
         </Link>
       ) : (
         <>
@@ -439,8 +475,8 @@ function BSlotRow({ slot, score, border }: { slot: BracketSlot; score: number | 
 function BCard({ match }: { match: BMatch }) {
   return (
     <div className="overflow-hidden rounded-2xl border border-[#232323] bg-[#111111] shadow-card" style={{ width: BRACKET_CARD_WIDTH, height: BRACKET_CARD_HEIGHT }}>
-      <BSlotRow slot={match.home} score={match.homeScore} border={false} />
-      <BSlotRow slot={match.away} score={match.awayScore} border={true} />
+      <BSlotRow slot={match.home} score={match.homeScore} border={false} trophy={match.homeTrophy} />
+      <BSlotRow slot={match.away} score={match.awayScore} border={true} trophy={match.awayTrophy} />
     </div>
   )
 }
