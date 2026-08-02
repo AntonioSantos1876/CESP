@@ -20,6 +20,8 @@ type BracketRound = 'quarterfinal' | 'semifinal' | 'final' | 'third'
 
 type DbFixture = {
   id: string
+  home_team_id: string | null
+  away_team_id: string | null
   match_date: string
   venue: string | null
   round: string | null
@@ -38,6 +40,8 @@ type Fixture = {
   venue: string
   homeScore: number | null
   awayScore: number | null
+  homePsScore: number | null
+  awayPsScore: number | null
   status: FixtureStatus
   round: string | null
   matchDate: string
@@ -223,7 +227,7 @@ function getScore(matchScores: DbFixture['match_scores']) {
   return { home: score.home_score, away: score.away_score }
 }
 
-function toUiFixture(fixture: DbFixture): Fixture {
+function toUiFixture(fixture: DbFixture, psScores?: { homePsScore: number; awayPsScore: number }): Fixture {
   const score = getScore(fixture.match_scores)
   return {
     id: fixture.id,
@@ -234,6 +238,8 @@ function toUiFixture(fixture: DbFixture): Fixture {
     venue: fixture.venue ?? 'Venue TBC',
     homeScore: score.home,
     awayScore: score.away,
+    homePsScore: psScores?.homePsScore ?? null,
+    awayPsScore: psScores?.awayPsScore ?? null,
     status: mapStatus(fixture.status),
     round: fixture.round,
     matchDate: fixture.match_date,
@@ -249,6 +255,8 @@ function toFallbackDbFixture(
 ): DbFixture {
   return {
     id: String(fixture.id),
+    home_team_id: null,
+    away_team_id: null,
     match_date: getDemoMatchDate(fixture.date, fixture.time),
     venue: fixture.venue,
     round: fixture.round,
@@ -598,13 +606,20 @@ function FixtureCard({ fixture, index }: { fixture: Fixture; index: number }) {
           />
         </div>
 
-        <div className="flex shrink-0 items-center justify-center gap-2">
+        <div className="flex shrink-0 flex-col items-center justify-center gap-1">
           {isResult || isLive ? (
-            <div className={`flex items-center gap-2 rounded-2xl px-3 py-2 ${isLive ? 'ring-1 ring-brand-primary/40 bg-brand-primary/5' : 'bg-bg-muted/60'}`}>
-              <span className="w-8 text-right text-2xl font-bold text-text-primary md:w-10 md:text-3xl">{fixture.homeScore}</span>
-              <span className="text-base font-medium text-text-muted">-</span>
-              <span className="w-8 text-2xl font-bold text-text-primary md:w-10 md:text-3xl">{fixture.awayScore}</span>
-            </div>
+            <>
+              <div className={`flex items-center gap-2 rounded-2xl px-3 py-2 ${isLive ? 'ring-1 ring-brand-primary/40 bg-brand-primary/5' : 'bg-bg-muted/60'}`}>
+                <span className="w-8 text-right text-2xl font-bold text-text-primary md:w-10 md:text-3xl">{fixture.homeScore}</span>
+                <span className="text-base font-medium text-text-muted">-</span>
+                <span className="w-8 text-2xl font-bold text-text-primary md:w-10 md:text-3xl">{fixture.awayScore}</span>
+              </div>
+              {isResult && (fixture.homePsScore !== null || fixture.awayPsScore !== null) && (
+                <p className="text-[11px] text-text-muted">
+                  ({fixture.homePsScore ?? 0} - {fixture.awayPsScore ?? 0} pens)
+                </p>
+              )}
+            </>
           ) : (
             <span className="rounded-2xl border border-brand-primary/20 bg-brand-primary/10 px-4 py-2 text-sm font-semibold uppercase tracking-wide text-brand-secondary">
               VS
@@ -651,7 +666,7 @@ function FixturesContent() {
         (supabase as any)
           .from('fixtures')
           .select(`
-            id, match_date, venue, round, status,
+            id, home_team_id, away_team_id, match_date, venue, round, status,
             home_team:teams!fixtures_home_team_id_fkey(name, short_name),
             away_team:teams!fixtures_away_team_id_fkey(name, short_name),
             match_scores(home_score, away_score)
@@ -663,12 +678,42 @@ function FixturesContent() {
       if (!active) return
 
       const typedFixtures = (fixturesData ?? []) as DbFixture[]
+
+      const psScoreMap: Record<string, { homePsScore: number; awayPsScore: number }> = {}
+      if (typedFixtures.length > 0) {
+        const fixtureIds = typedFixtures.map(f => f.id)
+        const { data: psData } = await (supabase as any)
+          .from('match_stats')
+          .select('fixture_id, team_id')
+          .eq('event_type', 'penalty_shootout')
+          .in('fixture_id', fixtureIds)
+
+        if (psData && psData.length > 0) {
+          const homeTeamMap: Record<string, string> = {}
+          const awayTeamMap: Record<string, string> = {}
+          typedFixtures.forEach(f => {
+            if (f.home_team_id) homeTeamMap[f.id] = f.home_team_id
+            if (f.away_team_id) awayTeamMap[f.id] = f.away_team_id
+          })
+          for (const row of psData as { fixture_id: string; team_id: string }[]) {
+            if (!psScoreMap[row.fixture_id]) {
+              psScoreMap[row.fixture_id] = { homePsScore: 0, awayPsScore: 0 }
+            }
+            if (row.team_id === homeTeamMap[row.fixture_id]) {
+              psScoreMap[row.fixture_id].homePsScore++
+            } else if (row.team_id === awayTeamMap[row.fixture_id]) {
+              psScoreMap[row.fixture_id].awayPsScore++
+            }
+          }
+        }
+      }
+
       const sourceFixtures = typedFixtures.length > 0
         ? typedFixtures
         : DEMO_SCHOOL_FIXTURES.map(toFallbackDbFixture)
 
       setDbFixtures(sourceFixtures)
-      setFixtures(sourceFixtures.map(toUiFixture))
+      setFixtures(sourceFixtures.map(f => toUiFixture(f, psScoreMap[f.id])))
       setTeamCount((teamsCount ?? 0) > 0 ? (teamsCount ?? 0) : 8)
       setLoading(false)
     }
@@ -679,6 +724,7 @@ function FixturesContent() {
       .channel('fixtures_page_updates')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'fixtures' }, load)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'match_scores' }, load)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'match_stats' }, load)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'teams' }, load)
       .subscribe()
 

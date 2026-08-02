@@ -23,53 +23,6 @@ type Stream = {
   viewers?: number
 }
 
-const STREAMS: Stream[] = [
-  {
-    id: 1,
-    home: 'Vere Technical High School',
-    away: 'Mona High School',
-    date: '2026-07-31',
-    time: '10:00',
-    venue: 'Glenmuir High School',
-    homeScore: null,
-    awayScore: null,
-    status: 'upcoming',
-  },
-  {
-    id: 2,
-    home: 'Denbigh High School',
-    away: 'Excelsior High School',
-    date: '2026-07-31',
-    time: '12:00',
-    venue: 'Glenmuir High School',
-    homeScore: null,
-    awayScore: null,
-    status: 'upcoming',
-  },
-  {
-    id: 3,
-    home: 'Kingston College',
-    away: 'Manchester High School',
-    date: '2026-07-31',
-    time: '14:00',
-    venue: 'Glenmuir High School',
-    homeScore: null,
-    awayScore: null,
-    status: 'upcoming',
-  },
-  {
-    id: 4,
-    home: 'Glenmuir High School',
-    away: 'Munro College',
-    date: '2026-07-31',
-    time: '16:00',
-    venue: 'Glenmuir High School',
-    homeScore: null,
-    awayScore: null,
-    status: 'upcoming',
-  },
-]
-
 function formatDate(dateStr: string) {
   return new Date(dateStr + 'T00:00:00').toLocaleDateString('en-GB', {
     weekday: 'short',
@@ -80,22 +33,71 @@ function formatDate(dateStr: string) {
 
 export default function LivePage() {
   const [reminders, setReminders] = useState<Set<number>>(new Set())
-  const [viewers, setViewers] = useState(STREAMS.find(s => s.status === 'live')?.viewers ?? 0)
+  const [viewers, setViewers] = useState(0)
+  const [streams, setStreams] = useState<Stream[]>([])
 
-  const liveMatch = STREAMS.find(s => s.status === 'live')
-  const upcoming = STREAMS.filter(s => s.status === 'upcoming')
-  const vods = STREAMS.filter(s => s.status === 'vod')
+  const liveMatch = streams.find(s => s.status === 'live')
+  const upcoming = streams.filter(s => s.status === 'upcoming')
+  const vods = streams.filter(s => s.status === 'vod')
 
   useEffect(() => {
     const supabase = createClient()
-    const channel = supabase
+
+    async function loadStreams() {
+      const { data } = await (supabase as any)
+        .from('fixtures')
+        .select(`
+          id, match_date, venue, status, youtube_stream_id,
+          home_team:teams!fixtures_home_team_id_fkey(name),
+          away_team:teams!fixtures_away_team_id_fkey(name),
+          match_scores(home_score, away_score)
+        `)
+        .not('status', 'in', '(postponed,cancelled)')
+        .order('match_date', { ascending: true })
+
+      const rows = (data ?? []) as any[]
+      const mapped: Stream[] = rows.map((row, i) => {
+        const score = Array.isArray(row.match_scores) ? row.match_scores[0] : row.match_scores
+        let streamStatus: StreamStatus = 'upcoming'
+        if (row.status === 'live') streamStatus = 'live'
+        else if (row.status === 'completed') streamStatus = 'vod'
+
+        return {
+          id: i + 1,
+          home: row.home_team?.name ?? 'TBA',
+          away: row.away_team?.name ?? 'TBA',
+          date: row.match_date?.slice(0, 10) ?? '',
+          time: row.match_date?.slice(11, 16) ?? '',
+          venue: row.venue ?? 'TBC',
+          homeScore: score?.home_score ?? null,
+          awayScore: score?.away_score ?? null,
+          status: streamStatus,
+          youtubeId: row.youtube_stream_id ?? undefined,
+        }
+      })
+      setStreams(mapped)
+    }
+
+    loadStreams()
+
+    const presenceChannel = supabase
       .channel('live_hub_presence')
       .on('presence', { event: 'sync' }, () => {
-        const state = channel.presenceState()
+        const state = presenceChannel.presenceState()
         setViewers(Object.keys(state).length || 312)
       })
       .subscribe()
-    return () => { supabase.removeChannel(channel) }
+
+    const dataChannel = supabase
+      .channel('live_hub_data')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'fixtures' }, loadStreams)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'match_scores' }, loadStreams)
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(presenceChannel)
+      supabase.removeChannel(dataChannel)
+    }
   }, [])
 
   function toggleReminder(id: number) {

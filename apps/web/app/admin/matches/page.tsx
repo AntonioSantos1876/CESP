@@ -244,6 +244,11 @@ export default function AdminMatchesPage() {
   const [goalFormAssistId, setGoalFormAssistId] = useState('')
   const [goalFormMinute, setGoalFormMinute] = useState('')
   const [savingGoal, setSavingGoal] = useState(false)
+  const [psGoalsByFixture, setPsGoalsByFixture] = useState<Record<string, GoalEvent[]>>({})
+  const [psFormOpen, setPsFormOpen] = useState(false)
+  const [psFormTeamId, setPsFormTeamId] = useState('')
+  const [psFormPlayerId, setPsFormPlayerId] = useState('')
+  const [savingPsGoal, setSavingPsGoal] = useState(false)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -401,6 +406,7 @@ export default function AdminMatchesPage() {
     setGoalFormMinute('')
     if (fixture.status === 'live' || fixture.status === 'completed') {
       loadGoals(fixture.id)
+      loadPsGoals(fixture.id)
     }
   }
 
@@ -425,6 +431,29 @@ export default function AdminMatchesPage() {
     }))
 
     setGoalsByFixture(prev => ({ ...prev, [fixtureId]: goals }))
+  }
+
+  async function loadPsGoals(fixtureId: string) {
+    const supabase = createClient()
+    const { data } = await (supabase as any)
+      .from('match_stats')
+      .select('id, player_id, assist_player_id, team_id, event_minute, notes, player:players!player_id(full_name), assist:players!assist_player_id(full_name)')
+      .eq('fixture_id', fixtureId)
+      .eq('event_type', 'penalty_shootout')
+      .order('event_minute', { ascending: true, nullsFirst: false })
+
+    const goals = ((data ?? []) as any[]).map(row => ({
+      id: row.id,
+      player_id: row.player_id,
+      team_id: row.team_id,
+      event_minute: row.event_minute,
+      notes: row.notes,
+      player_name: Array.isArray(row.player) ? (row.player[0]?.full_name ?? null) : (row.player?.full_name ?? null),
+      assist_player_id: row.assist_player_id,
+      assist_player_name: Array.isArray(row.assist) ? (row.assist[0]?.full_name ?? null) : (row.assist?.full_name ?? null),
+    }))
+
+    setPsGoalsByFixture(prev => ({ ...prev, [fixtureId]: goals }))
   }
 
   function formatGoalMinute(goal: GoalEvent) {
@@ -477,6 +506,33 @@ export default function AdminMatchesPage() {
     setSavingGoal(false)
     await loadGoals(editId)
     load()
+  }
+
+  async function logPsGoal(fixture: Fixture) {
+    if (!psFormTeamId || !editId) return
+    setSavingPsGoal(true)
+    const supabase = createClient()
+
+    await (supabase as any).from('match_stats').insert({
+      fixture_id: editId,
+      player_id: psFormPlayerId || null,
+      assist_player_id: null,
+      team_id: psFormTeamId,
+      event_type: 'penalty_shootout',
+      event_minute: null,
+      notes: null,
+    })
+
+    setPsFormPlayerId('')
+    setSavingPsGoal(false)
+    await loadPsGoals(editId)
+  }
+
+  function extractYoutubeId(input: string) {
+    const trimmed = input.trim()
+    const urlMatch = trimmed.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/live\/)([a-zA-Z0-9_-]{11})/)
+    if (urlMatch) return urlMatch[1]
+    return trimmed
   }
 
   async function updateStatus(id: string, status: FixtureStatus) {
@@ -1001,9 +1057,9 @@ export default function AdminMatchesPage() {
                           </label>
                           <input
                             type="text"
-                            placeholder="e.g. dQw4w9WgXcQ"
+                            placeholder="e.g. dQw4w9WgXcQ or full YouTube URL"
                             value={edit.youtube}
-                            onChange={(event) => setEdit({ ...edit, youtube: event.target.value })}
+                            onChange={(event) => setEdit({ ...edit, youtube: extractYoutubeId(event.target.value) })}
                             className="input w-full"
                           />
                         </div>
@@ -1157,6 +1213,121 @@ export default function AdminMatchesPage() {
                                               </option>
                                             ))}
                                         </select>
+                                      </div>
+                                    </div>
+                                  )}
+                                </div>
+                              )
+                            })()}
+                          </div>
+                        )}
+
+                        {(edit.status === 'live' || edit.status === 'completed') && (edit.home_team_id || fixture.home_team_id) && (edit.away_team_id || fixture.away_team_id) && (
+                          <div className="sm:col-span-2 lg:col-span-3 rounded-xl border border-[#1e1e1e] bg-[#0a0a0a] p-4">
+                            <div className="mb-3 flex items-center justify-between">
+                              <p className="text-xs font-semibold uppercase tracking-wider text-text-muted">Penalty Shootout</p>
+                              <button
+                                onClick={() => {
+                                  setPsFormOpen(open => !open)
+                                  setPsFormTeamId(edit.home_team_id ?? fixture.home_team_id ?? '')
+                                  setPsFormPlayerId('')
+                                }}
+                                className="flex items-center gap-1 rounded-lg bg-brand-primary/10 px-2.5 py-1 text-xs font-medium text-brand-secondary hover:bg-brand-primary/20 transition-colors"
+                              >
+                                <Plus size={11} />
+                                Log penalty
+                              </button>
+                            </div>
+
+                            {(() => {
+                              const psGoals = psGoalsByFixture[fixture.id] ?? []
+                              const homeTeamId = edit.home_team_id ?? fixture.home_team_id ?? ''
+                              const awayTeamId = edit.away_team_id ?? fixture.away_team_id ?? ''
+                              const homeGoals = psGoals.filter(g => g.team_id === homeTeamId)
+                              const awayGoals = psGoals.filter(g => g.team_id === awayTeamId)
+                              const homeName = edit.home_team_id ? (allTeams.find(t => t.id === edit.home_team_id)?.name ?? fixture.home_team?.name ?? 'Home') : (fixture.home_team?.name ?? 'Home')
+                              const awayName = edit.away_team_id ? (allTeams.find(t => t.id === edit.away_team_id)?.name ?? fixture.away_team?.name ?? 'Away') : (fixture.away_team?.name ?? 'Away')
+
+                              return (
+                                <div>
+                                  {psGoals.length === 0 && !psFormOpen ? (
+                                    <p className="text-xs text-text-muted italic">No penalty shootout goals logged.</p>
+                                  ) : (
+                                    <div className="mb-3 flex items-center gap-2">
+                                      <div className="flex-1 text-center">
+                                        <p className="text-[10px] font-semibold uppercase tracking-wider text-text-muted mb-1">{homeName.split(' ')[0]}</p>
+                                        {homeGoals.length === 0 ? (
+                                          <p className="text-xs text-text-muted">0</p>
+                                        ) : (
+                                          <div className="space-y-0.5">
+                                            {homeGoals.map(g => (
+                                              <p key={g.id} className="text-xs text-text-primary">{g.player_name ?? 'Unknown'}</p>
+                                            ))}
+                                          </div>
+                                        )}
+                                      </div>
+                                      <div className="px-3 text-center">
+                                        <p className="text-lg font-bold text-text-primary tabular-nums">{homeGoals.length} - {awayGoals.length}</p>
+                                        <p className="text-[10px] text-text-muted">pens</p>
+                                      </div>
+                                      <div className="flex-1 text-center">
+                                        <p className="text-[10px] font-semibold uppercase tracking-wider text-text-muted mb-1">{awayName.split(' ')[0]}</p>
+                                        {awayGoals.length === 0 ? (
+                                          <p className="text-xs text-text-muted">0</p>
+                                        ) : (
+                                          <div className="space-y-0.5">
+                                            {awayGoals.map(g => (
+                                              <p key={g.id} className="text-xs text-text-primary">{g.player_name ?? 'Unknown'}</p>
+                                            ))}
+                                          </div>
+                                        )}
+                                      </div>
+                                    </div>
+                                  )}
+
+                                  {psFormOpen && (
+                                    <div className="mt-3 border-t border-[#1e1e1e] pt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
+                                      <div>
+                                        <label className="mb-1 block text-[10px] font-semibold uppercase tracking-wider text-text-muted">Team</label>
+                                        <div className="flex gap-1.5">
+                                          <button
+                                            onClick={() => { setPsFormTeamId(homeTeamId); setPsFormPlayerId('') }}
+                                            className={`flex-1 rounded-lg py-1.5 text-xs font-medium transition-colors ${psFormTeamId === homeTeamId ? 'bg-brand-primary text-white' : 'border border-[#333] bg-[#111] text-text-secondary hover:text-text-primary'}`}
+                                          >
+                                            {homeName.split(' ')[0]}
+                                          </button>
+                                          <button
+                                            onClick={() => { setPsFormTeamId(awayTeamId); setPsFormPlayerId('') }}
+                                            className={`flex-1 rounded-lg py-1.5 text-xs font-medium transition-colors ${psFormTeamId === awayTeamId ? 'bg-brand-primary text-white' : 'border border-[#333] bg-[#111] text-text-secondary hover:text-text-primary'}`}
+                                          >
+                                            {awayName.split(' ')[0]}
+                                          </button>
+                                        </div>
+                                      </div>
+                                      <div>
+                                        <label className="mb-1 block text-[10px] font-semibold uppercase tracking-wider text-text-muted">Scorer</label>
+                                        <div className="flex gap-2">
+                                          <select
+                                            value={psFormPlayerId}
+                                            onChange={e => setPsFormPlayerId(e.target.value)}
+                                            className="input flex-1 text-xs py-1.5"
+                                          >
+                                            <option value="">Unknown / no scorer</option>
+                                            {(rostersByTeam[psFormTeamId] ?? []).map(p => (
+                                              <option key={p.id} value={p.id}>
+                                                {p.jersey_number ? `#${p.jersey_number} ` : ''}{p.full_name}
+                                              </option>
+                                            ))}
+                                          </select>
+                                          <button
+                                            onClick={() => logPsGoal(fixture)}
+                                            disabled={savingPsGoal || !psFormTeamId}
+                                            className="flex items-center gap-1 rounded-xl bg-brand-primary px-3 py-1.5 text-xs font-medium text-white hover:bg-brand-primary/90 disabled:opacity-50 transition-colors"
+                                          >
+                                            <Save size={11} />
+                                            {savingPsGoal ? '...' : 'Add'}
+                                          </button>
+                                        </div>
                                       </div>
                                     </div>
                                   )}
